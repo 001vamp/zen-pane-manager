@@ -29,6 +29,12 @@
     "defaultValue": true
   },
   {
+    "property": "mod.pane.diagnostics-shortcut",
+    "label": "Ctrl + Alt + D copies a privacy-safe diagnostic report",
+    "type": "checkbox",
+    "defaultValue": true
+  },
+  {
     "type": "separator",
     "label": "Style preset"
   },

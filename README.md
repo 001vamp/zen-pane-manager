@@ -71,6 +71,16 @@ Then install this repository:
 
 Disable and re-enable Pane once, then fully exit and reopen Zen. Create a split view; the **⇄** button appears in each split pane header. `Ctrl+Alt+R` opens the same picker from the keyboard.
 
+## Diagnostics and bug reports
+
+Press **Ctrl+Alt+D** anywhere in the browser to copy a diagnostic report, even when Pane's main picker failed to initialize. You can also open the picker and click **ⓘ** beside its close button. Paste the report into a [GitHub bug report](https://github.com/001vamp/zen-pane-manager/issues/new?template=bug_report.yml).
+
+The report contains Pane and browser versions, operating system and architecture, Sine script permission/restart state, split-view compatibility, anonymous component counts, and Pane lifecycle events. It deliberately excludes tab titles, URLs, search text, browsing history, file paths, preference values unrelated to diagnostics, and error stacks.
+
+Advanced users can enter `PaneDiagnostics.report()` in Zen's Browser Console to view the report without copying it, or `PaneDiagnostics.copy()` to copy it.
+
+If **Ctrl+Alt+D does nothing**, Sine did not load even Pane's independent diagnostic bootstrap. Verify the unofficial-JavaScript permission, toggle Pane, fully restart Zen, and include the Sine version plus a screenshot of Pane's Sine settings in the issue.
+
 ### If Pane appears installed but nothing happens
 
 The missing button and inactive shortcuts both mean Pane's script did not load. They are not two separate failures.
@@ -81,7 +91,7 @@ The missing button and inactive shortcuts both mean Pane's script did not load. 
 4. Create an active split view; the pane button is intentionally hidden outside split view.
 5. If another Sine mod was toggled during testing, leave it enabled and toggle Pane itself. Toggling another mod can incidentally refresh Pane and make a load-order problem look like a compatibility conflict.
 
-For a useful bug report, open Zen's Browser Console and look for either `[Pane] 0.8.0 ready` or `[Pane] failed to initialize`. Include that line, plus the Zen and Sine versions, without including private URLs or tab titles.
+For a useful bug report, copy the report with **Ctrl+Alt+D**. The Browser Console should also contain `[Pane diagnostics] diagnostics bootstrap loaded` followed by either `[Pane] 0.9.0 ready` or `[Pane] failed to initialize`.
 
 For local development, copy this folder into your Zen profile's `chrome/sine-mods` directory, register it in Sine's `mods.json`, and restart Zen Browser.
 
@@ -96,7 +106,7 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 ## Compatibility
 
-Pane v0.8.0 targets Zen **1.21.16b** on Windows and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable. Pane also watches for split headers created or rebuilt after startup, which keeps its button available during session restoration and alongside mods that reorganize tab groups.
+Pane v0.9.0 targets Zen **1.21.16b** on Windows and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable. Pane also watches for split headers created or rebuilt after startup, which keeps its button available during session restoration and alongside mods that reorganize tab groups.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the release test matrix and known limitations.
 

@@ -2,6 +2,14 @@
 
 All notable changes to Pane are documented here.
 
+## 0.9.0 — 2026-09-02
+
+- Added an independent privacy-safe diagnostics bootstrap that still works when the main Pane picker fails to initialize.
+- Added Ctrl+Alt+D and an in-picker ⓘ action for copying support reports.
+- Reports browser, Windows, Sine permission, split compatibility, anonymous component counts, and recent Pane lifecycle events without collecting browsing content.
+- Added actionable initialization and replacement events plus clearer GitHub bug-report fields.
+- Expanded package validation to require and verify the diagnostics entry point.
+
 ## 0.8.0 — 2026-09-02
 
 - Added Sine 2.3 live-unload integration so disabling, enabling, and reloading Pane no longer leaves a stale script instance behind.

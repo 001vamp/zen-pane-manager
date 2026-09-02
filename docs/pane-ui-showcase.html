@@ -128,7 +128,14 @@
       white-space: nowrap;
     }
 
-    .close {
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .close,
+    .diagnostics {
       appearance: none;
       display: grid;
       flex: none;
@@ -142,6 +149,11 @@
       border-radius: 50%;
       opacity: 0.68;
       font: 18px/1 system-ui;
+    }
+
+    .diagnostics {
+      padding-bottom: 0;
+      font-size: 13px;
     }
 
     .search-wrap {
@@ -436,7 +448,7 @@
         <h1 class="brand">Pane</h1>
         <p class="tagline">Swap the page. Keep the pane.</p>
       </div>
-      <div class="version">UI states · v0.8.0</div>
+      <div class="version">UI states · v0.9.0</div>
     </header>
 
     <section class="grid">
@@ -445,7 +457,7 @@
         <div class="pane-dialog">
           <div class="pane-header">
             <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
-            <button class="close" aria-label="Close">×</button>
+            <div class="header-actions"><button class="diagnostics" aria-label="Copy diagnostics">ⓘ</button><button class="close" aria-label="Close">×</button></div>
           </div>
           <div class="search-wrap">
             <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">
@@ -469,7 +481,7 @@
         <div class="pane-dialog">
           <div class="pane-header">
             <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
-            <button class="close" aria-label="Close">×</button>
+            <div class="header-actions"><button class="diagnostics" aria-label="Copy diagnostics">ⓘ</button><button class="close" aria-label="Close">×</button></div>
           </div>
           <div class="search-wrap focused">
             <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">
@@ -490,7 +502,7 @@
         <div class="pane-dialog">
           <div class="pane-header">
             <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
-            <button class="close" aria-label="Close">×</button>
+            <div class="header-actions"><button class="diagnostics" aria-label="Copy diagnostics">ⓘ</button><button class="close" aria-label="Close">×</button></div>
           </div>
           <div class="search-wrap">
             <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">
@@ -514,7 +526,7 @@
         <div class="pane-dialog">
           <div class="pane-header">
             <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
-            <button class="close" aria-label="Close">×</button>
+            <div class="header-actions"><button class="diagnostics" aria-label="Copy diagnostics">ⓘ</button><button class="close" aria-label="Close">×</button></div>
           </div>
           <div class="search-wrap focused">
             <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">

@@ -27,7 +27,9 @@
 - [ ] Test a clean Sine installation from `001vamp/zen-pane-manager`.
 - [ ] Test with unofficial JavaScript disabled, then enabled, and verify the documented recovery flow.
 - [ ] Test alongside Advanced Tab Groups with both possible enable orders.
-- [ ] Verify `[Pane] vX.Y.Z ready` appears in the Browser Console.
+- [ ] Verify `[Pane diagnostics] diagnostics bootstrap loaded` and `[Pane] vX.Y.Z ready` appear in the Browser Console.
+- [ ] Verify Ctrl+Alt+D copies a report before and after the main runtime loads.
+- [ ] Confirm the report contains no tab titles, URLs, searches, history, file paths, or stacks.
 
 ## Marketplace
 

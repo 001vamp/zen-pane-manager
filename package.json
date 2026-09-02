@@ -1,6 +1,6 @@
 {
   "name": "zen-pane-manager",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Replace a tab in a Zen split view without losing its position or size.",
   "license": "MPL-2.0",
@@ -10,7 +10,7 @@
     "url": "https://github.com/001vamp/zen-pane-manager.git"
   },
   "scripts": {
-    "check": "node --check pane.uc.mjs && node scripts/validate.mjs",
+    "check": "node --check pane-diagnostics.uc.mjs && node --check pane.uc.mjs && node scripts/validate.mjs && node scripts/test-diagnostics.mjs",
     "test": "npm run check"
   },
   "engines": {

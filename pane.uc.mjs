@@ -6,6 +6,8 @@
 const TAG = "[Pane]";
 const root = document.documentElement;
 const INSTANCE_KEY = "__paneInstance";
+const DIAGNOSTICS_KEY = "__paneDiagnostics";
+const diagnosticLog = (event, details = {}) => window[DIAGNOSTICS_KEY]?.log?.(event, details);
 
 // Sine can reload a user script without restarting the browser. Tear down a
 // previous v0.3+ instance and remove any orphaned UI from older releases.
@@ -48,6 +50,7 @@ let paneAnchorTab = null;
 let toastTimer;
 let buttonObserver = null;
 let buttonFrame = 0;
+let lastButtonSummary = "";
 
 const boolPref = (name, fallback) => {
   try { return Services.prefs.getBoolPref(name, fallback); } catch (e) { return fallback; }
@@ -261,7 +264,23 @@ function buildPicker() {
   close.textContent = "×";
   close.setAttribute("aria-label", "Close Pane");
   close.addEventListener("click", () => closePicker());
-  header.append(group, close);
+  const headerActions = document.createElement("div");
+  headerActions.id = "pane-header-actions";
+  const diagnosticsButton = document.createElement("button");
+  diagnosticsButton.id = "pane-diagnostics";
+  diagnosticsButton.type = "button";
+  diagnosticsButton.textContent = "ⓘ";
+  diagnosticsButton.setAttribute("aria-label", "Copy privacy-safe Pane diagnostics");
+  diagnosticsButton.setAttribute("title", "Copy Pane diagnostics");
+  diagnosticsButton.addEventListener("click", () => {
+    const copied = window[DIAGNOSTICS_KEY]?.copy?.();
+    showToast(
+      copied ? "Diagnostics copied — paste them into the bug report" : "Diagnostics are in the Browser Console",
+      copied ? "success" : "warning"
+    );
+  });
+  headerActions.append(diagnosticsButton, close);
+  header.append(group, headerActions);
 
   const searchWrap = document.createElement("div");
   searchWrap.id = "pane-search-wrap";
@@ -374,11 +393,13 @@ function positionDialog() {
 
 function openPicker(tab = gBrowser.selectedTab, anchorToPane = false) {
   if (!compatible(splitter())) {
+    diagnosticLog("picker blocked", { reason: "incompatible splitter" });
     showToast("This Zen version is not compatible with Pane yet", "error");
     return;
   }
   const data = activeData();
   if (!data || !tab || !data.tabs.includes(tab)) {
+    diagnosticLog("picker blocked", { reason: "no active split pane" });
     showToast("Choose a pane in an active split first", "warning");
     return;
   }
@@ -393,6 +414,11 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false) {
   search.value = "";
   renderResults();
   overlay.hidden = false;
+  diagnosticLog("picker opened", {
+    anchored: anchorToPane,
+    paneCount: data.tabs.length,
+    candidateCount: candidates.length,
+  });
   requestAnimationFrame(() => search.focus());
 }
 
@@ -408,20 +434,25 @@ function replacePane(incoming) {
   const outgoing = targetTab;
   closePicker(false);
   if (!view || !data || !outgoing || !data.tabs.includes(outgoing)) {
+    diagnosticLog("replacement stopped", { reason: "split changed" });
     showToast("The split changed before the swap finished", "warning"); return;
   }
   if (!incoming || incoming.closing || incoming.splitView) {
+    diagnosticLog("replacement stopped", { reason: "incoming tab unavailable" });
     showToast("That tab is no longer available", "warning"); return;
   }
   if (workspaceId(incoming) !== workspaceId(outgoing)) {
+    diagnosticLog("replacement stopped", { reason: "workspace changed" });
     showToast("Choose a tab from the same workspace", "warning"); return;
   }
   const leaf = view.getSplitNodeFromTab(outgoing);
   const index = data.tabs.indexOf(outgoing);
   const splitGroup = outgoing.group;
   if (!leaf || index < 0 || !splitGroup?.hasAttribute("split-view-group")) {
+    diagnosticLog("replacement stopped", { reason: "split leaf unavailable" });
     showToast("Zen’s split layout is not ready yet", "warning"); return;
   }
+  diagnosticLog("replacement started", { paneCount: data.tabs.length });
   let changed = false;
   try {
     if (incoming.group !== splitGroup) gBrowser.moveTabToExistingGroup(incoming, splitGroup);
@@ -437,9 +468,11 @@ function replacePane(incoming) {
     dispatch("ZenSplitViewTabsSplit", splitGroup);
     gBrowser.selectedTab = incoming;
     if (!boolPref(PREF.keep, true)) gBrowser.removeTab(outgoing, { animate: true });
+    diagnosticLog("replacement completed", { keptOutgoingTab: boolPref(PREF.keep, true) });
     showToast(`Now showing ${tabTitle(incoming)}`, "success");
   } catch (error) {
     console.error(TAG, "replacement failed", error);
+    diagnosticLog("replacement failed", { error: error?.name });
     if (changed && !outgoing.closing) {
       try {
         data.tabs[index] = outgoing;
@@ -482,6 +515,14 @@ function ensurePaneButtons() {
     });
     header.prepend(button);
   });
+  const summary = `${document.querySelectorAll(".browserSidebarContainer[is-zen-split]").length}:` +
+    `${document.querySelectorAll(".zen-view-splitter-header").length}:` +
+    `${document.querySelectorAll(".pane-button").length}`;
+  if (summary !== lastButtonSummary) {
+    lastButtonSummary = summary;
+    const [containers, headers, buttons] = summary.split(":").map(Number);
+    diagnosticLog("pane buttons synchronized", { containers, headers, buttons });
+  }
 }
 
 function schedulePaneButtons() {
@@ -497,6 +538,7 @@ function onShortcut(event) {
   if (binding && event.ctrlKey && event.altKey && !event.shiftKey && !event.metaKey &&
       event.key.toLocaleLowerCase() === binding.key) {
     event.preventDefault(); event.stopPropagation();
+    diagnosticLog("picker shortcut received", { binding: binding.label });
     overlay.hidden ? openPicker() : closePicker();
   }
 }
@@ -527,6 +569,7 @@ function trapDialogFocus(event) {
     search,
     ...results.querySelectorAll(".pane-item"),
     expandButton.hidden ? null : expandButton,
+    document.getElementById("pane-diagnostics"),
     document.getElementById("pane-close"),
   ].filter(Boolean);
   if (!focusable.length) return;
@@ -561,6 +604,7 @@ const prefObserver = {
 };
 
 function destroy() {
+  diagnosticLog("Pane runtime unloading");
   clearTimeout(toastTimer);
   if (buttonFrame) cancelAnimationFrame(buttonFrame);
   buttonFrame = 0;
@@ -579,6 +623,7 @@ function destroy() {
 
 function initialize() {
   try {
+    diagnosticLog("Pane runtime initializing", { documentReady: document.readyState });
     buildPicker();
     window.addEventListener("keydown", onShortcut, true);
     window.addEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
@@ -599,16 +644,18 @@ function initialize() {
     ensurePaneButtons();
     applyAppearance();
     root.setAttribute("pane-ready", "true");
-    window[INSTANCE_KEY] = { destroy, version: "0.8.0" };
+    window[INSTANCE_KEY] = { destroy, version: "0.9.0" };
 
     // Sine 2.3+ uses this callback for clean live disable/reload. Without it,
     // Sine intentionally keeps an already imported module running.
     window.addUnloadListener?.(destroy);
 
     const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
-    console.log(TAG, `0.8.0 ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
+    diagnosticLog("Pane runtime ready", { binding: binding?.label ?? "disabled" });
+    console.log(TAG, `0.9.0 ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
   } catch (error) {
     console.error(TAG, "failed to initialize", error);
+    diagnosticLog("Pane initialization failed", { error: error?.name });
     destroy();
   }
 }

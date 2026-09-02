@@ -97,7 +97,15 @@
   white-space: nowrap;
 }
 
-#pane-close {
+#pane-header-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+}
+
+#pane-close,
+#pane-diagnostics {
   appearance: none;
   display: grid;
   flex: none;
@@ -113,7 +121,13 @@
   font: 18px/1 system-ui;
 }
 
-#pane-close:hover {
+#pane-diagnostics {
+  padding-bottom: 0;
+  font-size: 13px;
+}
+
+#pane-close:hover,
+#pane-diagnostics:hover {
   opacity: 1;
   background: var(--pane-hover);
 }
