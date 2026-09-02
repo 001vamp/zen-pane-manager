@@ -1,0 +1,185 @@
+[
+  {
+    "type": "text",
+    "label": "⇄ Split Swap",
+    "margin": "20px 0 20px 0",
+    "size": "20px"
+  },
+  {
+    "type": "separator",
+    "label": "How you open it"
+  },
+  {
+    "property": "mod.split-swap.shortcut",
+    "label": "Keyboard shortcut",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 0,
+    "placeholder": false,
+    "options": [
+      { "label": "Ctrl + Alt + R", "value": 0 },
+      { "label": "Ctrl + Alt + S", "value": 1 },
+      { "label": "Disabled", "value": 2 }
+    ]
+  },
+  {
+    "property": "mod.split-swap.pane-button",
+    "label": "Show a replace button on each split pane",
+    "type": "checkbox",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
+    "label": "Tab picker"
+  },
+  {
+    "property": "mod.split-swap.show-urls",
+    "label": "Show website names below tab titles",
+    "type": "checkbox",
+    "defaultValue": true
+  },
+  {
+    "property": "mod.split-swap.recent-first",
+    "label": "Put recently used tabs first",
+    "type": "checkbox",
+    "defaultValue": true
+  },
+  {
+    "property": "mod.split-swap.compact-picker",
+    "label": "Use compact spacing",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.split-swap.recent-count",
+    "label": "Recent tabs shown before expanding",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 4,
+    "placeholder": false,
+    "options": [
+      { "label": "2 tabs", "value": 2 },
+      { "label": "4 tabs", "value": 4 },
+      { "label": "6 tabs", "value": 6 },
+      { "label": "8 tabs", "value": 8 }
+    ]
+  },
+  {
+    "property": "mod.split-swap.grid-columns",
+    "label": "Recent-tab grid columns",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 2,
+    "placeholder": false,
+    "options": [
+      { "label": "1 column", "value": 1 },
+      { "label": "2 columns", "value": 2 },
+      { "label": "3 columns", "value": 3 }
+    ]
+  },
+  {
+    "type": "separator",
+    "label": "Glass appearance"
+  },
+  {
+    "property": "mod.split-swap.tint-light",
+    "label": "Glass color — light mode (CSS color)",
+    "type": "string",
+    "defaultValue": "rgba(247, 248, 251, 0.78)"
+  },
+  {
+    "property": "mod.split-swap.tint-dark",
+    "label": "Glass color — dark mode (CSS color)",
+    "type": "string",
+    "defaultValue": "rgba(24, 25, 30, 0.78)"
+  },
+  {
+    "property": "mod.split-swap.accent-color",
+    "label": "Focus and highlight color (CSS color)",
+    "type": "string",
+    "defaultValue": "AccentColor"
+  },
+  {
+    "property": "mod.split-swap.glass-blur",
+    "label": "Glass blur strength",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 38,
+    "placeholder": false,
+    "options": [
+      { "label": "Off", "value": 0 },
+      { "label": "Soft — 18px", "value": 18 },
+      { "label": "Medium — 28px", "value": 28 },
+      { "label": "Strong — 38px", "value": 38 },
+      { "label": "Maximum — 52px", "value": 52 }
+    ]
+  },
+  {
+    "property": "mod.split-swap.corner-radius",
+    "label": "Picker corner radius",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 24,
+    "placeholder": false,
+    "options": [
+      { "label": "Subtle — 14px", "value": 14 },
+      { "label": "Rounded — 18px", "value": 18 },
+      { "label": "Glass — 24px", "value": 24 },
+      { "label": "Soft — 30px", "value": 30 },
+      { "label": "Pill-like — 36px", "value": 36 }
+    ]
+  },
+  {
+    "type": "separator",
+    "label": "Picker layout"
+  },
+  {
+    "property": "mod.split-swap.picker-width",
+    "label": "Picker width",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 520,
+    "placeholder": false,
+    "options": [
+      { "label": "Narrow — 420px", "value": 420 },
+      { "label": "Standard — 520px", "value": 520 },
+      { "label": "Wide — 640px", "value": 640 },
+      { "label": "Extra wide — 760px", "value": 760 }
+    ]
+  },
+  {
+    "property": "mod.split-swap.picker-position",
+    "label": "Picker position",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 0,
+    "placeholder": false,
+    "options": [
+      { "label": "Top", "value": 0 },
+      { "label": "Upper middle", "value": 1 },
+      { "label": "Centered", "value": 2 }
+    ]
+  },
+  {
+    "property": "mod.split-swap.dim-background",
+    "label": "Dim the page behind the picker",
+    "type": "checkbox",
+    "defaultValue": false
+  },
+  {
+    "property": "mod.split-swap.show-help",
+    "label": "Show keyboard hints in the footer",
+    "type": "checkbox",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
+    "label": "After replacing a pane"
+  },
+  {
+    "property": "mod.split-swap.keep-old-tab",
+    "label": "Keep the replaced tab open in the sidebar",
+    "type": "checkbox",
+    "defaultValue": true
+  }
+]

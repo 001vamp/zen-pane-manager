@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible problem with Split Swap
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve Split Swap. Do not include private URLs, tab titles, or browsing data.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Split Swap, Zen Browser, and Sine versions
+      placeholder: Split Swap 0.5.0; Zen 1.21.16b; Sine …
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include pane count, orientation, and whether the divider was resized.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed private URLs, page titles, and browsing information.
+          required: true
