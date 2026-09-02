@@ -2,7 +2,7 @@
   "id": "zen-split-swap",
   "name": "Split Swap",
   "description": "Replace the focused tab in a Zen split view while preserving the split layout and divider sizes.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "author": "jasi",
   "homepage": "https://github.com/001vamp/zen-split-swap",
   "readme": "https://raw.githubusercontent.com/001vamp/zen-split-swap/main/README.md",

@@ -16,7 +16,7 @@ An open-source Sine mod by **[jasi (@001vamp)](https://github.com/001vamp)**.
 
 The old pane's tab stays open. The new tab takes its exact position and size.
 
-You can also click the **⇄** button in a split pane's header—no shortcut required.
+You can also click the **⇄** button in a split pane's header—no shortcut required. When opened this way, the picker appears over that pane so the replacement target stays visually obvious. Keyboard openings continue to use your chosen screen position.
 
 The compact glass picker initially shows only your four most recently used eligible tabs. Start typing to search every open tab, or choose **Show all** to expand the list manually. Pressing Escape clears a search or collapses the full list before closing the picker.
 
@@ -38,17 +38,14 @@ Open Sine's settings for Split Swap to:
 
 - Choose `Ctrl+Alt+R`, `Ctrl+Alt+S`, or disable the keyboard shortcut.
 - Show or hide the **⇄** pane button.
-- Show or hide website names.
-- Sort by recent use or sidebar order.
-- Use comfortable or compact spacing.
-- Keep the replaced tab open, or close it automatically.
-- Set separate light-mode and dark-mode glass colors using any valid CSS color.
-- Change the focus/highlight accent color.
-- Choose blur strength, corner radius, picker width, and screen position.
-- Show 2, 4, 6, or 8 recent tabs in a 1-, 2-, or 3-column grid.
-- Enable optional page dimming or hide the keyboard-hint footer.
+- Start with System, Clear, Frosted, Tinted, or Custom glass.
+- Choose the accent color, picker size and position, spacing, and optional page dimming.
+- Set how many tabs appear in compact view, their ordering, website-name visibility, and whether the replaced tab stays open.
+- Fine-tune light and dark glass tints, blur, corners, columns, and the keyboard footer in Advanced customization.
 
-Appearance changes preview live. CSS colors can be written as hex (`#7c5cff`), RGB/RGBA (`rgba(124, 92, 255, 0.72)`), HSL, or a system color such as `AccentColor`. Invalid colors safely fall back to the defaults.
+Appearance changes preview live. Choose **System glass** to reset the tint, blur, and corner shape to Split Swap's designed defaults. Advanced tint, blur, and corner controls take effect only with the **Custom** preset.
+
+CSS colors can be written as hex (`#7c5cff`), RGB/RGBA (`rgba(124, 92, 255, 0.72)`), HSL, or a system color such as `AccentColor`. Invalid colors safely fall back to the defaults. Fully transparent accents are also rejected because they would make keyboard focus impossible to see. **Auto** columns is recommended: it adapts the compact layout to narrow and wide picker sizes.
 
 ## Install with Sine
 
@@ -71,7 +68,7 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 ## Compatibility
 
-Split Swap v0.3.0 targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable.
+Split Swap v0.6.0 targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the release test matrix and known limitations.
 

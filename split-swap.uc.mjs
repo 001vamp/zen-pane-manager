@@ -20,6 +20,7 @@ const PREF = {
   button: "mod.split-swap.pane-button",
   keep: "mod.split-swap.keep-old-tab",
   compact: "mod.split-swap.compact-picker",
+  preset: "mod.split-swap.style-preset",
   tintLight: "mod.split-swap.tint-light",
   tintDark: "mod.split-swap.tint-dark",
   accent: "mod.split-swap.accent-color",
@@ -43,6 +44,7 @@ let candidates = [];
 let filtered = [];
 let selectedIndex = 0;
 let expanded = false;
+let paneAnchorTab = null;
 let toastTimer;
 
 const boolPref = (name, fallback) => {
@@ -58,6 +60,15 @@ const choice = (value, allowed, fallback) => allowed.includes(value) ? value : f
 const safeColor = (value, fallback) => {
   const color = String(value || "").trim();
   try { return CSS.supports("color", color) ? color : fallback; } catch (e) { return fallback; }
+};
+const safeAccent = (value, fallback) => {
+  const color = safeColor(value, fallback);
+  try {
+    const rgba = InspectorUtils.colorToRGBA(color);
+    return rgba && rgba.a < 0.3 ? fallback : color;
+  } catch (e) {
+    return color.toLocaleLowerCase() === "transparent" ? fallback : color;
+  }
 };
 const splitter = () => window.gZenViewSplitter;
 const activeData = () => {
@@ -117,6 +128,8 @@ function closePicker(restoreFocus = true) {
   const oldTarget = targetTab;
   overlay.hidden = true;
   targetTab = null;
+  paneAnchorTab = null;
+  positionDialog();
   candidates = [];
   filtered = [];
   if (restoreFocus) oldTarget?.linkedBrowser?.focus();
@@ -300,27 +313,64 @@ function buildPicker() {
 
 function applyAppearance() {
   if (!dialog || !overlay) return;
-  const light = safeColor(stringPref(PREF.tintLight, "rgba(247, 248, 251, 0.78)"), "rgba(247, 248, 251, 0.78)");
-  const dark = safeColor(stringPref(PREF.tintDark, "rgba(24, 25, 30, 0.78)"), "rgba(24, 25, 30, 0.78)");
-  const accent = safeColor(stringPref(PREF.accent, "AccentColor"), "AccentColor");
-  const blur = choice(intPref(PREF.blur, 38), [0, 18, 28, 38, 52], 38);
-  const radius = choice(intPref(PREF.radius, 24), [14, 18, 24, 30, 36], 24);
+  const preset = choice(intPref(PREF.preset, 0), [0, 1, 2, 3, 4], 0);
+  const presets = [
+    { light: "rgba(247, 248, 251, 0.78)", dark: "rgba(24, 25, 30, 0.78)", blur: 38, radius: 24 },
+    { light: "rgba(255, 255, 255, 0.46)", dark: "rgba(18, 20, 26, 0.52)", blur: 18, radius: 18 },
+    { light: "rgba(247, 248, 251, 0.9)", dark: "rgba(24, 25, 30, 0.9)", blur: 52, radius: 24 },
+    { light: "rgba(224, 232, 255, 0.8)", dark: "rgba(40, 34, 62, 0.84)", blur: 38, radius: 30 },
+  ];
+  const custom = {
+    light: safeColor(stringPref(PREF.tintLight, "rgba(247, 248, 251, 0.78)"), "rgba(247, 248, 251, 0.78)"),
+    dark: safeColor(stringPref(PREF.tintDark, "rgba(24, 25, 30, 0.78)"), "rgba(24, 25, 30, 0.78)"),
+    blur: choice(intPref(PREF.blur, 38), [0, 18, 28, 38, 52], 38),
+    radius: choice(intPref(PREF.radius, 24), [14, 18, 24, 30, 36], 24),
+  };
+  const appearance = preset === 4 ? custom : presets[preset];
+  const accent = safeAccent(stringPref(PREF.accent, "AccentColor"), "AccentColor");
   const width = choice(intPref(PREF.width, 520), [420, 520, 640, 760], 520);
-  const columns = choice(intPref(PREF.columns, 2), [1, 2, 3], 2);
+  const requestedColumns = choice(intPref(PREF.columns, 0), [0, 1, 2, 3], 0);
+  const autoColumns = width <= 420 ? 1 : width >= 640 ? 3 : 2;
+  const columns = requestedColumns === 0
+    ? autoColumns
+    : width <= 420 && requestedColumns > 2 ? 2 : requestedColumns;
   const position = choice(intPref(PREF.position, 0), [0, 1, 2], 0);
-  dialog.style.setProperty("--ss-user-tint-light", light);
-  dialog.style.setProperty("--ss-user-tint-dark", dark);
+  dialog.style.setProperty("--ss-user-tint-light", appearance.light);
+  dialog.style.setProperty("--ss-user-tint-dark", appearance.dark);
   dialog.style.setProperty("--ss-accent", accent);
-  dialog.style.setProperty("--ss-blur", `${blur}px`);
-  dialog.style.setProperty("--ss-radius", `${radius}px`);
+  dialog.style.setProperty("--ss-blur", `${appearance.blur}px`);
+  dialog.style.setProperty("--ss-radius", `${appearance.radius}px`);
   dialog.style.setProperty("--ss-width", `${width}px`);
   dialog.style.setProperty("--ss-columns", String(columns));
   overlay.dataset.position = ["top", "upper", "center"][position];
   overlay.toggleAttribute("dim", boolPref(PREF.dim, false));
   dialog.toggleAttribute("hide-help", !boolPref(PREF.help, true));
+  positionDialog();
 }
 
-function openPicker(tab = gBrowser.selectedTab) {
+function positionDialog() {
+  if (!dialog || !overlay) return;
+  if (!paneAnchorTab) {
+    dialog.removeAttribute("pane-anchored");
+    dialog.style.removeProperty("left");
+    dialog.style.removeProperty("top");
+    dialog.style.removeProperty("max-width");
+    return;
+  }
+  const container = paneAnchorTab.linkedBrowser?.closest(".browserSidebarContainer");
+  const rect = container?.getBoundingClientRect();
+  if (!rect?.width) return;
+  const preferred = choice(intPref(PREF.width, 520), [420, 520, 640, 760], 520);
+  const actualWidth = Math.max(300, Math.min(preferred, rect.width - 24, window.innerWidth - 24));
+  const left = Math.max(12, Math.min(rect.left + (rect.width - actualWidth) / 2, window.innerWidth - actualWidth - 12));
+  const top = Math.max(42, rect.top + 18);
+  dialog.setAttribute("pane-anchored", "true");
+  dialog.style.left = `${left}px`;
+  dialog.style.top = `${top}px`;
+  dialog.style.maxWidth = `${actualWidth}px`;
+}
+
+function openPicker(tab = gBrowser.selectedTab, anchorToPane = false) {
   if (!compatible(splitter())) {
     showToast("This Zen version is not compatible with Split Swap yet", "error");
     return;
@@ -331,6 +381,7 @@ function openPicker(tab = gBrowser.selectedTab) {
     return;
   }
   targetTab = tab;
+  paneAnchorTab = anchorToPane ? tab : null;
   candidates = eligibleTabs(tab, data);
   heading.textContent = "Replace this pane";
   context.textContent = `Currently showing ${tabTitle(tab)}`;
@@ -425,7 +476,7 @@ function ensurePaneButtons() {
       event.preventDefault(); event.stopPropagation();
       const browser = container.querySelector("browser");
       const tab = browser ? gBrowser.getTabForBrowser(browser) : null;
-      if (tab) { gBrowser.selectedTab = tab; openPicker(tab); }
+      if (tab) { gBrowser.selectedTab = tab; openPicker(tab, true); }
     });
     header.prepend(button);
   });
@@ -482,6 +533,10 @@ function onSplitActivated() {
   requestAnimationFrame(ensurePaneButtons);
 }
 
+function onWindowResize() {
+  if (!overlay.hidden) positionDialog();
+}
+
 const prefObserver = {
   observe(subject, topic, name) {
     if (name === PREF.button) ensurePaneButtons();
@@ -499,6 +554,7 @@ function destroy() {
   clearTimeout(toastTimer);
   window.removeEventListener("keydown", onShortcut, true);
   window.removeEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
+  window.removeEventListener("resize", onWindowResize);
   try { Services.prefs.removeObserver("mod.split-swap.", prefObserver); } catch (e) {}
   overlay?.remove();
   document.getElementById("split-swap-toast")?.remove();
@@ -509,9 +565,10 @@ function destroy() {
 buildPicker();
 window.addEventListener("keydown", onShortcut, true);
 window.addEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
+window.addEventListener("resize", onWindowResize);
 Services.prefs.addObserver("mod.split-swap.", prefObserver);
 ensurePaneButtons();
 applyAppearance();
-window[INSTANCE_KEY] = { destroy, version: "0.5.0" };
+window[INSTANCE_KEY] = { destroy, version: "0.6.0" };
 const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
 console.log(TAG, `ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);

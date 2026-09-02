@@ -2,6 +2,17 @@
 
 All notable changes to Split Swap are documented here.
 
+## 0.6.0 — 2026-09-01
+
+- Added System, Clear, Frosted, Tinted, and Custom glass presets.
+- Reorganized settings into opening, appearance, tab behavior, and advanced sections.
+- Anchored the picker to the active pane when opened from its ⇄ button; keyboard openings remain centered according to the chosen position.
+- Added automatic compact-view columns that adapt to picker width.
+- Rejected invisible accent colors so keyboard focus remains visible.
+- Raised secondary-text contrast and removed overly small text sizes.
+- Added friendlier semantic labels while retaining exact CSS color controls for advanced customization.
+- Documented System glass as the appearance reset path.
+
 ## 0.5.0 — 2026-09-01
 
 - Added separate customizable light and dark glass tints.

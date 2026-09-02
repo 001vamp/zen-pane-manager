@@ -7,6 +7,7 @@ const fail = message => {
 };
 
 const theme = await readJson("theme.json");
+const packageJson = await readJson("package.json");
 const preferences = await readJson("preferences.json");
 const source = await readFile("split-swap.uc.mjs", "utf8");
 
@@ -15,6 +16,8 @@ for (const field of ["id", "name", "description", "version", "author", "homepage
 }
 
 if (theme.id !== "zen-split-swap") fail("theme id must remain zen-split-swap");
+if (theme.version !== packageJson.version) fail("theme and package versions must match");
+if (!source.includes(`version: "${theme.version}"`)) fail("runtime and manifest versions must match");
 if (theme.license !== "MPL-2.0") fail("license must remain MPL-2.0");
 if (theme.preferences !== "preferences.json") fail("preferences manifest entry is incorrect");
 if (!theme.scripts?.["split-swap.uc.mjs"]) fail("script manifest entry is missing");

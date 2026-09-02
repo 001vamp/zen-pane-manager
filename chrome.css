@@ -61,6 +61,11 @@
   animation: ss-pop-in 160ms cubic-bezier(.2, .85, .3, 1);
 }
 
+#split-swap-dialog[pane-anchored] {
+  position: fixed;
+  margin: 0;
+}
+
 #split-swap-header {
   display: flex;
   gap: 14px;
@@ -86,8 +91,8 @@
 #split-swap-context {
   overflow: hidden;
   margin-top: 2px;
-  opacity: 0.5;
-  font-size: 10px;
+  opacity: 0.64;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -160,13 +165,13 @@
 
 #split-swap-search::placeholder {
   color: inherit;
-  opacity: 0.42;
+  opacity: 0.58;
 }
 
 #split-swap-count {
   padding-left: 8px;
-  opacity: 0.42;
-  font-size: 9px;
+  opacity: 0.56;
+  font-size: 10px;
   white-space: nowrap;
 }
 
@@ -178,8 +183,8 @@
 }
 
 #split-swap-section-label {
-  opacity: 0.48;
-  font-size: 9px;
+  opacity: 0.62;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -267,14 +272,14 @@
 }
 
 .split-swap-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 590;
 }
 
 .split-swap-url {
   margin-top: 2px;
-  opacity: 0.46;
-  font-size: 9px;
+  opacity: 0.6;
+  font-size: 10px;
 }
 
 .split-swap-item mark {
@@ -290,7 +295,7 @@
   background: color-mix(in srgb, var(--ss-accent) 12%, transparent);
   border-radius: 7px;
   opacity: 0;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 650;
 }
 
@@ -313,12 +318,12 @@
   text-align: center;
 }
 
-#split-swap-empty strong { font-size: 12px; }
+#split-swap-empty strong { font-size: 13px; }
 #split-swap-empty span {
   max-width: 310px;
   margin-top: 4px;
-  opacity: 0.5;
-  font-size: 10px;
+  opacity: 0.62;
+  font-size: 11px;
 }
 
 #split-swap-expand {
@@ -345,8 +350,8 @@
   align-items: center;
   padding: 8px 14px 10px;
   border-top: 1px solid var(--ss-line);
-  opacity: 0.43;
-  font-size: 8px;
+  opacity: 0.58;
+  font-size: 10px;
 }
 
 #split-swap-dialog[hide-help] #split-swap-help {

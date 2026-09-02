@@ -1,6 +1,6 @@
 {
   "name": "zen-split-swap",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Replace a tab in a Zen split view without losing its position or size.",
   "license": "MPL-2.0",
