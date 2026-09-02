@@ -11,7 +11,7 @@ body:
     attributes:
       label: Versions
       description: Pane, Zen Browser, and Sine versions
-      placeholder: Pane 0.7.0; Zen 1.21.16b; Sine …
+      placeholder: Pane 0.8.0; Zen 1.21.16b; Sine 2.3.4.1c
     validations:
       required: true
   - type: dropdown
@@ -28,6 +28,28 @@ body:
       description: Include pane count, orientation, and whether the divider was resized.
     validations:
       required: true
+  - type: checkboxes
+    id: script_setup
+    attributes:
+      label: Sine script setup
+      options:
+        - label: Install JavaScript from unofficial sources is enabled in Sine.
+          required: true
+        - label: I toggled Pane off and on, then fully restarted Zen.
+          required: true
+  - type: input
+    id: console
+    attributes:
+      label: Pane Browser Console line
+      description: Enter the `[Pane] ...` readiness or initialization line. Remove private browsing information.
+      placeholder: "[Pane] 0.8.0 ready — press Ctrl+Alt+R"
+    validations:
+      required: true
+  - type: textarea
+    id: other_mods
+    attributes:
+      label: Other enabled browser-chrome mods
+      description: List other Sine mods that run JavaScript, such as Advanced Tab Groups.
   - type: textarea
     id: expected
     attributes:

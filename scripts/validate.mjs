@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 
 const readJson = async path => JSON.parse(await readFile(path, "utf8"));
 const fail = message => {
@@ -10,6 +10,12 @@ const theme = await readJson("theme.json");
 const packageJson = await readJson("package.json");
 const preferences = await readJson("preferences.json");
 const source = await readFile("pane.uc.mjs", "utf8");
+const readme = await readFile("README.md", "utf8");
+const changelog = await readFile("CHANGELOG.md", "utf8");
+
+for (const path of ["theme.json", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
+  try { await access(path); } catch { fail(`Sine package is missing ${path}`); }
+}
 
 for (const field of ["id", "name", "description", "version", "author", "homepage", "license"]) {
   if (!theme[field]) fail(`theme.json is missing ${field}`);
@@ -21,7 +27,14 @@ if (!source.includes(`version: "${theme.version}"`)) fail("runtime and manifest 
 if (theme.license !== "MPL-2.0") fail("license must remain MPL-2.0");
 if (theme.preferences !== "preferences.json") fail("preferences manifest entry is incorrect");
 if (!theme.scripts?.["pane.uc.mjs"]) fail("script manifest entry is missing");
+if (theme.scripts?.["pane.uc.mjs"]?.loadOrder !== 50) fail("Pane script load order must remain 50");
+if (theme.supportsUnload !== true) fail("Sine live-unload support must remain enabled");
 if (!Array.isArray(preferences)) fail("preferences.json must contain an array");
+if (!source.includes("window.addUnloadListener?.(destroy)")) fail("runtime must register its Sine unload callback");
+if (!source.includes("new MutationObserver(schedulePaneButtons)")) fail("runtime must watch for rebuilt split headers");
+if (!readme.includes("Install JavaScript from unofficial sources")) fail("README must document Sine's external JavaScript permission");
+if (!readme.includes("Sine **2.3 or newer**")) fail("README must document the minimum Sine version");
+if (!changelog.includes(`## ${theme.version}`)) fail("CHANGELOG is missing the current release");
 
 const properties = preferences.map(item => item.property).filter(Boolean);
 const duplicates = properties.filter((property, index) => properties.indexOf(property) !== index);

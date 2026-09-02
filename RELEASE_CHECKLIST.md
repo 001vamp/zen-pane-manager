@@ -5,6 +5,8 @@
 - [ ] `theme.json`, `package.json`, and `CHANGELOG.md` use the same version.
 - [ ] `npm test` passes.
 - [ ] The compatibility matrix is complete for the target Zen release.
+- [ ] The root GitHub ZIP contains `theme.json`, `pane.uc.mjs`, `chrome.css`, and `preferences.json` at the paths declared by the manifest.
+- [ ] Sine 2.3+ live disable/enable unloads and reloads Pane without restarting Zen.
 - [ ] No private URLs, tab titles, profile paths, or local machine data are present.
 - [ ] License and attribution notices remain intact.
 
@@ -23,6 +25,9 @@
 - [ ] Create release notes from `CHANGELOG.md`.
 - [ ] Verify the validation workflow passes.
 - [ ] Test a clean Sine installation from `001vamp/zen-pane-manager`.
+- [ ] Test with unofficial JavaScript disabled, then enabled, and verify the documented recovery flow.
+- [ ] Test alongside Advanced Tab Groups with both possible enable orders.
+- [ ] Verify `[Pane] vX.Y.Z ready` appears in the Browser Console.
 
 ## Marketplace
 

@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pane UI showcase</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1f2024;
+      background: #fff;
+      --pane-accent: #5b5df0;
+      --pane-tint: rgb(247 248 251 / 0.82);
+      --pane-line: rgb(20 20 28 / 0.1);
+      --pane-fill: rgb(255 255 255 / 0.68);
+      --pane-hover: rgb(20 20 28 / 0.075);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 1180px;
+      background: #fff;
+    }
+
+    .sheet {
+      width: 1180px;
+      margin: 0 auto;
+      padding: 72px 54px 88px;
+    }
+
+    .sheet-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 46px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #e8e8ed;
+    }
+
+    .brand {
+      margin: 0;
+      font-size: 46px;
+      font-weight: 760;
+      letter-spacing: -0.045em;
+      line-height: 1;
+    }
+
+    .tagline {
+      margin: 10px 0 0;
+      color: #666873;
+      font-size: 16px;
+    }
+
+    .version {
+      color: #7d7f89;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 520px);
+      gap: 48px 32px;
+      align-items: start;
+    }
+
+    .state {
+      min-width: 0;
+    }
+
+    .state-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 2px 11px;
+      color: #737580;
+      font-size: 11px;
+      font-weight: 720;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .state-label span:last-child {
+      color: #a0a1aa;
+      font-weight: 580;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .pane-dialog {
+      width: 520px;
+      overflow: hidden;
+      color: #1f2024;
+      background: var(--pane-tint);
+      border: 1px solid var(--pane-line);
+      border-radius: 24px;
+      box-shadow: 0 24px 70px rgb(0 0 0 / 0.16), inset 0 1px rgb(255 255 255 / 0.5);
+      backdrop-filter: blur(38px) saturate(1.35);
+    }
+
+    .pane-header {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 17px 10px;
+    }
+
+    .heading-group { min-width: 0; }
+
+    .heading {
+      font-size: 14px;
+      font-weight: 670;
+      line-height: 1.3;
+    }
+
+    .context {
+      overflow: hidden;
+      margin-top: 2px;
+      color: rgb(31 32 36 / 0.64);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .close {
+      appearance: none;
+      display: grid;
+      flex: none;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      padding: 0 0 2px;
+      color: inherit;
+      background: var(--pane-fill);
+      border: 1px solid var(--pane-line);
+      border-radius: 50%;
+      opacity: 0.68;
+      font: 18px/1 system-ui;
+    }
+
+    .search-wrap {
+      display: grid;
+      grid-template-columns: 25px minmax(0, 1fr) auto;
+      align-items: center;
+      margin: 0 12px;
+      padding: 0 12px;
+      background: rgb(255 255 255 / 0.72);
+      border: 1px solid rgb(255 255 255 / 0.78);
+      border-radius: 999px;
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 5px 18px rgb(0 0 0 / 0.08);
+      backdrop-filter: blur(22px) saturate(1.25);
+    }
+
+    .search-wrap.focused {
+      border-color: color-mix(in srgb, var(--pane-accent) 58%, transparent);
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 0 0 3px color-mix(in srgb, var(--pane-accent) 14%, transparent), 0 8px 24px rgb(0 0 0 / 0.1);
+    }
+
+    .search-icon {
+      width: 18px;
+      height: 18px;
+      opacity: 0.5;
+    }
+
+    .search {
+      min-width: 0;
+      padding: 11px 3px;
+      color: #1f2024;
+      font: 13px/1.2 system-ui;
+    }
+
+    .search.placeholder { color: rgb(31 32 36 / 0.58); }
+
+    .count {
+      padding-left: 8px;
+      color: rgb(31 32 36 / 0.56);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 17px 6px;
+    }
+
+    .section-label {
+      color: rgb(31 32 36 / 0.62);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      padding: 0 10px 9px;
+    }
+
+    .results.list {
+      grid-template-columns: 1fr;
+      gap: 3px;
+    }
+
+    .item {
+      appearance: none;
+      display: grid;
+      grid-template-columns: 31px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      width: 100%;
+      min-height: 54px;
+      padding: 8px 9px;
+      color: inherit;
+      background: var(--pane-fill);
+      border: 1px solid var(--pane-line);
+      border-radius: 14px;
+      box-shadow: inset 0 1px rgb(255 255 255 / 0.52);
+      text-align: left;
+      font: inherit;
+    }
+
+    .list .item {
+      grid-template-columns: 31px minmax(0, 1fr) auto;
+      min-height: 48px;
+      background: transparent;
+      border-color: transparent;
+      border-radius: 11px;
+    }
+
+    .item.selected {
+      background: var(--pane-hover);
+      border-color: color-mix(in srgb, var(--pane-accent) 22%, var(--pane-line));
+    }
+
+    .favicon-wrap {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      background: rgb(255 255 255 / 0.66);
+      border-radius: 9px;
+    }
+
+    .favicon {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+    }
+
+    .copy,
+    .title,
+    .url {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .title {
+      font-size: 12px;
+      font-weight: 590;
+    }
+
+    .url {
+      margin-top: 2px;
+      color: rgb(31 32 36 / 0.6);
+      font-size: 10px;
+    }
+
+    mark {
+      color: inherit;
+      background: color-mix(in srgb, var(--pane-accent) 28%, transparent);
+      border-radius: 3px;
+    }
+
+    .action {
+      display: block;
+      padding: 4px 7px;
+      color: color-mix(in srgb, var(--pane-accent) 78%, #1f2024);
+      background: color-mix(in srgb, var(--pane-accent) 12%, transparent);
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    .expand {
+      display: block;
+      margin: 0 auto 9px;
+      padding: 6px 11px;
+      color: rgb(31 32 36 / 0.62);
+      background: transparent;
+      border: 0;
+      border-radius: 999px;
+      font: 10px/1.2 system-ui;
+    }
+
+    .help {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      padding: 8px 14px 10px;
+      color: rgb(31 32 36 / 0.58);
+      border-top: 1px solid var(--pane-line);
+      font-size: 10px;
+    }
+
+    .help span { display: flex; gap: 3px; align-items: center; }
+
+    kbd {
+      min-width: 17px;
+      padding: 2px 4px;
+      color: inherit;
+      background: var(--pane-fill);
+      border: 1px solid var(--pane-line);
+      border-radius: 5px;
+      box-shadow: 0 1px 1px rgb(0 0 0 / 0.05);
+      font: 9px/1.1 system-ui;
+      text-align: center;
+    }
+
+    .empty {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 14px 34px;
+      text-align: center;
+    }
+
+    .empty strong { font-size: 13px; }
+
+    .empty span {
+      max-width: 310px;
+      margin-top: 4px;
+      color: rgb(31 32 36 / 0.62);
+      font-size: 11px;
+    }
+
+    .status-board {
+      grid-column: 1 / -1;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .toast {
+      padding: 11px 14px;
+      color: #1f2024;
+      background: rgb(247 248 251 / 0.92);
+      border: 1px solid var(--pane-line);
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgb(0 0 0 / 0.13);
+      font-size: 12px;
+      font-weight: 590;
+    }
+
+    .toast.success { border-color: rgb(80 180 110 / 0.46); }
+    .toast.warning { border-color: rgb(220 155 35 / 0.5); }
+    .toast.error { border-color: rgb(220 70 70 / 0.48); }
+
+    .pane-control {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 18px;
+      padding: 10px 12px;
+      color: #666873;
+      background: #f6f6f8;
+      border: 1px solid #e6e6eb;
+      border-radius: 12px;
+      font-size: 11px;
+    }
+
+    body.focus-mode {
+      min-width: 1280px;
+    }
+
+    body.focus-mode .sheet {
+      width: 1280px;
+      margin: 0;
+      padding: 56px 380px 64px;
+    }
+
+    body.focus-mode .sheet-header {
+      margin-bottom: 32px;
+    }
+
+    body.focus-mode .grid {
+      display: block;
+    }
+
+    body.focus-mode .state[hidden] {
+      display: none;
+    }
+
+    body.focus-mode .status-board {
+      width: 520px;
+    }
+
+    body.focus-mode .status-row {
+      grid-template-columns: 1fr;
+    }
+
+    .swap-button {
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      color: #353641;
+      background: rgb(255 255 255 / 0.75);
+      border: 1px solid #dedee5;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 650;
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="sheet-header">
+      <div>
+        <h1 class="brand">Pane</h1>
+        <p class="tagline">Swap the page. Keep the pane.</p>
+      </div>
+      <div class="version">UI states · v0.8.0</div>
+    </header>
+
+    <section class="grid">
+      <article class="state" data-state="compact">
+        <div class="state-label"><span>Compact</span><span>Default · 4 recent tabs</span></div>
+        <div class="pane-dialog">
+          <div class="pane-header">
+            <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
+            <button class="close" aria-label="Close">×</button>
+          </div>
+          <div class="search-wrap">
+            <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">
+            <div class="search placeholder">Find an open tab…</div><span class="count">8 open</span>
+          </div>
+          <div class="section-header"><span class="section-label">Recently used</span></div>
+          <div class="results">
+            <button class="item selected"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/github.com.ico"></span><span class="copy"><span class="title">Pane roadmap</span><span class="url">github.com</span></span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/docs.zen-browser.app.ico"></span><span class="copy"><span class="title">Zen documentation</span><span class="url">docs.zen-browser.app</span></span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/developer.mozilla.org.ico"></span><span class="copy"><span class="title">Browser APIs</span><span class="url">developer.mozilla.org</span></span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/codeberg.org.ico"></span><span class="copy"><span class="title">Design references</span><span class="url">codeberg.org</span></span></button>
+          </div>
+          <button class="expand">Show all 8 tabs ↓</button>
+          <div class="help"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Replace</span><span><kbd>Esc</kbd> Cancel</span></div>
+        </div>
+        <div class="pane-control"><span class="swap-button">⇄</span><span>Pane header button</span></div>
+      </article>
+
+      <article class="state" data-state="searching">
+        <div class="state-label"><span>Searching</span><span>Filtered results</span></div>
+        <div class="pane-dialog">
+          <div class="pane-header">
+            <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
+            <button class="close" aria-label="Close">×</button>
+          </div>
+          <div class="search-wrap focused">
+            <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">
+            <div class="search">design</div><span class="count">3 found</span>
+          </div>
+          <div class="section-header"><span class="section-label">Search results</span></div>
+          <div class="results list">
+            <button class="item selected"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/github.com.ico"></span><span class="copy"><span class="title">Pane <mark>design</mark> notes</span><span class="url">github.com</span></span><span class="action">Replace</span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/codeberg.org.ico"></span><span class="copy"><span class="title"><mark>Design</mark> references</span><span class="url">codeberg.org</span></span><span class="action">Replace</span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/dribbble.com.ico"></span><span class="copy"><span class="title">Interface <mark>design</mark> archive</span><span class="url">dribbble.com</span></span><span class="action">Replace</span></button>
+          </div>
+          <div class="help"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Replace</span><span><kbd>Esc</kbd> Clear</span></div>
+        </div>
+      </article>
+
+      <article class="state" data-state="expanded">
+        <div class="state-label"><span>Expanded</span><span>All open tabs</span></div>
+        <div class="pane-dialog">
+          <div class="pane-header">
+            <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
+            <button class="close" aria-label="Close">×</button>
+          </div>
+          <div class="search-wrap">
+            <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">
+            <div class="search placeholder">Find an open tab…</div><span class="count">8 open</span>
+          </div>
+          <div class="section-header"><span class="section-label">All open tabs</span></div>
+          <div class="results list">
+            <button class="item selected"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/github.com.ico"></span><span class="copy"><span class="title">Pane roadmap</span><span class="url">github.com</span></span><span class="action">Replace</span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/docs.zen-browser.app.ico"></span><span class="copy"><span class="title">Zen documentation</span><span class="url">docs.zen-browser.app</span></span><span class="action">Replace</span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/developer.mozilla.org.ico"></span><span class="copy"><span class="title">Browser APIs</span><span class="url">developer.mozilla.org</span></span><span class="action">Replace</span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/codeberg.org.ico"></span><span class="copy"><span class="title">Design references</span><span class="url">codeberg.org</span></span><span class="action">Replace</span></button>
+            <button class="item"><span class="favicon-wrap"><img class="favicon" alt="" src="https://icons.duckduckgo.com/ip3/npmjs.com.ico"></span><span class="copy"><span class="title">Package research</span><span class="url">npmjs.com</span></span><span class="action">Replace</span></button>
+          </div>
+          <button class="expand">Show less ↑</button>
+          <div class="help"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Replace</span><span><kbd>Esc</kbd> Collapse</span></div>
+        </div>
+      </article>
+
+      <article class="state" data-state="empty">
+        <div class="state-label"><span>Empty</span><span>No matching tabs</span></div>
+        <div class="pane-dialog">
+          <div class="pane-header">
+            <div class="heading-group"><div class="heading">Replace this pane</div><div class="context">Currently showing Project notes</div></div>
+            <button class="close" aria-label="Close">×</button>
+          </div>
+          <div class="search-wrap focused">
+            <img class="search-icon" alt="" src="https://cdn.jsdelivr.net/npm/@tabler/icons@3.34.1/icons/outline/search.svg">
+            <div class="search">calendar</div><span class="count">0 found</span>
+          </div>
+          <div class="section-header"><span class="section-label">Search results</span></div>
+          <div class="results"><div class="empty"><strong>No matching tabs</strong><span>Try a page title, website, or shorter search.</span></div></div>
+          <div class="help"><span><kbd>Esc</kbd> Clear search</span></div>
+        </div>
+      </article>
+
+      <article class="status-board state" data-state="status">
+        <div class="state-label"><span>Swap notifications</span><span>Brief messages after a swap</span></div>
+        <div class="status-row">
+          <div class="toast success">Now showing Pane roadmap</div>
+          <div class="toast warning">The split changed before the swap finished</div>
+          <div class="toast error">The pane was not changed</div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const focus = new URLSearchParams(location.search).get("state");
+    if (focus) {
+      document.body.classList.add("focus-mode");
+      document.querySelectorAll(".state").forEach(state => {
+        state.hidden = state.dataset.state !== focus;
+      });
+      history.scrollRestoration = "manual";
+      scrollTo(0, 0);
+    }
+  </script>
+</body>
+</html>

@@ -2,6 +2,14 @@
 
 All notable changes to Pane are documented here.
 
+## 0.8.0 — 2026-09-02
+
+- Added Sine 2.3 live-unload integration so disabling, enabling, and reloading Pane no longer leaves a stale script instance behind.
+- Added resilient split-header discovery for session restoration and browser-chrome mods that rebuild tab-group UI.
+- Assigned Pane a later Sine load order and added a visible Browser Console readiness marker.
+- Documented the unofficial-JavaScript permission, clean restart procedure, current Windows requirements, and first-install recovery steps.
+- Expanded package validation and compatibility testing for clean GitHub installs.
+
 ## 0.7.0 — 2026-09-01
 
 - Completed the public rebrand from the prototype name to Pane.

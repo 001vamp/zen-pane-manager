@@ -7,6 +7,10 @@ Replace the focused pane in a Zen Browser split view with another open tab—wit
 
 An open-source Sine mod by **[jasi (@001vamp)](https://github.com/001vamp)**.
 
+![Pane compact picker showing recently used tabs](docs/pane-ui-compact.png)
+
+See the [complete UI state sheet](docs/pane-ui-showcase.html) for compact, search, expanded, empty, and notification states.
+
 > **Early contributors wanted.** Pane is young, useful, and intentionally open to new ideas. Try it, report rough edges, propose workflows, or pick up a small issue. See the [roadmap](ROADMAP.md) and [contribution guide](CONTRIBUTING.md).
 
 ## Use
@@ -51,11 +55,33 @@ CSS colors can be written as hex (`#7c5cff`), RGB/RGBA (`rgba(124, 92, 255, 0.72
 
 ## Install with Sine
 
-In Sine, install the repository:
+Pane's picker, shortcut, and ⇄ button are powered by a browser-chrome script. Before installing, use:
+
+- Zen Browser **1.21.16b** (current stable) or a Pane-tested newer stable release.
+- Sine **2.3 or newer**. The latest Sine release is recommended.
+- A Windows version and processor architecture supported by Zen and Sine (x64 and ARM64 are supported by Sine's Windows installer).
+
+In Sine's general settings, enable **Install JavaScript from unofficial sources**. Sine intentionally blocks scripts from repositories outside its verified store until you allow them.
+
+Then install this repository:
 
 ```text
 001vamp/zen-pane-manager
 ```
+
+Disable and re-enable Pane once, then fully exit and reopen Zen. Create a split view; the **⇄** button appears in each split pane header. `Ctrl+Alt+R` opens the same picker from the keyboard.
+
+### If Pane appears installed but nothing happens
+
+The missing button and inactive shortcuts both mean Pane's script did not load. They are not two separate failures.
+
+1. Confirm **Install JavaScript from unofficial sources** is enabled in Sine.
+2. Confirm Pane is enabled, then toggle it off and back on to make Sine rebuild its scripts.
+3. Fully close every Zen window and end any remaining Zen process before reopening it.
+4. Create an active split view; the pane button is intentionally hidden outside split view.
+5. If another Sine mod was toggled during testing, leave it enabled and toggle Pane itself. Toggling another mod can incidentally refresh Pane and make a load-order problem look like a compatibility conflict.
+
+For a useful bug report, open Zen's Browser Console and look for either `[Pane] 0.8.0 ready` or `[Pane] failed to initialize`. Include that line, plus the Zen and Sine versions, without including private URLs or tab titles.
 
 For local development, copy this folder into your Zen profile's `chrome/sine-mods` directory, register it in Sine's `mods.json`, and restart Zen Browser.
 
@@ -70,7 +96,7 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 ## Compatibility
 
-Pane v0.7.0 targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable.
+Pane v0.8.0 targets Zen **1.21.16b** on Windows and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable. Pane also watches for split headers created or rebuilt after startup, which keeps its button available during session restoration and alongside mods that reorganize tab groups.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the release test matrix and known limitations.
 

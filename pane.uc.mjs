@@ -46,6 +46,8 @@ let selectedIndex = 0;
 let expanded = false;
 let paneAnchorTab = null;
 let toastTimer;
+let buttonObserver = null;
+let buttonFrame = 0;
 
 const boolPref = (name, fallback) => {
   try { return Services.prefs.getBoolPref(name, fallback); } catch (e) { return fallback; }
@@ -482,6 +484,14 @@ function ensurePaneButtons() {
   });
 }
 
+function schedulePaneButtons() {
+  if (buttonFrame) return;
+  buttonFrame = requestAnimationFrame(() => {
+    buttonFrame = 0;
+    ensurePaneButtons();
+  });
+}
+
 function onShortcut(event) {
   const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
   if (binding && event.ctrlKey && event.altKey && !event.shiftKey && !event.metaKey &&
@@ -530,7 +540,7 @@ function trapDialogFocus(event) {
 }
 
 function onSplitActivated() {
-  requestAnimationFrame(ensurePaneButtons);
+  schedulePaneButtons();
 }
 
 function onWindowResize() {
@@ -552,6 +562,10 @@ const prefObserver = {
 
 function destroy() {
   clearTimeout(toastTimer);
+  if (buttonFrame) cancelAnimationFrame(buttonFrame);
+  buttonFrame = 0;
+  buttonObserver?.disconnect();
+  buttonObserver = null;
   window.removeEventListener("keydown", onShortcut, true);
   window.removeEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
   window.removeEventListener("resize", onWindowResize);
@@ -559,16 +573,44 @@ function destroy() {
   overlay?.remove();
   document.getElementById("pane-toast")?.remove();
   document.querySelectorAll(".pane-button").forEach(button => button.remove());
+  root.removeAttribute("pane-ready");
   if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
 }
 
-buildPicker();
-window.addEventListener("keydown", onShortcut, true);
-window.addEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
-window.addEventListener("resize", onWindowResize);
-Services.prefs.addObserver("mod.pane.", prefObserver);
-ensurePaneButtons();
-applyAppearance();
-window[INSTANCE_KEY] = { destroy, version: "0.7.0" };
-const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
-console.log(TAG, `ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
+function initialize() {
+  try {
+    buildPicker();
+    window.addEventListener("keydown", onShortcut, true);
+    window.addEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
+    window.addEventListener("resize", onWindowResize);
+    Services.prefs.addObserver("mod.pane.", prefObserver);
+
+    // Split headers can be created after Sine loads Pane, rebuilt during session
+    // restore, or replaced by another browser-chrome mod. Watching the browser
+    // DOM keeps the pane button available without depending on one Zen event.
+    buttonObserver = new MutationObserver(schedulePaneButtons);
+    buttonObserver.observe(document.getElementById("browser") ?? root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["is-zen-split"],
+    });
+
+    ensurePaneButtons();
+    applyAppearance();
+    root.setAttribute("pane-ready", "true");
+    window[INSTANCE_KEY] = { destroy, version: "0.8.0" };
+
+    // Sine 2.3+ uses this callback for clean live disable/reload. Without it,
+    // Sine intentionally keeps an already imported module running.
+    window.addUnloadListener?.(destroy);
+
+    const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
+    console.log(TAG, `0.8.0 ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
+  } catch (error) {
+    console.error(TAG, "failed to initialize", error);
+    destroy();
+  }
+}
+
+initialize();
