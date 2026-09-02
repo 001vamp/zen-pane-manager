@@ -1,17 +1,17 @@
 name: Bug report
-description: Report a reproducible problem with Split Swap
+description: Report a reproducible problem with Pane
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: Thanks for helping improve Split Swap. Do not include private URLs, tab titles, or browsing data.
+      value: Thanks for helping improve Pane. Do not include private URLs, tab titles, or browsing data.
   - type: input
     id: versions
     attributes:
       label: Versions
-      description: Split Swap, Zen Browser, and Sine versions
-      placeholder: Split Swap 0.5.0; Zen 1.21.16b; Sine …
+      description: Pane, Zen Browser, and Sine versions
+      placeholder: Pane 0.6.0; Zen 1.21.16b; Sine …
     validations:
       required: true
   - type: dropdown

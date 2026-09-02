@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest a focused improvement to Split Swap
+description: Suggest a focused improvement to Pane
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
@@ -13,7 +13,7 @@ body:
     id: proposal
     attributes:
       label: Proposed behavior
-      description: Describe what the user would do and what Split Swap would do in response.
+      description: Describe what the user would do and what Pane would do in response.
     validations:
       required: true
   - type: textarea

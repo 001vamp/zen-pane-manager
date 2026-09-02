@@ -1,6 +1,6 @@
 ## What changed
 
-Describe the user-visible behavior and why it belongs in Split Swap.
+Describe the user-visible behavior and why it belongs in Pane.
 
 ## Safety
 

@@ -7,6 +7,8 @@ Replace the focused pane in a Zen Browser split view with another open tab—wit
 
 An open-source Sine mod by **[jasi (@001vamp)](https://github.com/001vamp)**.
 
+> **Early contributors wanted.** Pane is young, useful, and intentionally open to new ideas. Try it, report rough edges, propose workflows, or pick up a small issue. See the [roadmap](ROADMAP.md) and [contribution guide](CONTRIBUTING.md).
+
 ## Use
 
 1. Click the split pane you want to replace.
@@ -74,7 +76,9 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for the release test matrix and known l
 
 ## Contributing
 
-Bug reports should include the Zen version, Sine version, split orientation, number of panes, and the exact point where behavior differed from the description. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Bug reports, design feedback, compatibility testing, documentation, and focused pull requests are all welcome. You do not need to understand Zen's internals to help. See [CONTRIBUTING.md](CONTRIBUTING.md) and the public [ROADMAP.md](ROADMAP.md).
+
+Good first contributions include testing another Zen version, improving copy or accessibility, documenting an edge case, and turning a confirmed issue into a focused fix. Bug reports should include the Zen version, Sine version, split orientation, number of panes, and the exact point where behavior differed from the description.
 
 Release history is recorded in [CHANGELOG.md](CHANGELOG.md).
 
