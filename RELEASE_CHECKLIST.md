@@ -22,7 +22,7 @@
 - [ ] Create a `vX.Y.Z` tag matching the manifest version.
 - [ ] Create release notes from `CHANGELOG.md`.
 - [ ] Verify the validation workflow passes.
-- [ ] Test a clean Sine installation from `001vamp/zen-split-swap`.
+- [ ] Test a clean Sine installation from `001vamp/zen-pane-manager`.
 
 ## Marketplace
 

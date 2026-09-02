@@ -7,7 +7,7 @@
   "author": "jasi <123618290+001vamp@users.noreply.github.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/001vamp/zen-split-swap.git"
+    "url": "https://github.com/001vamp/zen-pane-manager.git"
   },
   "scripts": {
     "check": "node --check split-swap.uc.mjs && node scripts/validate.mjs",

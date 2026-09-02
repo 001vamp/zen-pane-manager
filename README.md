@@ -1,7 +1,7 @@
 # Split Swap for Zen Browser
 
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-blue.svg)](LICENSE)
-[![Validate](https://github.com/001vamp/zen-split-swap/actions/workflows/validate.yml/badge.svg)](https://github.com/001vamp/zen-split-swap/actions/workflows/validate.yml)
+[![Validate](https://github.com/001vamp/zen-pane-manager/actions/workflows/validate.yml/badge.svg)](https://github.com/001vamp/zen-pane-manager/actions/workflows/validate.yml)
 
 Replace the focused pane in a Zen Browser split view with another open tab—without unsplitting, rebuilding the layout, or losing your divider sizes.
 
@@ -52,7 +52,7 @@ CSS colors can be written as hex (`#7c5cff`), RGB/RGBA (`rgba(124, 92, 255, 0.72
 In Sine, install the repository:
 
 ```text
-001vamp/zen-split-swap
+001vamp/zen-pane-manager
 ```
 
 For local development, copy this folder into your Zen profile's `chrome/sine-mods` directory, register it in Sine's `mods.json`, and restart Zen Browser.
