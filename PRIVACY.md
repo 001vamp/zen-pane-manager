@@ -1,6 +1,6 @@
 # Privacy
 
-Split Swap works entirely on the user's computer.
+Pane works entirely on the user's computer.
 
 It does not:
 
@@ -11,6 +11,6 @@ It does not:
 - Store browsing history
 - Send tab titles, URLs, or other browser data anywhere
 
-To build its local picker, Split Swap temporarily reads the titles, website addresses, favicons, workspace identifiers, and recent-use ordering of eligible open tabs. That information remains inside the running Zen Browser window and is discarded when the picker closes.
+To build its local picker, Pane temporarily reads the titles, website addresses, favicons, workspace identifiers, and recent-use ordering of eligible open tabs. That information remains inside the running Zen Browser window and is discarded when the picker closes.
 
 Preferences are stored locally through Firefox/Zen's preference service.

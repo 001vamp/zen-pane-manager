@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
-// Split Swap for Zen Browser — replace a pane, preserve its layout leaf.
-const TAG = "[Split Swap]";
+// Pane for Zen Browser — replace a pane, preserve its layout leaf.
+const TAG = "[Pane]";
 const root = document.documentElement;
 const INSTANCE_KEY = "__splitSwapInstance";
 
@@ -247,7 +247,7 @@ function buildPicker() {
   group.id = "split-swap-heading-group";
   const eyebrow = document.createElement("div");
   eyebrow.id = "split-swap-eyebrow";
-  eyebrow.textContent = "SPLIT SWAP";
+  eyebrow.textContent = "PANE";
   heading = document.createElement("div");
   heading.id = "split-swap-heading";
   context = document.createElement("div");
@@ -257,7 +257,7 @@ function buildPicker() {
   close.id = "split-swap-close";
   close.type = "button";
   close.textContent = "×";
-  close.setAttribute("aria-label", "Close Split Swap");
+  close.setAttribute("aria-label", "Close Pane");
   close.addEventListener("click", () => closePicker());
   header.append(group, close);
 
@@ -372,7 +372,7 @@ function positionDialog() {
 
 function openPicker(tab = gBrowser.selectedTab, anchorToPane = false) {
   if (!compatible(splitter())) {
-    showToast("This Zen version is not compatible with Split Swap yet", "error");
+    showToast("This Zen version is not compatible with Pane yet", "error");
     return;
   }
   const data = activeData();

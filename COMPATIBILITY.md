@@ -7,7 +7,7 @@
 - Operating system: Windows
 - Mod loader: Sine
 
-Split Swap relies on Zen's private `gZenViewSplitter` object. The mod checks for the exact methods it needs before offering a replacement, but a future Zen release may still change their behavior.
+Pane relies on Zen's private `gZenViewSplitter` object. The mod checks for the exact methods it needs before offering a replacement, but a future Zen release may still change their behavior.
 
 ## Release test matrix
 

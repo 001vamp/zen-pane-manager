@@ -31,4 +31,4 @@ for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "eval(", "nsIP
   if (source.includes(forbidden)) fail(`privileged source contains forbidden capability: ${forbidden}`);
 }
 
-if (!process.exitCode) console.log(`Split Swap ${theme.version} validation passed (${properties.length} preferences).`);
+if (!process.exitCode) console.log(`Pane ${theme.version} validation passed (${properties.length} preferences).`);

@@ -1,4 +1,4 @@
-# Split Swap for Zen Browser
+# Pane for Zen Browser
 
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-blue.svg)](LICENSE)
 [![Validate](https://github.com/001vamp/zen-pane-manager/actions/workflows/validate.yml/badge.svg)](https://github.com/001vamp/zen-pane-manager/actions/workflows/validate.yml)
@@ -34,7 +34,7 @@ The compact glass picker initially shows only your four most recently used eligi
 
 ## Settings
 
-Open Sine's settings for Split Swap to:
+Open Sine's settings for Pane to:
 
 - Choose `Ctrl+Alt+R`, `Ctrl+Alt+S`, or disable the keyboard shortcut.
 - Show or hide the **⇄** pane button.
@@ -43,7 +43,7 @@ Open Sine's settings for Split Swap to:
 - Set how many tabs appear in compact view, their ordering, website-name visibility, and whether the replaced tab stays open.
 - Fine-tune light and dark glass tints, blur, corners, columns, and the keyboard footer in Advanced customization.
 
-Appearance changes preview live. Choose **System glass** to reset the tint, blur, and corner shape to Split Swap's designed defaults. Advanced tint, blur, and corner controls take effect only with the **Custom** preset.
+Appearance changes preview live. Choose **System glass** to reset the tint, blur, and corner shape to Pane's designed defaults. Advanced tint, blur, and corner controls take effect only with the **Custom** preset.
 
 CSS colors can be written as hex (`#7c5cff`), RGB/RGBA (`rgba(124, 92, 255, 0.72)`), HSL, or a system color such as `AccentColor`. Invalid colors safely fall back to the defaults. Fully transparent accents are also rejected because they would make keyboard focus impossible to see. **Auto** columns is recommended: it adapts the compact layout to narrow and wide picker sizes.
 
@@ -68,7 +68,7 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 ## Compatibility
 
-Split Swap v0.6.0 targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable.
+Pane v0.6.0 targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the release test matrix and known limitations.
 
@@ -82,12 +82,12 @@ Before publishing a release, follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 
 ## License
 
-Split Swap is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**, matching Zen Browser and Sine.
+Pane is licensed under the **Mozilla Public License 2.0 (MPL-2.0)**, matching Zen Browser and Sine.
 
-You may use, inspect, modify, and redistribute it. If you distribute modified MPL-covered files, those files must remain available under MPL-2.0 with their source code. MPL-2.0 permits commercial distribution—as every OSI-approved open-source license must—but recipients remain free to redistribute the covered source themselves. Official Split Swap releases from `001vamp` are intended to remain freely available.
+You may use, inspect, modify, and redistribute it. If you distribute modified MPL-covered files, those files must remain available under MPL-2.0 with their source code. MPL-2.0 permits commercial distribution—as every OSI-approved open-source license must—but recipients remain free to redistribute the covered source themselves. Official Pane releases from `001vamp` are intended to remain freely available.
 
-See [LICENSE](LICENSE) and [LICENSE-NOTES.md](LICENSE-NOTES.md). Split Swap is an independent community project and is not affiliated with or endorsed by Zen Browser or Sine.
+See [LICENSE](LICENSE) and [LICENSE-NOTES.md](LICENSE-NOTES.md). Pane is an independent community project and is not affiliated with or endorsed by Zen Browser or Sine.
 
 ## Privacy and security
 
-Split Swap has no telemetry, network requests, accounts, or data collection. It operates locally in Zen's browser chrome and only reads the tab information needed to display the picker. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
+Pane has no telemetry, network requests, accounts, or data collection. It operates locally in Zen's browser chrome and only reads the tab information needed to display the picker. See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).

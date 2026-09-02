@@ -1,6 +1,6 @@
 {
   "id": "zen-split-swap",
-  "name": "Split Swap",
+  "name": "Pane",
   "description": "Replace the focused tab in a Zen split view while preserving the split layout and divider sizes.",
   "version": "0.6.0",
   "author": "jasi",
@@ -16,7 +16,7 @@
   "preferences": "preferences.json",
   "scripts": {
     "split-swap.uc.mjs": {
-      "name": "Split Swap",
+      "name": "Pane",
       "description": "Adds a searchable picker that replaces the focused split pane without changing its size or position.",
       "include": ["chrome://browser/content/browser.xhtml"]
     }

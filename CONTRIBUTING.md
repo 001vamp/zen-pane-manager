@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve Split Swap.
+Thanks for helping improve Pane.
 
 ## Bug reports
 
@@ -23,7 +23,7 @@ Do not include private URLs, page titles, profile files, or browser-session data
 - Any new mutation must have a rollback path.
 - Keep UI text direct and describe the result rather than the implementation.
 - Support keyboard-only use and `prefers-reduced-motion`.
-- Keep all behavior local. Split Swap must not collect or transmit browser data.
+- Keep all behavior local. Pane must not collect or transmit browser data.
 
 ## Before a pull request
 

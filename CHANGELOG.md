@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Split Swap are documented here.
+All notable changes to Pane are documented here.
 
 ## 0.6.0 — 2026-09-01
 
