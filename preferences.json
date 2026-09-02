@@ -10,7 +10,7 @@
     "label": "How you open it"
   },
   {
-    "property": "mod.split-swap.shortcut",
+    "property": "mod.pane.shortcut",
     "label": "Keyboard shortcut",
     "type": "dropdown",
     "value": "number",
@@ -23,7 +23,7 @@
     ]
   },
   {
-    "property": "mod.split-swap.pane-button",
+    "property": "mod.pane.pane-button",
     "label": "Show the ⇄ button on each split pane",
     "type": "checkbox",
     "defaultValue": true
@@ -33,7 +33,7 @@
     "label": "Style preset"
   },
   {
-    "property": "mod.split-swap.style-preset",
+    "property": "mod.pane.style-preset",
     "label": "Glass style",
     "type": "dropdown",
     "value": "number",
@@ -58,13 +58,13 @@
     "label": "Basic appearance"
   },
   {
-    "property": "mod.split-swap.accent-color",
+    "property": "mod.pane.accent-color",
     "label": "Focus and highlight color",
     "type": "string",
     "defaultValue": "AccentColor"
   },
   {
-    "property": "mod.split-swap.picker-width",
+    "property": "mod.pane.picker-width",
     "label": "Picker size",
     "type": "dropdown",
     "value": "number",
@@ -78,7 +78,7 @@
     ]
   },
   {
-    "property": "mod.split-swap.picker-position",
+    "property": "mod.pane.picker-position",
     "label": "Shortcut picker position",
     "type": "dropdown",
     "value": "number",
@@ -91,13 +91,13 @@
     ]
   },
   {
-    "property": "mod.split-swap.compact-picker",
+    "property": "mod.pane.compact-picker",
     "label": "Use compact spacing",
     "type": "checkbox",
     "defaultValue": false
   },
   {
-    "property": "mod.split-swap.dim-background",
+    "property": "mod.pane.dim-background",
     "label": "Dim the page behind the picker",
     "type": "checkbox",
     "defaultValue": false
@@ -107,7 +107,7 @@
     "label": "Tab behavior"
   },
   {
-    "property": "mod.split-swap.recent-count",
+    "property": "mod.pane.recent-count",
     "label": "Tabs in compact view",
     "type": "dropdown",
     "value": "number",
@@ -121,19 +121,19 @@
     ]
   },
   {
-    "property": "mod.split-swap.recent-first",
+    "property": "mod.pane.recent-first",
     "label": "Put recently used tabs first",
     "type": "checkbox",
     "defaultValue": true
   },
   {
-    "property": "mod.split-swap.show-urls",
+    "property": "mod.pane.show-urls",
     "label": "Show website names below tab titles",
     "type": "checkbox",
     "defaultValue": true
   },
   {
-    "property": "mod.split-swap.keep-old-tab",
+    "property": "mod.pane.keep-old-tab",
     "label": "Keep the replaced tab open in the sidebar",
     "type": "checkbox",
     "defaultValue": true
@@ -149,19 +149,19 @@
     "size": "12px"
   },
   {
-    "property": "mod.split-swap.tint-light",
+    "property": "mod.pane.tint-light",
     "label": "Light-mode glass tint (CSS color)",
     "type": "string",
     "defaultValue": "rgba(247, 248, 251, 0.78)"
   },
   {
-    "property": "mod.split-swap.tint-dark",
+    "property": "mod.pane.tint-dark",
     "label": "Dark-mode glass tint (CSS color)",
     "type": "string",
     "defaultValue": "rgba(24, 25, 30, 0.78)"
   },
   {
-    "property": "mod.split-swap.glass-blur",
+    "property": "mod.pane.glass-blur",
     "label": "Glass blur",
     "type": "dropdown",
     "value": "number",
@@ -176,7 +176,7 @@
     ]
   },
   {
-    "property": "mod.split-swap.corner-radius",
+    "property": "mod.pane.corner-radius",
     "label": "Corner shape",
     "type": "dropdown",
     "value": "number",
@@ -191,7 +191,7 @@
     ]
   },
   {
-    "property": "mod.split-swap.grid-columns",
+    "property": "mod.pane.grid-columns",
     "label": "Compact-view columns",
     "type": "dropdown",
     "value": "number",
@@ -205,7 +205,7 @@
     ]
   },
   {
-    "property": "mod.split-swap.show-help",
+    "property": "mod.pane.show-help",
     "label": "Show keyboard hints in the footer",
     "type": "checkbox",
     "defaultValue": true

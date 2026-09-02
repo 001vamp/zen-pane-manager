@@ -2,6 +2,13 @@
 
 All notable changes to Pane are documented here.
 
+## 0.7.0 — 2026-09-01
+
+- Completed the public rebrand from the prototype name to Pane.
+- Changed the Sine package identity to `zen-pane-manager`.
+- Renamed the runtime script, preference namespace, and internal UI identifiers for a cohesive contributor-facing codebase.
+- Added a public roadmap, newcomer guidance, and ready-to-adapt launch copy.
+
 ## 0.6.0 — 2026-09-01
 
 - Added System, Clear, Frosted, Tinted, and Custom glass presets.

@@ -5,33 +5,33 @@
 // Pane for Zen Browser — replace a pane, preserve its layout leaf.
 const TAG = "[Pane]";
 const root = document.documentElement;
-const INSTANCE_KEY = "__splitSwapInstance";
+const INSTANCE_KEY = "__paneInstance";
 
 // Sine can reload a user script without restarting the browser. Tear down a
 // previous v0.3+ instance and remove any orphaned UI from older releases.
 window[INSTANCE_KEY]?.destroy?.();
-document.getElementById("split-swap-overlay")?.remove();
-document.getElementById("split-swap-toast")?.remove();
-document.querySelectorAll(".split-swap-pane-button").forEach(button => button.remove());
+document.getElementById("pane-overlay")?.remove();
+document.getElementById("pane-toast")?.remove();
+document.querySelectorAll(".pane-button").forEach(button => button.remove());
 const PREF = {
-  shortcut: "mod.split-swap.shortcut",
-  urls: "mod.split-swap.show-urls",
-  recent: "mod.split-swap.recent-first",
-  button: "mod.split-swap.pane-button",
-  keep: "mod.split-swap.keep-old-tab",
-  compact: "mod.split-swap.compact-picker",
-  preset: "mod.split-swap.style-preset",
-  tintLight: "mod.split-swap.tint-light",
-  tintDark: "mod.split-swap.tint-dark",
-  accent: "mod.split-swap.accent-color",
-  blur: "mod.split-swap.glass-blur",
-  radius: "mod.split-swap.corner-radius",
-  width: "mod.split-swap.picker-width",
-  position: "mod.split-swap.picker-position",
-  recentCount: "mod.split-swap.recent-count",
-  columns: "mod.split-swap.grid-columns",
-  dim: "mod.split-swap.dim-background",
-  help: "mod.split-swap.show-help",
+  shortcut: "mod.pane.shortcut",
+  urls: "mod.pane.show-urls",
+  recent: "mod.pane.recent-first",
+  button: "mod.pane.pane-button",
+  keep: "mod.pane.keep-old-tab",
+  compact: "mod.pane.compact-picker",
+  preset: "mod.pane.style-preset",
+  tintLight: "mod.pane.tint-light",
+  tintDark: "mod.pane.tint-dark",
+  accent: "mod.pane.accent-color",
+  blur: "mod.pane.glass-blur",
+  radius: "mod.pane.corner-radius",
+  width: "mod.pane.picker-width",
+  position: "mod.pane.picker-position",
+  recentCount: "mod.pane.recent-count",
+  columns: "mod.pane.grid-columns",
+  dim: "mod.pane.dim-background",
+  help: "mod.pane.show-help",
 };
 const SHORTCUTS = [
   { key: "r", label: "Ctrl+Alt+R" },
@@ -107,10 +107,10 @@ function eligibleTabs(target, data) {
 }
 
 function showToast(message, kind = "info") {
-  let toast = document.getElementById("split-swap-toast");
+  let toast = document.getElementById("pane-toast");
   if (!toast) {
     toast = document.createElement("div");
-    toast.id = "split-swap-toast";
+    toast.id = "pane-toast";
     toast.hidden = true;
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
@@ -138,7 +138,7 @@ function closePicker(restoreFocus = true) {
 function selectResult(index) {
   if (!filtered.length) return;
   selectedIndex = ((index % filtered.length) + filtered.length) % filtered.length;
-  const items = [...results.querySelectorAll(".split-swap-item")];
+  const items = [...results.querySelectorAll(".pane-item")];
   items.forEach((item, i) => {
     item.setAttribute("aria-selected", String(i === selectedIndex));
     item.tabIndex = i === selectedIndex ? 0 : -1;
@@ -179,7 +179,7 @@ function renderResults() {
   expandButton.setAttribute("aria-expanded", String(expanded));
   if (!matches.length) {
     const empty = document.createElement("div");
-    empty.id = "split-swap-empty";
+    empty.id = "pane-empty";
     const strong = document.createElement("strong");
     strong.textContent = query ? "No matching tabs" : "Nothing to swap in yet";
     const hint = document.createElement("span");
@@ -193,7 +193,7 @@ function renderResults() {
   const showUrls = boolPref(PREF.urls, true);
   filtered.forEach((tab, index) => {
     const item = document.createElement("button");
-    item.className = "split-swap-item";
+    item.className = "pane-item";
     item.type = "button";
     item.setAttribute("role", "option");
     item.setAttribute("aria-selected", String(index === 0));
@@ -201,27 +201,27 @@ function renderResults() {
     item.tabIndex = index === 0 ? 0 : -1;
 
     const iconBox = document.createElement("span");
-    iconBox.className = "split-swap-icon-wrap";
+    iconBox.className = "pane-icon-wrap";
     const icon = document.createElement("img");
-    icon.className = "split-swap-icon";
+    icon.className = "pane-icon";
     icon.alt = "";
     icon.src = tab.getAttribute("image") || "chrome://global/skin/icons/defaultFavicon.svg";
     iconBox.appendChild(icon);
 
     const copy = document.createElement("span");
-    copy.className = "split-swap-copy";
+    copy.className = "pane-copy";
     const title = document.createElement("span");
-    title.className = "split-swap-title";
+    title.className = "pane-title";
     title.appendChild(highlighted(tabTitle(tab), query));
     copy.appendChild(title);
     if (showUrls) {
       const url = document.createElement("span");
-      url.className = "split-swap-url";
+      url.className = "pane-url";
       url.appendChild(highlighted(displayUrl(tab), query));
       copy.appendChild(url);
     }
     const action = document.createElement("span");
-    action.className = "split-swap-action";
+    action.className = "pane-action";
     action.textContent = "Replace";
     item.append(iconBox, copy, action);
     item.addEventListener("mouseenter", () => selectResult(index));
@@ -233,28 +233,28 @@ function renderResults() {
 
 function buildPicker() {
   overlay = document.createElement("div");
-  overlay.id = "split-swap-overlay";
+  overlay.id = "pane-overlay";
   overlay.hidden = true;
   dialog = document.createElement("div");
-  dialog.id = "split-swap-dialog";
+  dialog.id = "pane-dialog";
   dialog.setAttribute("role", "dialog");
   dialog.setAttribute("aria-modal", "true");
-  dialog.setAttribute("aria-labelledby", "split-swap-heading");
+  dialog.setAttribute("aria-labelledby", "pane-heading");
 
   const header = document.createElement("header");
-  header.id = "split-swap-header";
+  header.id = "pane-header";
   const group = document.createElement("div");
-  group.id = "split-swap-heading-group";
+  group.id = "pane-heading-group";
   const eyebrow = document.createElement("div");
-  eyebrow.id = "split-swap-eyebrow";
+  eyebrow.id = "pane-eyebrow";
   eyebrow.textContent = "PANE";
   heading = document.createElement("div");
-  heading.id = "split-swap-heading";
+  heading.id = "pane-heading";
   context = document.createElement("div");
-  context.id = "split-swap-context";
+  context.id = "pane-context";
   group.append(eyebrow, heading, context);
   const close = document.createElement("button");
-  close.id = "split-swap-close";
+  close.id = "pane-close";
   close.type = "button";
   close.textContent = "×";
   close.setAttribute("aria-label", "Close Pane");
@@ -262,30 +262,30 @@ function buildPicker() {
   header.append(group, close);
 
   const searchWrap = document.createElement("div");
-  searchWrap.id = "split-swap-search-wrap";
+  searchWrap.id = "pane-search-wrap";
   const searchIcon = document.createElement("span");
-  searchIcon.id = "split-swap-search-icon";
+  searchIcon.id = "pane-search-icon";
   searchIcon.textContent = "⌕";
   search = document.createElement("input");
-  search.id = "split-swap-search";
+  search.id = "pane-search";
   search.type = "search";
   search.placeholder = "Find an open tab…";
   search.autocomplete = "off";
   search.spellcheck = false;
   count = document.createElement("span");
-  count.id = "split-swap-count";
+  count.id = "pane-count";
   searchWrap.append(searchIcon, search, count);
   const sectionHeader = document.createElement("div");
-  sectionHeader.id = "split-swap-section-header";
+  sectionHeader.id = "pane-section-header";
   sectionLabel = document.createElement("span");
-  sectionLabel.id = "split-swap-section-label";
+  sectionLabel.id = "pane-section-label";
   sectionHeader.appendChild(sectionLabel);
   results = document.createElement("div");
-  results.id = "split-swap-results";
+  results.id = "pane-results";
   results.setAttribute("role", "listbox");
   results.setAttribute("aria-label", "Tabs available to replace this pane");
   expandButton = document.createElement("button");
-  expandButton.id = "split-swap-expand";
+  expandButton.id = "pane-expand";
   expandButton.type = "button";
   expandButton.addEventListener("click", () => {
     expanded = !expanded;
@@ -293,7 +293,7 @@ function buildPicker() {
     search.focus();
   });
   const help = document.createElement("footer");
-  help.id = "split-swap-help";
+  help.id = "pane-help";
   help.innerHTML = "<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Replace</span><span><kbd>Esc</kbd> Cancel</span>";
   dialog.append(header, searchWrap, sectionHeader, results, expandButton, help);
   overlay.appendChild(dialog);
@@ -335,13 +335,13 @@ function applyAppearance() {
     ? autoColumns
     : width <= 420 && requestedColumns > 2 ? 2 : requestedColumns;
   const position = choice(intPref(PREF.position, 0), [0, 1, 2], 0);
-  dialog.style.setProperty("--ss-user-tint-light", appearance.light);
-  dialog.style.setProperty("--ss-user-tint-dark", appearance.dark);
-  dialog.style.setProperty("--ss-accent", accent);
-  dialog.style.setProperty("--ss-blur", `${appearance.blur}px`);
-  dialog.style.setProperty("--ss-radius", `${appearance.radius}px`);
-  dialog.style.setProperty("--ss-width", `${width}px`);
-  dialog.style.setProperty("--ss-columns", String(columns));
+  dialog.style.setProperty("--pane-user-tint-light", appearance.light);
+  dialog.style.setProperty("--pane-user-tint-dark", appearance.dark);
+  dialog.style.setProperty("--pane-accent", accent);
+  dialog.style.setProperty("--pane-blur", `${appearance.blur}px`);
+  dialog.style.setProperty("--pane-radius", `${appearance.radius}px`);
+  dialog.style.setProperty("--pane-width", `${width}px`);
+  dialog.style.setProperty("--pane-columns", String(columns));
   overlay.dataset.position = ["top", "upper", "center"][position];
   overlay.toggleAttribute("dim", boolPref(PREF.dim, false));
   dialog.toggleAttribute("hide-help", !boolPref(PREF.help, true));
@@ -463,11 +463,11 @@ function ensurePaneButtons() {
   document.querySelectorAll(".browserSidebarContainer[is-zen-split]").forEach(container => {
     const header = container.querySelector(".zen-view-splitter-header");
     if (!header) return;
-    const current = header.querySelector(".split-swap-pane-button");
+    const current = header.querySelector(".pane-button");
     if (!boolPref(PREF.button, true)) { current?.remove(); return; }
     if (current) return;
     const button = document.createXULElement("toolbarbutton");
-    button.className = "split-swap-pane-button";
+    button.className = "pane-button";
     button.setAttribute("tooltiptext", "Replace this pane with another open tab");
     button.setAttribute("aria-label", "Replace this split pane");
     button.setAttribute("label", "⇄");
@@ -515,9 +515,9 @@ function trapDialogFocus(event) {
   if (event.key !== "Tab") return;
   const focusable = [
     search,
-    ...results.querySelectorAll(".split-swap-item"),
+    ...results.querySelectorAll(".pane-item"),
     expandButton.hidden ? null : expandButton,
-    document.getElementById("split-swap-close"),
+    document.getElementById("pane-close"),
   ].filter(Boolean);
   if (!focusable.length) return;
   const current = focusable.indexOf(document.activeElement);
@@ -555,10 +555,10 @@ function destroy() {
   window.removeEventListener("keydown", onShortcut, true);
   window.removeEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
   window.removeEventListener("resize", onWindowResize);
-  try { Services.prefs.removeObserver("mod.split-swap.", prefObserver); } catch (e) {}
+  try { Services.prefs.removeObserver("mod.pane.", prefObserver); } catch (e) {}
   overlay?.remove();
-  document.getElementById("split-swap-toast")?.remove();
-  document.querySelectorAll(".split-swap-pane-button").forEach(button => button.remove());
+  document.getElementById("pane-toast")?.remove();
+  document.querySelectorAll(".pane-button").forEach(button => button.remove());
   if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
 }
 
@@ -566,9 +566,9 @@ buildPicker();
 window.addEventListener("keydown", onShortcut, true);
 window.addEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
 window.addEventListener("resize", onWindowResize);
-Services.prefs.addObserver("mod.split-swap.", prefObserver);
+Services.prefs.addObserver("mod.pane.", prefObserver);
 ensurePaneButtons();
 applyAppearance();
-window[INSTANCE_KEY] = { destroy, version: "0.6.0" };
+window[INSTANCE_KEY] = { destroy, version: "0.7.0" };
 const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
 console.log(TAG, `ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);

@@ -70,7 +70,7 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 ## Compatibility
 
-Pane v0.6.0 targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable.
+Pane v0.7.0 targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the release test matrix and known limitations.
 

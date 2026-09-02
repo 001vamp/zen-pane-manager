@@ -3,19 +3,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 :root {
-  --ss-accent: AccentColor;
-  --ss-user-tint-light: rgb(247 248 251 / 0.78);
-  --ss-user-tint-dark: rgb(24 25 30 / 0.78);
-  --ss-blur: 38px;
-  --ss-radius: 24px;
-  --ss-width: 520px;
-  --ss-columns: 2;
-  --ss-line: light-dark(rgb(20 20 28 / 0.1), rgb(255 255 255 / 0.12));
-  --ss-fill: light-dark(rgb(255 255 255 / 0.66), rgb(255 255 255 / 0.075));
-  --ss-hover: light-dark(rgb(20 20 28 / 0.075), rgb(255 255 255 / 0.105));
+  --pane-accent: AccentColor;
+  --pane-user-tint-light: rgb(247 248 251 / 0.78);
+  --pane-user-tint-dark: rgb(24 25 30 / 0.78);
+  --pane-blur: 38px;
+  --pane-radius: 24px;
+  --pane-width: 520px;
+  --pane-columns: 2;
+  --pane-line: light-dark(rgb(20 20 28 / 0.1), rgb(255 255 255 / 0.12));
+  --pane-fill: light-dark(rgb(255 255 255 / 0.66), rgb(255 255 255 / 0.075));
+  --pane-hover: light-dark(rgb(20 20 28 / 0.075), rgb(255 255 255 / 0.105));
 }
 
-#split-swap-overlay {
+#pane-overlay {
   position: fixed;
   inset: 0;
   z-index: 2147483647;
@@ -24,49 +24,49 @@
   box-sizing: border-box;
   padding-top: clamp(46px, 7vh, 90px);
   background: transparent;
-  animation: ss-fade-in 110ms ease-out;
+  animation: pane-fade-in 110ms ease-out;
 }
 
-#split-swap-overlay[dim] {
+#pane-overlay[dim] {
   background: rgb(5 7 12 / 0.2);
 }
 
-#split-swap-overlay[data-position="upper"] {
+#pane-overlay[data-position="upper"] {
   padding-top: clamp(110px, 18vh, 220px);
 }
 
-#split-swap-overlay[data-position="center"] {
+#pane-overlay[data-position="center"] {
   place-items: center;
   padding-top: 0;
 }
 
-#split-swap-overlay[hidden],
-#split-swap-toast[hidden],
-#split-swap-expand[hidden] {
+#pane-overlay[hidden],
+#pane-toast[hidden],
+#pane-expand[hidden] {
   display: none;
 }
 
-#split-swap-dialog {
-  width: min(var(--ss-width), calc(100vw - 36px));
+#pane-dialog {
+  width: min(var(--pane-width), calc(100vw - 36px));
   max-height: min(620px, calc(100vh - 90px));
   overflow: hidden;
   color: light-dark(#1f2024, #f5f5f7);
-  background: light-dark(var(--ss-user-tint-light), var(--ss-user-tint-dark));
-  border: 1px solid var(--ss-line);
-  border-radius: var(--ss-radius);
+  background: light-dark(var(--pane-user-tint-light), var(--pane-user-tint-dark));
+  border: 1px solid var(--pane-line);
+  border-radius: var(--pane-radius);
   box-shadow: 0 24px 70px rgb(0 0 0 / 0.28), inset 0 1px rgb(255 255 255 / 0.18);
-  backdrop-filter: blur(var(--ss-blur)) saturate(1.35);
+  backdrop-filter: blur(var(--pane-blur)) saturate(1.35);
   font: menu;
   transform-origin: top center;
-  animation: ss-pop-in 160ms cubic-bezier(.2, .85, .3, 1);
+  animation: pane-pop-in 160ms cubic-bezier(.2, .85, .3, 1);
 }
 
-#split-swap-dialog[pane-anchored] {
+#pane-dialog[pane-anchored] {
   position: fixed;
   margin: 0;
 }
 
-#split-swap-header {
+#pane-header {
   display: flex;
   gap: 14px;
   align-items: center;
@@ -74,21 +74,21 @@
   padding: 15px 17px 10px;
 }
 
-#split-swap-heading-group {
+#pane-heading-group {
   min-width: 0;
 }
 
-#split-swap-eyebrow {
+#pane-eyebrow {
   display: none;
 }
 
-#split-swap-heading {
+#pane-heading {
   font-size: 14px;
   font-weight: 670;
   line-height: 1.3;
 }
 
-#split-swap-context {
+#pane-context {
   overflow: hidden;
   margin-top: 2px;
   opacity: 0.64;
@@ -97,7 +97,7 @@
   white-space: nowrap;
 }
 
-#split-swap-close {
+#pane-close {
   appearance: none;
   display: grid;
   flex: none;
@@ -106,19 +106,19 @@
   height: 25px;
   padding: 0 0 2px;
   color: inherit;
-  background: var(--ss-fill);
-  border: 1px solid var(--ss-line);
+  background: var(--pane-fill);
+  border: 1px solid var(--pane-line);
   border-radius: 50%;
   opacity: 0.68;
   font: 18px/1 system-ui;
 }
 
-#split-swap-close:hover {
+#pane-close:hover {
   opacity: 1;
-  background: var(--ss-hover);
+  background: var(--pane-hover);
 }
 
-#split-swap-search-wrap {
+#pane-search-wrap {
   display: grid;
   grid-template-columns: 25px minmax(0, 1fr) auto;
   align-items: center;
@@ -133,19 +133,19 @@
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
-#split-swap-search-wrap:focus-within {
+#pane-search-wrap:focus-within {
   background: light-dark(rgb(255 255 255 / 0.88), rgb(15 16 20 / 0.72));
-  border-color: color-mix(in srgb, var(--ss-accent) 58%, transparent);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 0 0 3px color-mix(in srgb, var(--ss-accent) 14%, transparent), 0 8px 24px rgb(0 0 0 / 0.12);
+  border-color: color-mix(in srgb, var(--pane-accent) 58%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 0 0 3px color-mix(in srgb, var(--pane-accent) 14%, transparent), 0 8px 24px rgb(0 0 0 / 0.12);
 }
 
-#split-swap-search-icon {
+#pane-search-icon {
   opacity: 0.5;
   translate: 0 -1px;
   font: 20px/1 system-ui;
 }
 
-#split-swap-search {
+#pane-search {
   appearance: none !important;
   -moz-appearance: none !important;
   min-width: 0;
@@ -159,30 +159,30 @@
   font: 13px/1.2 system-ui !important;
 }
 
-#split-swap-search::-webkit-search-cancel-button {
+#pane-search::-webkit-search-cancel-button {
   appearance: none;
 }
 
-#split-swap-search::placeholder {
+#pane-search::placeholder {
   color: inherit;
   opacity: 0.58;
 }
 
-#split-swap-count {
+#pane-count {
   padding-left: 8px;
   opacity: 0.56;
   font-size: 10px;
   white-space: nowrap;
 }
 
-#split-swap-section-header {
+#pane-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 17px 6px;
 }
 
-#split-swap-section-label {
+#pane-section-label {
   opacity: 0.62;
   font-size: 10px;
   font-weight: 700;
@@ -190,9 +190,9 @@
   text-transform: uppercase;
 }
 
-#split-swap-results {
+#pane-results {
   display: grid;
-  grid-template-columns: repeat(var(--ss-columns), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--pane-columns), minmax(0, 1fr));
   gap: 7px;
   max-height: 420px;
   overflow-y: auto;
@@ -201,13 +201,13 @@
   scrollbar-width: thin;
 }
 
-#split-swap-dialog[expanded] #split-swap-results,
-#split-swap-dialog[searching] #split-swap-results {
+#pane-dialog[expanded] #pane-results,
+#pane-dialog[searching] #pane-results {
   grid-template-columns: 1fr;
   gap: 3px;
 }
 
-.split-swap-item {
+.pane-item {
   appearance: none;
   display: grid;
   grid-template-columns: 31px minmax(0, 1fr);
@@ -218,8 +218,8 @@
   box-sizing: border-box;
   padding: 8px 9px;
   color: inherit;
-  background: var(--ss-fill);
-  border: 1px solid var(--ss-line);
+  background: var(--pane-fill);
+  border: 1px solid var(--pane-line);
   border-radius: 14px;
   box-shadow: inset 0 1px rgb(255 255 255 / 0.1);
   text-align: left;
@@ -227,8 +227,8 @@
   transition: background 90ms ease, border-color 90ms ease, transform 90ms ease;
 }
 
-#split-swap-dialog[expanded] .split-swap-item,
-#split-swap-dialog[searching] .split-swap-item {
+#pane-dialog[expanded] .pane-item,
+#pane-dialog[searching] .pane-item {
   grid-template-columns: 31px minmax(0, 1fr) auto;
   min-height: 48px;
   background: transparent;
@@ -236,17 +236,17 @@
   border-radius: 11px;
 }
 
-.split-swap-item:hover,
-.split-swap-item[aria-selected="true"] {
-  background: var(--ss-hover) !important;
-  border-color: color-mix(in srgb, var(--ss-accent) 22%, var(--ss-line)) !important;
+.pane-item:hover,
+.pane-item[aria-selected="true"] {
+  background: var(--pane-hover) !important;
+  border-color: color-mix(in srgb, var(--pane-accent) 22%, var(--pane-line)) !important;
 }
 
-.split-swap-item:active {
+.pane-item:active {
   transform: scale(0.985);
 }
 
-.split-swap-icon-wrap {
+.pane-icon-wrap {
   display: grid;
   place-items: center;
   width: 30px;
@@ -255,15 +255,15 @@
   border-radius: 9px;
 }
 
-.split-swap-icon {
+.pane-icon {
   width: 18px;
   height: 18px;
   object-fit: contain;
 }
 
-.split-swap-copy,
-.split-swap-title,
-.split-swap-url {
+.pane-copy,
+.pane-title,
+.pane-url {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -271,45 +271,45 @@
   white-space: nowrap;
 }
 
-.split-swap-title {
+.pane-title {
   font-size: 12px;
   font-weight: 590;
 }
 
-.split-swap-url {
+.pane-url {
   margin-top: 2px;
   opacity: 0.6;
   font-size: 10px;
 }
 
-.split-swap-item mark {
+.pane-item mark {
   color: inherit;
-  background: color-mix(in srgb, var(--ss-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--pane-accent) 28%, transparent);
   border-radius: 3px;
 }
 
-.split-swap-action {
+.pane-action {
   display: none;
   padding: 4px 7px;
-  color: color-mix(in srgb, var(--ss-accent) 78%, currentColor);
-  background: color-mix(in srgb, var(--ss-accent) 12%, transparent);
+  color: color-mix(in srgb, var(--pane-accent) 78%, currentColor);
+  background: color-mix(in srgb, var(--pane-accent) 12%, transparent);
   border-radius: 7px;
   opacity: 0;
   font-size: 10px;
   font-weight: 650;
 }
 
-#split-swap-dialog[expanded] .split-swap-action,
-#split-swap-dialog[searching] .split-swap-action {
+#pane-dialog[expanded] .pane-action,
+#pane-dialog[searching] .pane-action {
   display: block;
 }
 
-.split-swap-item:hover .split-swap-action,
-.split-swap-item[aria-selected="true"] .split-swap-action {
+.pane-item:hover .pane-action,
+.pane-item[aria-selected="true"] .pane-action {
   opacity: 1;
 }
 
-#split-swap-empty {
+#pane-empty {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
@@ -318,15 +318,15 @@
   text-align: center;
 }
 
-#split-swap-empty strong { font-size: 13px; }
-#split-swap-empty span {
+#pane-empty strong { font-size: 13px; }
+#pane-empty span {
   max-width: 310px;
   margin-top: 4px;
   opacity: 0.62;
   font-size: 11px;
 }
 
-#split-swap-expand {
+#pane-expand {
   appearance: none;
   display: block;
   margin: 0 auto 9px;
@@ -339,41 +339,41 @@
   font: 10px/1.2 system-ui;
 }
 
-#split-swap-expand:hover {
+#pane-expand:hover {
   opacity: 0.9;
-  background: var(--ss-hover);
+  background: var(--pane-hover);
 }
 
-#split-swap-help {
+#pane-help {
   display: flex;
   gap: 14px;
   align-items: center;
   padding: 8px 14px 10px;
-  border-top: 1px solid var(--ss-line);
+  border-top: 1px solid var(--pane-line);
   opacity: 0.58;
   font-size: 10px;
 }
 
-#split-swap-dialog[hide-help] #split-swap-help {
+#pane-dialog[hide-help] #pane-help {
   display: none;
 }
 
-#split-swap-help span { display: flex; gap: 3px; align-items: center; }
-#split-swap-help kbd {
+#pane-help span { display: flex; gap: 3px; align-items: center; }
+#pane-help kbd {
   min-width: 14px;
   box-sizing: border-box;
   padding: 1px 3px;
   color: inherit;
-  background: var(--ss-fill);
-  border: 1px solid var(--ss-line);
+  background: var(--pane-fill);
+  border: 1px solid var(--pane-line);
   border-radius: 4px;
   text-align: center;
   font: inherit;
 }
 
-#split-swap-dialog[compact] .split-swap-item { min-height: 44px; padding-block: 5px; }
+#pane-dialog[compact] .pane-item { min-height: 44px; padding-block: 5px; }
 
-.split-swap-pane-button {
+.pane-button {
   min-width: 24px !important;
   width: 24px !important;
   height: 24px !important;
@@ -383,12 +383,12 @@
   font: 15px/1 system-ui !important;
 }
 
-.split-swap-pane-button:hover {
+.pane-button:hover {
   opacity: 1;
   background: rgb(127 127 127 / 0.18) !important;
 }
 
-#split-swap-toast {
+#pane-toast {
   position: fixed;
   z-index: 2147483647;
   left: 50%;
@@ -402,22 +402,22 @@
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.28);
   backdrop-filter: blur(20px);
   font: menu;
-  animation: ss-toast-in 140ms ease-out;
+  animation: pane-toast-in 140ms ease-out;
 }
 
-#split-swap-toast[data-kind="success"] { border-color: rgb(80 210 130 / 0.4); }
-#split-swap-toast[data-kind="warning"] { border-color: rgb(245 185 65 / 0.48); }
-#split-swap-toast[data-kind="error"] { border-color: rgb(245 85 85 / 0.48); }
+#pane-toast[data-kind="success"] { border-color: rgb(80 210 130 / 0.4); }
+#pane-toast[data-kind="warning"] { border-color: rgb(245 185 65 / 0.48); }
+#pane-toast[data-kind="error"] { border-color: rgb(245 85 85 / 0.48); }
 
-@keyframes ss-fade-in { from { opacity: 0; } }
-@keyframes ss-pop-in { from { opacity: 0; transform: translateY(-7px) scale(0.975); } }
-@keyframes ss-toast-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes pane-fade-in { from { opacity: 0; } }
+@keyframes pane-pop-in { from { opacity: 0; transform: translateY(-7px) scale(0.975); } }
+@keyframes pane-toast-in { from { opacity: 0; transform: translateY(6px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  #split-swap-overlay,
-  #split-swap-dialog,
-  #split-swap-toast,
-  .split-swap-item {
+  #pane-overlay,
+  #pane-dialog,
+  #pane-toast,
+  .pane-item {
     animation: none;
     transition: none;
   }
