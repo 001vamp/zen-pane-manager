@@ -1,10 +1,11 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
-// Folder children are pinned by Zen, but can be opened as ordinary split copies.
-export const isFolderTab = tab => Boolean(tab?.group?.isZenFolder || tab?.closest?.("zen-folder"));
-export const isSupportedTab = tab => Boolean(tab && !tab.closing && !tab.hidden &&
-  (!tab.pinned || isFolderTab(tab)) && !tab.hasAttribute("zen-essential") && !tab.hasAttribute("zen-empty-tab"));
+// Preserve saved tabs by using normal copies for layout operations.
+export const needsTabCopy = tab => Boolean(tab?.pinned || tab?.hasAttribute("zen-essential"));
+export const tabWorkspace = (win, tab) => tab?.hasAttribute("zen-essential")
+  ? win.gZenWorkspaces.activeWorkspace : (tab?.getAttribute("zen-workspace-id") ?? "");
+export const isSupportedTab = tab => Boolean(tab && !tab.closing && !tab.hidden && !tab.hasAttribute("zen-empty-tab"));
 
 export function updateHistoryControls(win) {
   for (const control of win.document.querySelectorAll(".pane-history-button")) {
@@ -242,7 +243,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
   }
   function add(target, incoming, mode) {
     checkTab(target); checkTab(incoming);
-    if (target === incoming || incoming.splitView || target.getAttribute("zen-workspace-id") !== incoming.getAttribute("zen-workspace-id")) throw new Error("Choose an available tab in the same workspace");
+    if (target === incoming || incoming.splitView || tabWorkspace(win, target) !== tabWorkspace(win, incoming)) throw new Error("Choose an available tab in the same workspace");
     const current = groupFor(target);
     if ((current?.tabs.length ?? 1) >= view.MAX_TABS) throw new Error("This split has reached Zen’s tab limit");
     if (!layoutTypes[mode] && mode !== "float") throw new Error("Unknown layout");
@@ -250,7 +251,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     const snapshot = current ? { tree: copyTree(current.layoutTree), type: current.gridType } : null;
     const originalTarget = target, copies = [];
     const prepare = tab => {
-      if (!tab.pinned || !isFolderTab(tab) || tab.splitView) return tab;
+      if (!needsTabCopy(tab) || tab.splitView) return tab;
       const copy = browser.duplicateTab(tab, true);
       copies.push(copy);
       return copy;

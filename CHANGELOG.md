@@ -4,6 +4,8 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Support pinned tabs and Essentials as picker sources and targets, using normal copies while preserving saved originals.
+
 - Briefly reveal controls when switching panes, widen the top-edge target, and delay hiding to make toolbars easier to reach.
 
 - Add per-pane Back and Forward controls to split and floating toolbars, with live history availability.

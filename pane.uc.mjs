@@ -1,4 +1,4 @@
-import { createMultiwindow, modeLabels, isFolderTab, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-navigation1";
+import { createMultiwindow, modeLabels, needsTabCopy, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-savedtabs1";
 import { numericValue, glassPresets } from "./appearance.mjs";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -87,7 +87,7 @@ const compatible = view =>
   typeof view.resetTabState === "function" &&
   typeof view.activateSplitView === "function" &&
   ["splitTabs", "calculateLayoutTree", "removeTabFromGroup", "applyGridLayout", "removeSplitters"].every(name => typeof view[name] === "function");
-const workspaceId = tab => tab?.getAttribute("zen-workspace-id") ?? "";
+const workspaceId = tab => tabWorkspace(window, tab);
 const tabTitle = tab => tab?.label?.trim() || "Untitled tab";
 const lastUsed = tab => tab?._lastAccessed ?? tab?.lastSeenActive ?? 0;
 
@@ -506,10 +506,10 @@ function replacePane(incoming) {
     showToast("Zen’s split layout is not ready yet", "warning"); return;
   }
   diagnosticLog("replacement started", { paneCount: data.tabs.length });
-  let changed = false, folderCopy = null;
+  let changed = false, savedTabCopy = null;
   try {
-    if (incoming.pinned && isFolderTab(incoming)) {
-      incoming = folderCopy = gBrowser.duplicateTab(incoming, true);
+    if (needsTabCopy(incoming)) {
+      incoming = savedTabCopy = gBrowser.duplicateTab(incoming, true);
     }
     if (incoming.group !== splitGroup) gBrowser.moveTabToExistingGroup(incoming, splitGroup);
     data.tabs[index] = incoming;
@@ -546,7 +546,7 @@ function replacePane(incoming) {
         gBrowser.selectedTab = outgoing;
       } catch (rollbackError) { console.error(TAG, "rollback failed", rollbackError); }
     }
-    if (folderCopy?.isConnected && !folderCopy.closing) gBrowser.removeTab(folderCopy, { animate: false });
+    if (savedTabCopy?.isConnected && !savedTabCopy.closing) gBrowser.removeTab(savedTabCopy, { animate: false });
     showToast("The pane was not changed", "error");
   }
 }
