@@ -23,6 +23,8 @@ In an existing split, Pane defaults to **Replace**. The outgoing tab stays open 
 
 Click **⇄** in a split header to open the picker over that pane. Click **⋯** to change the layout, add another tab, float the selected tab, or return it to a normal tab. Choosing Grid with two tabs opens the picker for a third tab. Zen currently permits up to four tabs per split, including a floating tab.
 
+The floating header hides automatically to leave more room for the page. Hover over its top edge or focus its controls with the keyboard to reveal it. Use **Keep header visible** to pin the slim header open.
+
 A floating tab stays inside its Zen window. Drag its header to move it or drag any edge or corner to resize it. You can also focus either handle and use the arrow keys. The **×** button returns the tab to the sidebar without closing it. The layout menu can dock it back into a split or make it the normal full-page tab.
 
 The compact picker shows recent tabs with thumbnails. Search or **Show all** opens the full list. Thumbnails are captured in memory while the picker is open; Pane does not save or upload them. Sleeping tabs stay asleep and use their title and icon until opened. Escape clears search, collapses the full list, then closes the picker.

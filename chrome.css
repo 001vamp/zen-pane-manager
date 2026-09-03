@@ -569,3 +569,49 @@
   background: light-dark(#f7f8fb,#23242b) !important;
   border-radius: 6px 0 0 0 !important;
 }
+
+/* Overlay the page so revealing controls never resizes the live tab. */
+.browserSidebarContainer[pane-floating] > .pane-float-header {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 4;
+  box-sizing: border-box;
+  height: 32px;
+  min-height: 32px;
+  padding: 3px 9px;
+  gap: 8px;
+  border-radius: 16px 16px 0 0;
+  transform: translateY(calc(-100% + 6px));
+  transition: transform 160ms ease;
+  transition-delay: 350ms;
+}
+.browserSidebarContainer[pane-floating] > .pane-float-header:is(:hover, :focus-within, [data-pinned], [data-dragging]) {
+  transform: translateY(0);
+  transition-delay: 0ms;
+}
+.pane-float-header .pane-float-title { font-size: 12px; font-weight: 600; line-height: 24px; }
+.pane-float-header .pane-float-actions { gap: 4px; }
+.pane-float-header .pane-float-actions > button {
+  appearance: none !important;
+  box-sizing: border-box !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: inherit !important;
+  box-shadow: none !important;
+  font: 16px/1 system-ui !important;
+}
+.pane-float-header .pane-float-actions > button:is(:hover, [aria-pressed="true"]) {
+  background: var(--pane-hover) !important;
+  border-color: var(--pane-line) !important;
+}
+.pane-float-header .pane-float-actions > button:focus-visible { outline: 2px solid var(--pane-accent); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .browserSidebarContainer[pane-floating] > .pane-float-header { transition: none; }
+}

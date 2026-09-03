@@ -1,4 +1,4 @@
-import { createMultiwindow, modeLabels } from "./multiwindow.mjs?pane=0.10.0-dev-resize1";
+import { createMultiwindow, modeLabels } from "./multiwindow.mjs?pane=0.10.0-dev-header1";
 import { numericValue, glassPresets } from "./appearance.mjs";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev";
 // This Source Code Form is subject to the terms of the Mozilla Public

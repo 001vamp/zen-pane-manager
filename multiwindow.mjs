@@ -76,6 +76,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       if (event.button !== 0 || event.target.closest("button") && !resizing) return;
       event.preventDefault(); event.stopPropagation();
       drag = { x: event.clientX, y: event.clientY, rect: { ...floating.rect } };
+      handle.setAttribute("data-dragging", "true");
       handle.setPointerCapture(event.pointerId);
     }, { signal });
     handle.addEventListener("pointermove", event => {
@@ -87,7 +88,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
         : { ...drag.rect, x: drag.rect.x + dx, y: drag.rect.y + dy };
       positionFloat();
     }, { signal });
-    for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) handle.addEventListener(name, () => { drag = null; }, { signal });
+    for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) handle.addEventListener(name, () => { drag = null; handle.removeAttribute("data-dragging"); }, { signal });
     handle.addEventListener("keydown", event => {
       const moves = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] };
       if (!moves[event.key] || event.target !== handle || !floating) return;
@@ -125,11 +126,18 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       const header = el("div", "pane-float-header");
       header.tabIndex = 0; header.setAttribute("aria-label", "Move floating tab with arrow keys or drag");
       const copy = el("div", "pane-float-copy");
-      copy.append(el("div", "pane-float-title", f.tab.label), el("div", "pane-float-context", "Floating tab"));
+      copy.append(el("div", "pane-float-title", f.tab.label));
       const actions = el("div", "pane-float-actions");
       const arrange = button("⋯", () => openMenu(f.tab, header)); arrange.setAttribute("aria-label", "Arrange floating tab");
       const close = button("×", () => run(() => detach(f.tab, false))); close.setAttribute("aria-label", "Return floating tab to sidebar");
-      actions.append(arrange, close); header.append(copy, actions);
+      const pin = button("⌖", () => {
+        const pinned = header.toggleAttribute("data-pinned");
+        pin.setAttribute("aria-pressed", String(pinned));
+        pin.title = pinned ? "Auto-hide header" : "Keep header visible";
+      });
+      pin.setAttribute("aria-label", "Keep floating header visible");
+      pin.setAttribute("aria-pressed", "false"); pin.title = "Keep header visible";
+      actions.append(pin, arrange, close); header.append(copy, actions);
       f.container.prepend(header);
       bindPointer(header, false);
       for (const edge of ["se", "n", "s", "e", "w", "ne", "nw", "sw"]) {

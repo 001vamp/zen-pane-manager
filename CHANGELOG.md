@@ -4,6 +4,8 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Slim floating headers to one row and auto-hide them over the page, with a keep-visible toggle and keyboard access.
+
 Inspired by u/doskey’s suggestion and the Samsung Galaxy Fold Multi Window team’s work. Thank you to both for inspiring Pane’s split and floating tab controls.
 
 - Make the selected layout a high-contrast rounded pill with a checkmark; strengthen tab-card and layout-menu selection states.
