@@ -21,7 +21,9 @@ See the [complete UI state sheet](docs/pane-ui-showcase.html) for compact, searc
 
 In an existing split, Pane defaults to **Replace**. The outgoing tab stays open unless you change that setting. Its replacement takes the exact same position and divider size.
 
-Click **⇄** in a split header to open the picker over that pane. Click **⋯** to change the layout, add another tab, float the selected tab, or return it to a normal tab. Choosing Grid with two tabs opens the picker for a third tab. Zen currently permits up to four tabs per split, including a floating tab.
+Use **‹ Back** and **› Forward** in each split or floating toolbar to navigate that pane’s page history. The buttons dim when no history is available.
+
+The toolbar appears briefly when you switch panes. Move to the wider top-center area to reveal it again. It hides when you move away, and stays visible while its controls have keyboard focus. Click **⇄** in a split header to open the picker over that pane. Click **⋯** to change the layout, add another tab, float the selected tab, or return it to a normal tab. Choosing Grid with two tabs opens the picker for a third tab. Zen currently permits up to four tabs per split, including a floating tab.
 
 The floating header hides automatically to leave more room for the page. Hover over its top edge or focus its controls with the keyboard to reveal it. Use **Keep header visible** to pin the slim header open.
 
@@ -130,7 +132,8 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 - Only replaces a pane in the currently active split view.
 - Only offers ordinary open tabs from the same workspace.
-- Excludes pinned and Essential tabs until those cases are verified across Zen releases.
+- Supports tabs inside folders, including collapsed folders. Pane opens a normal copy for the split or floating view and leaves the original in its folder.
+- Other pinned tabs and Essential tabs remain excluded.
 - Never offers a tab already participating in another split.
 - Leaves the outgoing tab open and available in the sidebar.
 - Preserves horizontal, vertical, grid, and nested split-tree ratios.

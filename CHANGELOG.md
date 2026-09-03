@@ -4,6 +4,14 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Briefly reveal controls when switching panes, widen the top-edge target, and delay hiding to make toolbars easier to reach.
+
+- Add per-pane Back and Forward controls to split and floating toolbars, with live history availability.
+
+- Auto-hide split toolbars until the pointer reaches their top edge or their controls receive keyboard focus.
+
+- Support folder tabs in the picker, replacement, splits, and floating views using normal copies that preserve the originals in their folders.
+
 - Slim floating headers to one row and auto-hide them over the page, with a keep-visible toggle and keyboard access.
 
 Inspired by u/doskey’s suggestion and the Samsung Galaxy Fold Multi Window team’s work. Thank you to both for inspiring Pane’s split and floating tab controls.

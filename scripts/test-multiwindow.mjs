@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { fitRectangle, resizeRectangle, layoutTypes } from "../multiwindow.mjs";
+import { fitRectangle, resizeRectangle, layoutTypes, isSupportedTab } from "../multiwindow.mjs";
 assert.deepEqual(layoutTypes, { right: "vsep", below: "hsep", grid: "grid" });
 assert.deepEqual(fitRectangle({x:900,y:800,width:480,height:420},800,600), {x:320,y:180,width:480,height:420});
 assert.deepEqual(fitRectangle({x:-20,y:-10,width:10,height:20},800,600), {x:0,y:0,width:260,height:180});
@@ -20,3 +20,15 @@ for(const edge of ["n","s","e","w","ne","nw","se","sw"]) {
  if(!edge.includes("s")) assert.equal(result.y+result.height,rect.y+rect.height);
 }
 console.log("All eight resize edges preserve their opposite anchors and bounds.");
+
+const ordinary = { pinned: false, hidden: false, closing: false, hasAttribute: () => false, closest: () => null };
+assert.equal(isSupportedTab(ordinary), true);
+assert.equal(isSupportedTab({ ...ordinary, pinned: true }), false);
+const folderTab = { ...ordinary, pinned: true, closest: () => ({ collapsed: true }) };
+assert.equal(isSupportedTab(folderTab), true);
+assert.equal(isSupportedTab({ ...folderTab, hidden: true }), false);
+assert.equal(isSupportedTab({ ...folderTab, closing: true }), false);
+for (const blocked of ["zen-essential", "zen-empty-tab"]) {
+  assert.equal(isSupportedTab({ ...folderTab, hasAttribute: name => name === blocked }), false);
+}
+console.log("Folder eligibility and protected tab exclusions passed.");

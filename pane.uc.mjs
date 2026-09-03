@@ -1,4 +1,4 @@
-import { createMultiwindow, modeLabels } from "./multiwindow.mjs?pane=0.10.0-dev-header1";
+import { createMultiwindow, modeLabels, isFolderTab, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-navigation1";
 import { numericValue, glassPresets } from "./appearance.mjs";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,7 +17,7 @@ const diagnosticLog = (event, details = {}) => window[DIAGNOSTICS_KEY]?.log?.(ev
 window[INSTANCE_KEY]?.destroy?.();
 document.getElementById("pane-overlay")?.remove();
 document.getElementById("pane-toast")?.remove();
-document.querySelectorAll(".pane-button,.pane-layout-button").forEach(button => button.remove());
+document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
 const PREF = {
   urls: "mod.pane.show-urls",
   recent: "mod.pane.recent-first",
@@ -105,7 +105,7 @@ function eligibleTabs(target, data) {
   const workspace = workspaceId(target);
   const tabs = [...gBrowser.tabs].filter(tab =>
     tab !== target && !data?.tabs.includes(tab) && !tab.closing && !tab.hidden &&
-    !tab.pinned && !tab.hasAttribute("zen-empty-tab") && !tab.hasAttribute("zen-essential") &&
+    isSupportedTab(tab) &&
     !tab.splitView && workspaceId(tab) === workspace
   );
   if (boolPref(PREF.recent, true)) tabs.sort((a, b) => lastUsed(b) - lastUsed(a));
@@ -449,7 +449,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
     return;
   }
   const data = activeData();
-  if (!tab || tab.closing || tab.pinned || tab.hasAttribute("zen-essential") || tab.hasAttribute("zen-empty-tab")) {
+  if (!isSupportedTab(tab)) {
     showToast("Choose a regular tab to open Pane", "warning"); return;
   }
   const inSplit = Boolean(data?.tabs.includes(tab));
@@ -506,8 +506,11 @@ function replacePane(incoming) {
     showToast("Zen’s split layout is not ready yet", "warning"); return;
   }
   diagnosticLog("replacement started", { paneCount: data.tabs.length });
-  let changed = false;
+  let changed = false, folderCopy = null;
   try {
+    if (incoming.pinned && isFolderTab(incoming)) {
+      incoming = folderCopy = gBrowser.duplicateTab(incoming, true);
+    }
     if (incoming.group !== splitGroup) gBrowser.moveTabToExistingGroup(incoming, splitGroup);
     data.tabs[index] = incoming;
     leaf.tab = incoming;
@@ -543,7 +546,40 @@ function replacePane(incoming) {
         gBrowser.selectedTab = outgoing;
       } catch (rollbackError) { console.error(TAG, "rollback failed", rollbackError); }
     }
+    if (folderCopy?.isConnected && !folderCopy.closing) gBrowser.removeTab(folderCopy, { animate: false });
     showToast("The pane was not changed", "error");
+  }
+}
+
+const toolbarReveals = new Map();
+let lastToolbarTab = null;
+function syncToolbarReveals() {
+  for (const [header, state] of toolbarReveals) {
+    if (!header.isConnected) { clearTimeout(state.timer); state.abort.abort(); toolbarReveals.delete(header); }
+  }
+  const selected = gBrowser.selectedTab;
+  const switched = selected !== lastToolbarTab;
+  lastToolbarTab = selected;
+  for (const header of document.querySelectorAll(".zen-view-splitter-header-container,.pane-float-header")) {
+    let state = toolbarReveals.get(header);
+    const fresh = !state;
+    if (!state) {
+      state = { timer: 0, abort: new AbortController() };
+      toolbarReveals.set(header, state);
+      const options = { signal: state.abort.signal };
+      header.addEventListener("pointerenter", () => {
+        clearTimeout(state.timer); header.setAttribute("data-pane-reveal", "true");
+      }, options);
+      header.addEventListener("pointerleave", () => {
+        clearTimeout(state.timer);
+        state.timer = setTimeout(() => header.removeAttribute("data-pane-reveal"), 450);
+      }, options);
+    }
+    const container = header.closest(".browserSidebarContainer");
+    if ((switched || fresh) && container?.contains(selected?.linkedBrowser)) {
+      clearTimeout(state.timer); header.setAttribute("data-pane-reveal", "true");
+      state.timer = setTimeout(() => header.removeAttribute("data-pane-reveal"), 1600);
+    }
   }
 }
 
@@ -552,10 +588,11 @@ function ensurePaneButtons() {
     const header = container.querySelector(".zen-view-splitter-header");
     if (!header) return;
     const current = header.querySelector(".pane-button");
-    if (!boolPref(PREF.button, true)) { current?.remove(); header.querySelector(".pane-layout-button")?.remove(); return; }
+    if (!boolPref(PREF.button, true)) { current?.remove(); header.querySelector(".pane-layout-button")?.remove(); header.querySelectorAll(".pane-history-button").forEach(b => b.remove()); return; }
     if (!header.querySelector(".pane-layout-button")) {
       const arrange = document.createXULElement("toolbarbutton");
       arrange.className = "pane-layout-button";
+      arrange.setAttribute("tabindex", "0");
       arrange.setAttribute("label", "⋯"); arrange.textContent = "⋯";
       arrange.setAttribute("tooltiptext", "Arrange this pane");
       arrange.setAttribute("aria-label", "Arrange this pane");
@@ -566,9 +603,11 @@ function ensurePaneButtons() {
       });
       header.prepend(arrange);
     }
+    addHistoryControls(window, header);
     if (current) return;
     const button = document.createXULElement("toolbarbutton");
     button.className = "pane-button";
+    button.setAttribute("tabindex", "0");
     button.setAttribute("tooltiptext", "Replace this pane with another open tab");
     button.setAttribute("aria-label", "Replace this split pane");
     button.setAttribute("label", "⇄");
@@ -581,6 +620,7 @@ function ensurePaneButtons() {
     });
     header.prepend(button);
   });
+  syncToolbarReveals();
   const summary = `${document.querySelectorAll(".browserSidebarContainer[is-zen-split]").length}:` +
     `${document.querySelectorAll(".zen-view-splitter-header").length}:` +
     `${document.querySelectorAll(".pane-button").length}`;
@@ -670,10 +710,21 @@ const prefObserver = {
   },
 };
 
+const historyProgress = {
+  onLocationChange() { updateHistoryControls(window); },
+  onStateChange() { updateHistoryControls(window); },
+};
+
 function destroy() {
   diagnosticLog("Pane runtime unloading");
+  gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
+  for (const [header, state] of toolbarReveals) {
+    clearTimeout(state.timer); state.abort.abort(); header.removeAttribute("data-pane-reveal");
+  }
+  toolbarReveals.clear();
   renderGeneration++;
   multiwindow?.destroy();
+  gBrowser.removeTabsProgressListener(historyProgress);
   clearTimeout(toastTimer);
   if (buttonFrame) cancelAnimationFrame(buttonFrame);
   buttonFrame = 0;
@@ -685,7 +736,7 @@ function destroy() {
   try { Services.prefs.removeObserver("mod.pane.", prefObserver); } catch (e) {}
   overlay?.remove();
   document.getElementById("pane-toast")?.remove();
-  document.querySelectorAll(".pane-button,.pane-layout-button").forEach(button => button.remove());
+  document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
   root.removeAttribute("pane-ready");
   if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
 }
@@ -720,6 +771,8 @@ function initialize() {
       attributeFilter: ["is-zen-split"],
     });
 
+    gBrowser.tabContainer.addEventListener("TabSelect", schedulePaneButtons);
+    gBrowser.addTabsProgressListener(historyProgress);
     ensurePaneButtons();
     applyAppearance();
     root.setAttribute("pane-ready", "true");

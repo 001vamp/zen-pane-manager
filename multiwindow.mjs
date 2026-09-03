@@ -1,6 +1,40 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
+// Folder children are pinned by Zen, but can be opened as ordinary split copies.
+export const isFolderTab = tab => Boolean(tab?.group?.isZenFolder || tab?.closest?.("zen-folder"));
+export const isSupportedTab = tab => Boolean(tab && !tab.closing && !tab.hidden &&
+  (!tab.pinned || isFolderTab(tab)) && !tab.hasAttribute("zen-essential") && !tab.hasAttribute("zen-empty-tab"));
+
+export function updateHistoryControls(win) {
+  for (const control of win.document.querySelectorAll(".pane-history-button")) {
+    const page = control.closest(".browserSidebarContainer")?.querySelector("browser");
+    control.disabled = !page?.[control.dataset.direction === "back" ? "canGoBack" : "canGoForward"];
+  }
+}
+
+export function addHistoryControls(win, parent) {
+  if (parent.querySelector(".pane-history-button")) { updateHistoryControls(win); return; }
+  const controls = ["back", "forward"].map(direction => {
+    const control = win.document.createElementNS("http://www.w3.org/1999/xhtml", "button");
+    control.type = "button";
+    control.className = "pane-history-button";
+    control.dataset.direction = direction;
+    control.textContent = direction === "back" ? "‹" : "›";
+    control.title = direction === "back" ? "Go back in this pane" : "Go forward in this pane";
+    control.setAttribute("aria-label", control.title);
+    control.addEventListener("click", event => {
+      event.preventDefault(); event.stopPropagation();
+      const page = control.closest(".browserSidebarContainer")?.querySelector("browser");
+      if (direction === "back" && page?.canGoBack) page.goBack();
+      if (direction === "forward" && page?.canGoForward) page.goForward();
+    });
+    return control;
+  });
+  parent.prepend(...controls);
+  updateHistoryControls(win);
+}
+
 export const layoutTypes = { right: "vsep", below: "hsep", grid: "grid" };
 export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating" };
 
@@ -47,7 +81,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     menuTab = null;
   }
   function checkTab(tab) {
-    if (!tab || tab.closing || !tab.isConnected || tab.hidden || tab.pinned || tab.hasAttribute("zen-essential") || tab.hasAttribute("zen-empty-tab")) {
+    if (!isSupportedTab(tab) || !tab.isConnected) {
       throw new Error("That tab is no longer available for this layout");
     }
   }
@@ -139,6 +173,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       pin.setAttribute("aria-pressed", "false"); pin.title = "Keep header visible";
       actions.append(pin, arrange, close); header.append(copy, actions);
       f.container.prepend(header);
+      addHistoryControls(win, actions);
       bindPointer(header, false);
       for (const edge of ["se", "n", "s", "e", "w", "ne", "nw", "sw"]) {
         const resize = button(edge === "se" ? "◢" : "", () => {}, "pane-float-resize");
@@ -213,7 +248,15 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     if (!layoutTypes[mode] && mode !== "float") throw new Error("Unknown layout");
     clearFloat();
     const snapshot = current ? { tree: copyTree(current.layoutTree), type: current.gridType } : null;
+    const originalTarget = target, copies = [];
+    const prepare = tab => {
+      if (!tab.pinned || !isFolderTab(tab) || tab.splitView) return tab;
+      const copy = browser.duplicateTab(tab, true);
+      copies.push(copy);
+      return copy;
+    };
     try {
+      target = prepare(target); incoming = prepare(incoming);
       const data = view.splitTabs([target, incoming], layoutTypes[mode] || "vsep");
       if (!data?.tabs.includes(incoming)) throw new Error("Zen could not create this layout");
       // Zen adds to an existing tree without applying the requested direction.
@@ -233,8 +276,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
           current.layoutTree = snapshot.tree; current.gridType = snapshot.type;
           view.activateSplitView(current, true);
         }
-        browser.selectedTab = target;
+        browser.selectedTab = originalTarget;
       } catch (rollbackError) { console.error("[Pane] Layout rollback failed", rollbackError); }
+      for (const copy of copies) if (copy?.isConnected && !copy.closing) browser.removeTab(copy, { animate: false });
       throw error;
     }
   }
