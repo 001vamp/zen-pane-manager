@@ -2,6 +2,12 @@
 
 All notable changes to Pane are documented here.
 
+## Unreleased
+
+- Add custom picker and diagnostic shortcuts, including Command on Mac.
+- Keep Control+Option+R as the Mac default and fix Option-modified character matching.
+- Ignore held-key repeats and text composition; give the picker priority when shortcuts overlap.
+
 ## 0.9.0 — 2026-09-02
 
 - Added an independent privacy-safe diagnostics bootstrap that still works when the main Pane picker fails to initialize.

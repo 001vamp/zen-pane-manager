@@ -94,6 +94,19 @@ shortcut({
 });
 assert.equal(alerted, true);
 
+// Custom diagnostic preferences are read on every keypress.
+Services.prefs.getPrefType = name => name === "mod.pane.diagnostics-keybinding" ? 32 : 0;
+Services.prefs.getStringPref = () => "Command+Shift+P";
+Services.prefs.getIntPref = () => 0;
+const customEvent = { key: "P", ctrlKey: false, altKey: false, shiftKey: true, metaKey: true, preventDefault() {}, stopPropagation() {} };
+alerted = false;
+shortcut(customEvent);
+assert.equal(alerted, true, "custom diagnostic binding must work immediately");
+Services.prefs.getIntPref = () => 3;
+alerted = false;
+shortcut(customEvent);
+assert.equal(alerted, false, "picker wins overlapping bindings");
+
 await unloaded();
 assert.equal(window.__paneDiagnostics, undefined);
 console.log("Pane diagnostics privacy and copy tests passed.");

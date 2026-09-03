@@ -19,8 +19,20 @@
     "options": [
       { "label": "Ctrl + Alt + R", "value": 0 },
       { "label": "Ctrl + Alt + S", "value": 1 },
-      { "label": "Disabled", "value": 2 }
+      { "label": "Disabled", "value": 2 },
+      { "label": "Custom", "value": 3 }
     ]
+  },
+  {
+    "property": "mod.pane.custom-shortcut",
+    "label": "Custom picker shortcut",
+    "type": "string",
+    "defaultValue": "Ctrl+Alt+R"
+  },
+  {
+    "type": "text",
+    "label": "Choose Custom above, then enter a combination such as Control+Option+R, Command+Shift+P, or F8. Use Plus for the + key. Invalid combinations disable the shortcut. Shortcuts reserved by your system may not reach Pane.",
+    "size": "12px"
   },
   {
     "property": "mod.pane.pane-button",
@@ -30,9 +42,20 @@
   },
   {
     "property": "mod.pane.diagnostics-shortcut",
-    "label": "Ctrl + Alt + D copies a privacy-safe diagnostic report",
+    "label": "Enable the diagnostic report shortcut",
     "type": "checkbox",
     "defaultValue": true
+  },
+  {
+    "property": "mod.pane.diagnostics-keybinding",
+    "label": "Diagnostic report shortcut",
+    "type": "string",
+    "defaultValue": "Ctrl+Alt+D"
+  },
+  {
+    "type": "text",
+    "label": "If both actions use the same shortcut, the picker takes priority. On Mac, Alt means Option and Ctrl means Control.",
+    "size": "12px"
   },
   {
     "type": "separator",

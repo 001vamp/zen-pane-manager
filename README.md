@@ -42,7 +42,7 @@ The compact glass picker initially shows only your four most recently used eligi
 
 Open Sine's settings for Pane to:
 
-- Choose `Ctrl+Alt+R`, `Ctrl+Alt+S`, or disable the keyboard shortcut.
+- Keep the default `Ctrl+Alt+R` (`Control+Option+R` on Mac), choose `Ctrl+Alt+S`, set a custom shortcut, or disable it.
 - Show or hide the **⇄** pane button.
 - Start with System, Clear, Frosted, Tinted, or Custom glass.
 - Choose the accent color, picker size and position, spacing, and optional page dimming.
@@ -53,15 +53,35 @@ Appearance changes preview live. Choose **System glass** to reset the tint, blur
 
 CSS colors can be written as hex (`#7c5cff`), RGB/RGBA (`rgba(124, 92, 255, 0.72)`), HSL, or a system color such as `AccentColor`. Invalid colors safely fall back to the defaults. Fully transparent accents are also rejected because they would make keyboard focus impossible to see. **Auto** columns is recommended: it adapts the compact layout to narrow and wide picker sizes.
 
+### Custom keyboard shortcuts
+
+In Pane settings, set **Keyboard shortcut** to **Custom**, then enter your combination in **Custom picker shortcut**. For example: `Command+Shift+P`, `Ctrl+Space`, or `F8`. Changes apply without restarting. The default stays `Control+Option+R` on Mac and `Ctrl+Alt+R` elsewhere.
+
+Use Control/Ctrl, Option/Alt, Shift, and Command/Cmd/Meta/Super/Win with a letter, digit, punctuation key, F1 through F24, or a named key such as Space, Enter, Tab, Escape, Backspace, Delete, Insert, Home, End, PageUp, PageDown, and the arrow keys. Write `Plus` for the + key. Modifiers must match exactly. Invalid or empty custom combinations disable that shortcut.
+
+The diagnostic report has its own editable shortcut and enable switch. If both actions share a combination, the picker takes priority. Unmodified keys work but can interrupt typing, so a modifier or function key is usually easier to use. Pane cannot override shortcuts intercepted by the operating system or browser. With Option/Alt and a letter or digit, Pane uses the physical key so macOS special characters do not break shortcuts.
+
 ## Install with Sine
 
 Pane's picker, shortcut, and ⇄ button are powered by a browser-chrome script. Before installing, use:
 
 - Zen Browser **1.21.16b** (current stable) or a Pane-tested newer stable release.
 - Sine **2.3 or newer**. The latest Sine release is recommended.
-- A Windows version and processor architecture supported by Zen and Sine (x64 and ARM64 are supported by Sine's Windows installer).
+- A macOS or Windows version and processor architecture supported by Zen and Sine. See the compatibility notes below for the scope of testing.
 
 In Sine's general settings, enable **Install JavaScript from unofficial sources**. Sine intentionally blocks scripts from repositories outside its verified store until you allow them.
+
+### Check the JavaScript permission
+
+1. Open Zen **Settings**, then select **Sine Mods**.
+2. Click the **gear button beside the repository installation field** (the field that says `username/repo`). This opens Sine's general settings. The gear on Pane's own card opens a different settings panel.
+3. Under **General**, find **Install JavaScript from unofficial sources**. Some Sine versions label it **Enable installing JS from unofficial sources**.
+4. Check that its checkbox is on. If it is off, enable it only if you trust the repositories you install. This permission allows unverified mods to run scripts with browser-level access. **Enable external marketplace** is a separate setting and is not required for Pane.
+5. Close the settings panel, toggle Pane off and back on, then use Sine's **Restart to apply changes** button or fully quit and reopen Zen.
+
+You can also check `sine.allow-unsafe-js` in `about:config`: `true` means enabled and `false` means blocked. Checking Sine's settings works even when Pane's diagnostic shortcut cannot load.
+
+### Install Pane
 
 Then install this repository:
 
@@ -79,11 +99,11 @@ The report contains Pane and browser versions, operating system and architecture
 
 Advanced users can enter `PaneDiagnostics.report()` in Zen's Browser Console to view the report without copying it, or `PaneDiagnostics.copy()` to copy it.
 
-If **Ctrl+Alt+D does nothing**, Sine did not load even Pane's independent diagnostic bootstrap. Verify the unofficial-JavaScript permission, toggle Pane, fully restart Zen, and include the Sine version plus a screenshot of Pane's Sine settings in the issue.
+If the diagnostic shortcut does nothing, Sine may not have loaded Pane's independent diagnostic bootstrap. First check that the shortcut is enabled and has not been customized or intercepted by your system. On Mac, the default is **Control+Option+D**. Verify the unofficial-JavaScript permission, toggle Pane, fully restart Zen, and include the Sine version plus a screenshot of Pane's Sine settings in the issue.
 
 ### If Pane appears installed but nothing happens
 
-The missing button and inactive shortcuts both mean Pane's script did not load. They are not two separate failures.
+If both the button and shortcut are missing, first check whether Sine loaded Pane. A blocked script can explain both symptoms.
 
 1. Confirm **Install JavaScript from unofficial sources** is enabled in Sine.
 2. Confirm Pane is enabled, then toggle it off and back on to make Sine rebuild its scripts.

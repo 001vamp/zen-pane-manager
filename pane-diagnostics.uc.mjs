@@ -1,3 +1,4 @@
+import { parseBinding, matchesBinding, pickerBinding } from "./keybindings.mjs";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -132,8 +133,10 @@ function copy() {
 
 function onShortcut(event) {
   if (!pref(SHORTCUT_PREF, true)) return;
-  if (event.ctrlKey && event.altKey && !event.shiftKey && !event.metaKey &&
-      event.key.toLocaleLowerCase() === "d") {
+  const binding = parseBinding(pref("mod.pane.diagnostics-keybinding", "Ctrl+Alt+D"));
+  // The picker wins if users assign both actions the same shortcut.
+  if (matchesBinding(event, pickerBinding(Services.prefs))) return;
+  if (matchesBinding(event, binding)) {
     event.preventDefault();
     event.stopPropagation();
     const copied = copy();
@@ -157,5 +160,5 @@ window.addEventListener("keydown", onShortcut, true);
 window[KEY] = { VERSION, events, log, snapshot, report, copy, destroy };
 window.PaneDiagnostics = { report, copy, snapshot };
 window.addUnloadListener?.(destroy);
-log("diagnostics bootstrap loaded", { shortcut: "Ctrl+Alt+D" });
+log("diagnostics bootstrap loaded", { shortcut: parseBinding(pref("mod.pane.diagnostics-keybinding", "Ctrl+Alt+D"))?.label ?? "disabled" });
 detectSineVersion();

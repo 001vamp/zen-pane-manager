@@ -5,7 +5,7 @@
 - [ ] `theme.json`, `package.json`, and `CHANGELOG.md` use the same version.
 - [ ] `npm test` passes.
 - [ ] The compatibility matrix is complete for the target Zen release.
-- [ ] The root GitHub ZIP contains `theme.json`, `pane.uc.mjs`, `chrome.css`, and `preferences.json` at the paths declared by the manifest.
+- [ ] The root GitHub ZIP contains `theme.json`, `keybindings.mjs`, `pane-diagnostics.uc.mjs`, `pane.uc.mjs`, `chrome.css`, and `preferences.json` at the paths declared by the manifest.
 - [ ] Sine 2.3+ live disable/enable unloads and reloads Pane without restarting Zen.
 - [ ] No private URLs, tab titles, profile paths, or local machine data are present.
 - [ ] License and attribution notices remain intact.
@@ -36,3 +36,5 @@
 - [ ] Confirm the repository is public.
 - [ ] Confirm README, screenshot, source license, and preferences meet current Sine requirements.
 - [ ] Submit through Sine's official marketplace issue template.
+
+- [ ] Verify custom picker and diagnostic shortcuts on macOS and Windows, including changing them without restarting.

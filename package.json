@@ -10,7 +10,7 @@
     "url": "https://github.com/001vamp/zen-pane-manager.git"
   },
   "scripts": {
-    "check": "node --check pane-diagnostics.uc.mjs && node --check pane.uc.mjs && node scripts/validate.mjs && node scripts/test-diagnostics.mjs",
+    "check": "node --check pane-diagnostics.uc.mjs && node --check pane.uc.mjs && node scripts/validate.mjs && node scripts/test-diagnostics.mjs && node scripts/test-keybindings.mjs",
     "test": "npm run check"
   },
   "engines": {

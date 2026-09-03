@@ -1,3 +1,4 @@
+import { matchesBinding, pickerBinding } from "./keybindings.mjs";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -16,7 +17,6 @@ document.getElementById("pane-overlay")?.remove();
 document.getElementById("pane-toast")?.remove();
 document.querySelectorAll(".pane-button").forEach(button => button.remove());
 const PREF = {
-  shortcut: "mod.pane.shortcut",
   urls: "mod.pane.show-urls",
   recent: "mod.pane.recent-first",
   button: "mod.pane.pane-button",
@@ -35,10 +35,6 @@ const PREF = {
   dim: "mod.pane.dim-background",
   help: "mod.pane.show-help",
 };
-const SHORTCUTS = [
-  { key: "r", label: "Ctrl+Alt+R" },
-  { key: "s", label: "Ctrl+Alt+S" },
-];
 
 let overlay, dialog, heading, context, search, results, count, sectionLabel, expandButton;
 let targetTab = null;
@@ -534,9 +530,8 @@ function schedulePaneButtons() {
 }
 
 function onShortcut(event) {
-  const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
-  if (binding && event.ctrlKey && event.altKey && !event.shiftKey && !event.metaKey &&
-      event.key.toLocaleLowerCase() === binding.key) {
+  const binding = pickerBinding(Services.prefs);
+  if (matchesBinding(event, binding)) {
     event.preventDefault(); event.stopPropagation();
     diagnosticLog("picker shortcut received", { binding: binding.label });
     overlay.hidden ? openPicker() : closePicker();
@@ -650,7 +645,7 @@ function initialize() {
     // Sine intentionally keeps an already imported module running.
     window.addUnloadListener?.(destroy);
 
-    const binding = SHORTCUTS[intPref(PREF.shortcut, 0)] ?? null;
+    const binding = pickerBinding(Services.prefs);
     diagnosticLog("Pane runtime ready", { binding: binding?.label ?? "disabled" });
     console.log(TAG, `0.9.0 ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
   } catch (error) {
