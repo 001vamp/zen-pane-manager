@@ -1,8 +1,8 @@
 {
   "name": "zen-pane-manager",
-  "version": "0.9.0",
+  "version": "0.10.0-dev",
   "private": true,
-  "description": "Replace a tab in a Zen split view without losing its position or size.",
+  "description": "Split, float, arrange, and replace open tabs in Zen Browser.",
   "license": "MPL-2.0",
   "author": "jasi <123618290+001vamp@users.noreply.github.com>",
   "repository": {
@@ -10,7 +10,7 @@
     "url": "https://github.com/001vamp/zen-pane-manager.git"
   },
   "scripts": {
-    "check": "node --check pane-diagnostics.uc.mjs && node --check pane.uc.mjs && node scripts/validate.mjs && node scripts/test-diagnostics.mjs && node scripts/test-keybindings.mjs",
+    "check": "node --check pane-diagnostics.uc.mjs && node --check pane.uc.mjs && node scripts/validate.mjs && node scripts/test-diagnostics.mjs && node scripts/test-keybindings.mjs && node --check pane-settings.uc.mjs && node scripts/test-appearance.mjs && node --check settings-page.mjs && node --check multiwindow.mjs && node scripts/test-multiwindow.mjs",
     "test": "npm run check"
   },
   "engines": {

@@ -1,0 +1,443 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pane multi-window UI states</title><style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1f2024;
+      background: #fff;
+      --pane-accent: #5b5df0;
+      --pane-tint: rgb(247 248 251 / 0.82);
+      --pane-line: rgb(20 20 28 / 0.1);
+      --pane-fill: rgb(255 255 255 / 0.68);
+      --pane-hover: rgb(20 20 28 / 0.075);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 1180px;
+      background: #fff;
+    }
+
+    .sheet {
+      width: 1180px;
+      margin: 0 auto;
+      padding: 72px 54px 88px;
+    }
+
+    .sheet-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 46px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #e8e8ed;
+    }
+
+    .brand {
+      margin: 0;
+      font-size: 46px;
+      font-weight: 760;
+      letter-spacing: -0.045em;
+      line-height: 1;
+    }
+
+    .tagline {
+      margin: 10px 0 0;
+      color: #666873;
+      font-size: 16px;
+    }
+
+    .version {
+      color: #7d7f89;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 520px);
+      gap: 48px 32px;
+      align-items: start;
+    }
+
+    .state {
+      min-width: 0;
+    }
+
+    .state-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 2px 11px;
+      color: #737580;
+      font-size: 11px;
+      font-weight: 720;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .state-label span:last-child {
+      color: #a0a1aa;
+      font-weight: 580;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .pane-dialog {
+      width: 520px;
+      overflow: hidden;
+      color: #1f2024;
+      background: var(--pane-tint);
+      border: 1px solid var(--pane-line);
+      border-radius: 24px;
+      box-shadow: 0 24px 70px rgb(0 0 0 / 0.16), inset 0 1px rgb(255 255 255 / 0.5);
+      backdrop-filter: blur(38px) saturate(1.35);
+    }
+
+    .pane-header {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 17px 10px;
+    }
+
+    .heading-group { min-width: 0; }
+
+    .heading {
+      font-size: 14px;
+      font-weight: 670;
+      line-height: 1.3;
+    }
+
+    .context {
+      overflow: hidden;
+      margin-top: 2px;
+      color: rgb(31 32 36 / 0.64);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .close,
+    .diagnostics {
+      appearance: none;
+      display: grid;
+      flex: none;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      padding: 0 0 2px;
+      color: inherit;
+      background: var(--pane-fill);
+      border: 1px solid var(--pane-line);
+      border-radius: 50%;
+      opacity: 0.68;
+      font: 18px/1 system-ui;
+    }
+
+    .diagnostics {
+      padding-bottom: 0;
+      font-size: 13px;
+    }
+
+    .search-wrap {
+      display: grid;
+      grid-template-columns: 25px minmax(0, 1fr) auto;
+      align-items: center;
+      margin: 0 12px;
+      padding: 0 12px;
+      background: rgb(255 255 255 / 0.72);
+      border: 1px solid rgb(255 255 255 / 0.78);
+      border-radius: 999px;
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 5px 18px rgb(0 0 0 / 0.08);
+      backdrop-filter: blur(22px) saturate(1.25);
+    }
+
+    .search-wrap.focused {
+      border-color: color-mix(in srgb, var(--pane-accent) 58%, transparent);
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 0 0 3px color-mix(in srgb, var(--pane-accent) 14%, transparent), 0 8px 24px rgb(0 0 0 / 0.1);
+    }
+
+    .search-icon {
+      width: 18px;
+      height: 18px;
+      opacity: 0.5;
+    }
+
+    .search {
+      min-width: 0;
+      padding: 11px 3px;
+      color: #1f2024;
+      font: 13px/1.2 system-ui;
+    }
+
+    .search.placeholder { color: rgb(31 32 36 / 0.58); }
+
+    .count {
+      padding-left: 8px;
+      color: rgb(31 32 36 / 0.56);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 17px 6px;
+    }
+
+    .section-label {
+      color: rgb(31 32 36 / 0.62);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      padding: 0 10px 9px;
+    }
+
+    .results.list {
+      grid-template-columns: 1fr;
+      gap: 3px;
+    }
+
+    .item {
+      appearance: none;
+      display: grid;
+      grid-template-columns: 31px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      width: 100%;
+      min-height: 54px;
+      padding: 8px 9px;
+      color: inherit;
+      background: var(--pane-fill);
+      border: 1px solid var(--pane-line);
+      border-radius: 14px;
+      box-shadow: inset 0 1px rgb(255 255 255 / 0.52);
+      text-align: left;
+      font: inherit;
+    }
+
+    .list .item {
+      grid-template-columns: 31px minmax(0, 1fr) auto;
+      min-height: 48px;
+      background: transparent;
+      border-color: transparent;
+      border-radius: 11px;
+    }
+
+    .item.selected {
+      background: var(--pane-hover);
+      border-color: color-mix(in srgb, var(--pane-accent) 22%, var(--pane-line));
+    }
+
+    .favicon-wrap {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      background: rgb(255 255 255 / 0.66);
+      border-radius: 9px;
+    }
+
+    .favicon {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+    }
+
+    .copy,
+    .title,
+    .url {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .title {
+      font-size: 12px;
+      font-weight: 590;
+    }
+
+    .url {
+      margin-top: 2px;
+      color: rgb(31 32 36 / 0.6);
+      font-size: 10px;
+    }
+
+    mark {
+      color: inherit;
+      background: color-mix(in srgb, var(--pane-accent) 28%, transparent);
+      border-radius: 3px;
+    }
+
+    .action {
+      display: block;
+      padding: 4px 7px;
+      color: color-mix(in srgb, var(--pane-accent) 78%, #1f2024);
+      background: color-mix(in srgb, var(--pane-accent) 12%, transparent);
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    .expand {
+      display: block;
+      margin: 0 auto 9px;
+      padding: 6px 11px;
+      color: rgb(31 32 36 / 0.62);
+      background: transparent;
+      border: 0;
+      border-radius: 999px;
+      font: 10px/1.2 system-ui;
+    }
+
+    .help {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      padding: 8px 14px 10px;
+      color: rgb(31 32 36 / 0.58);
+      border-top: 1px solid var(--pane-line);
+      font-size: 10px;
+    }
+
+    .help span { display: flex; gap: 3px; align-items: center; }
+
+    kbd {
+      min-width: 17px;
+      padding: 2px 4px;
+      color: inherit;
+      background: var(--pane-fill);
+      border: 1px solid var(--pane-line);
+      border-radius: 5px;
+      box-shadow: 0 1px 1px rgb(0 0 0 / 0.05);
+      font: 9px/1.1 system-ui;
+      text-align: center;
+    }
+
+    .empty {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 14px 34px;
+      text-align: center;
+    }
+
+    .empty strong { font-size: 13px; }
+
+    .empty span {
+      max-width: 310px;
+      margin-top: 4px;
+      color: rgb(31 32 36 / 0.62);
+      font-size: 11px;
+    }
+
+    .status-board {
+      grid-column: 1 / -1;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .toast {
+      padding: 11px 14px;
+      color: #1f2024;
+      background: rgb(247 248 251 / 0.92);
+      border: 1px solid var(--pane-line);
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgb(0 0 0 / 0.13);
+      font-size: 12px;
+      font-weight: 590;
+    }
+
+    .toast.success { border-color: rgb(80 180 110 / 0.46); }
+    .toast.warning { border-color: rgb(220 155 35 / 0.5); }
+    .toast.error { border-color: rgb(220 70 70 / 0.48); }
+
+    .pane-control {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 18px;
+      padding: 10px 12px;
+      color: #666873;
+      background: #f6f6f8;
+      border: 1px solid #e6e6eb;
+      border-radius: 12px;
+      font-size: 11px;
+    }
+
+    body.focus-mode {
+      min-width: 1280px;
+    }
+
+    body.focus-mode .sheet {
+      width: 1280px;
+      margin: 0;
+      padding: 56px 380px 64px;
+    }
+
+    body.focus-mode .sheet-header {
+      margin-bottom: 32px;
+    }
+
+    body.focus-mode .grid {
+      display: block;
+    }
+
+    body.focus-mode .state[hidden] {
+      display: none;
+    }
+
+    body.focus-mode .status-board {
+      width: 520px;
+    }
+
+    body.focus-mode .status-row {
+      grid-template-columns: 1fr;
+    }
+
+    .swap-button {
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      color: #353641;
+      background: rgb(255 255 255 / 0.75);
+      border: 1px solid #dedee5;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 650;
+    }
+  
+/* New multi-window controls; existing shell styles above are copied verbatim
+   from pane-ui-showcase.html, the extension UI reference sheet. */
+.open-modes{display:flex;gap:6px;padding:12px 12px 0}
+.mode{flex:1;padding:8px;color:inherit;background:var(--pane-fill);border:1px solid var(--pane-line);border-radius:9px;font:11px system-ui;text-align:center}
+.mode.active{color:var(--pane-accent);background:color-mix(in srgb,var(--pane-accent) 10%,transparent);border-color:color-mix(in srgb,var(--pane-accent) 30%,var(--pane-line))}
+.previews .item{display:block;padding:7px}.preview{height:84px;border:1px solid var(--pane-line);border-radius:8px;background:#fff;overflow:hidden;margin-bottom:8px;padding:12px}.preview b{font-size:9px;display:block;margin-bottom:8px}.preview i{display:block;height:3px;background:#e6e7ec;margin:5px 0;width:90%}.preview i:nth-child(3){width:66%}.preview .blocks{display:flex;gap:5px}.preview .blocks i{width:30%;height:36px;background:#f0f0f6}.previews .copy{padding:0 3px 4px}.layout-icon{display:flex;gap:3px;width:24px;height:19px}.layout-icon i{display:block;flex:1;background:#dedfe8;border:1px solid #b9bbc7;border-radius:2px}.layout-icon.stacked{flex-direction:column}.layout-icon.grid-icon{display:grid;grid-template-columns:1fr 1fr}.layout-icon.float-icon{position:relative}.layout-icon.float-icon i:last-child{position:absolute;right:-3px;bottom:-3px;width:15px;height:12px;background:#fff}.layout-list{padding:0 10px 12px}.layout-list .item{min-height:45px}.layout-list .title{font-weight:500}.layout-list .action{font-size:9px}.arrangement{display:grid;gap:6px;padding:0 12px 14px;height:170px;grid-template-columns:1fr 1fr}.arrangement.stacked{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.arrangement.three{grid-template-rows:1fr 1fr}.arrangement.three .tab-surface:first-child{grid-row:1 / 3}.tab-surface{border:1px solid var(--pane-line);border-radius:9px;background:var(--pane-fill);padding:10px;font-size:11px;display:flex;align-items:start;justify-content:space-between}.tab-surface.active{border-color:color-mix(in srgb,var(--pane-accent) 30%,var(--pane-line))}.tab-surface span:last-child{color:#888a94}.floating-body{height:130px;padding:16px;background:rgb(255 255 255 / .45);font-size:12px;color:#666873}.resize-corner{float:right;color:#aaa}.sheet-note{margin-top:45px;color:#8b8d96;font-size:11px}.pane-control{margin-top:18px}
+</style></head><body><main class="sheet"><header class="sheet-header"><div><h1 class="brand">Pane</h1><p class="tagline">Split, float, and arrange your tabs.</p></div><div class="version">Multi-window · UI states</div></header><section class="grid"><article class="state"><div class="state-label"><span>Tab picker</span><span>From a normal tab</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Open a tab alongside this one</div><div class="context">Currently showing Project notes</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="search-wrap "><span class="search-icon">⌕</span><div class="search placeholder">Find an open tab…</div><span class="count">8 open</span></div><div class="open-modes"><div class="mode active">Split right</div><div class="mode ">Split below</div><div class="mode ">Floating</div></div><div class="section-header"><span class="section-label">Recently used</span></div><div class="results previews"><div class="item selected"><div class="preview"><b>Pane roadmap</b><div class="blocks"><i></i><i></i><i></i></div></div><span class="copy"><span class="title">Pane roadmap</span><span class="url">github.com</span></span></div><div class="item "><div class="preview"><b>Zen documentation</b><i></i><i></i><i></i><i></i></div><span class="copy"><span class="title">Zen documentation</span><span class="url">docs.zen-browser.app</span></span></div><div class="item "><div class="preview"><b>Browser APIs</b><i></i><i></i><i></i><i></i></div><span class="copy"><span class="title">Browser APIs</span><span class="url">developer.mozilla.org</span></span></div><div class="item "><div class="preview"><b>Design references</b><i></i><i></i><i></i><i></i></div><span class="copy"><span class="title">Design references</span><span class="url">codeberg.org</span></span></div></div><div class="expand">Show all 8 tabs ↓</div><div class="help"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Split right</span><span><kbd>Esc</kbd> Cancel</span></div></div></article><article class="state"><div class="state-label"><span>Searching</span><span>Split below selected</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Open a tab alongside this one</div><div class="context">Currently showing Project notes</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="search-wrap focused"><span class="search-icon">⌕</span><div class="search ">design</div><span class="count">2 found</span></div><div class="open-modes"><div class="mode ">Split right</div><div class="mode active">Split below</div><div class="mode ">Floating</div></div><div class="section-header"><span class="section-label">Search results</span></div><div class="results list"><div class="item selected"><span class="favicon-wrap">◈</span><span class="copy"><span class="title">Pane <mark>design</mark> notes</span><span class="url">github.com</span></span><span class="action">Split below</span></div><div class="item "><span class="favicon-wrap">◈</span><span class="copy"><span class="title"><mark>Design</mark> references</span><span class="url">codeberg.org</span></span><span class="action">Split below</span></div></div><div class="help"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Split below</span><span><kbd>Esc</kbd> Cancel</span></div></div></article><article class="state"><div class="state-label"><span>Layout options</span><span>From the pane handle</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Arrange this pane</div><div class="context">Currently showing Zen documentation</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="results list layout-list"><div class="item selected"><span class="layout-icon "><i></i><i></i></span><span class="copy"><span class="title">Split right</span><span class="url">Side by side</span></span><span class="action">Current</span></div><div class="item "><span class="layout-icon stacked"><i></i><i></i></span><span class="copy"><span class="title">Split below</span><span class="url">Stacked</span></span></div><div class="item "><span class="layout-icon grid-icon"><i></i><i></i><i></i><i></i></span><span class="copy"><span class="title">Grid</span><span class="url">Add a third tab</span></span></div><div class="item "><span class="layout-icon float-icon"><i></i><i></i></span><span class="copy"><span class="title">Floating</span><span class="url">Move and resize</span></span></div><div class="item "><span class="layout-icon "><i></i><i></i></span><span class="copy"><span class="title">Return to a normal tab</span><span class="url">Keep other tabs open</span></span></div></div><div class="help"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Apply</span><span><kbd>Esc</kbd> Cancel</span></div></div></article><article class="state"><div class="state-label"><span>Floating tab</span><span>Drag header · resize corner</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Zen documentation</div><div class="context">docs.zen-browser.app</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="open-modes"><div class="mode ">Split right</div><div class="mode ">Split below</div><div class="mode active">Floating</div></div><div class="floating-body">Zen documentation<br><br><span class="context">Page content</span></div><div class="help"><span>Return to split</span><span>Return to normal tab</span><span class="resize-corner">◢</span></div></div></article><article class="state"><div class="state-label"><span>Side by side</span><span>Two tabs</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Split right</div><div class="context">Project notes + Zen documentation</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="arrangement "><div class="tab-surface "><span>Project notes</span><span>⋯</span></div><div class="tab-surface active"><span>Zen documentation</span><span>⋯</span></div></div><div class="help"><span>Use the pane handle to change the layout</span></div></div></article><article class="state"><div class="state-label"><span>Stacked</span><span>Two tabs</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Split below</div><div class="context">Project notes + Zen documentation</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="arrangement stacked"><div class="tab-surface "><span>Project notes</span><span>⋯</span></div><div class="tab-surface active"><span>Zen documentation</span><span>⋯</span></div></div><div class="help"><span>Use the pane handle to change the layout</span></div></div></article><article class="state"><div class="state-label"><span>Grid</span><span>Three tabs</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Grid</div><div class="context">Project notes + Zen documentation + Pane roadmap</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="arrangement three"><div class="tab-surface "><span>Project notes</span><span>⋯</span></div><div class="tab-surface active"><span>Zen documentation</span><span>⋯</span></div><div class="tab-surface "><span>Pane roadmap</span><span>⋯</span></div></div><div class="help"><span>Use the pane handle to change the layout</span></div></div></article><article class="state"><div class="state-label"><span>No matching tabs</span><span>Empty search</span></div><div class="pane-dialog"><div class="pane-header"><div class="heading-group"><div class="heading">Open a tab alongside this one</div><div class="context">Currently showing Project notes</div></div><div class="header-actions"><button class="diagnostics" aria-label="Options">⋯</button><button class="close" aria-label="Close">×</button></div></div><div class="search-wrap focused"><span class="search-icon">⌕</span><div class="search ">calendar</div><span class="count">0 found</span></div><div class="open-modes"><div class="mode active">Split right</div><div class="mode ">Split below</div><div class="mode ">Floating</div></div><div class="section-header"><span class="section-label">Search results</span></div><div class="results"><div class="empty"><strong>No matching tabs</strong><span>Try a page title, website, or shorter search.</span></div></div><div class="help"><span><kbd>Enter</kbd> Clear search</span><span><kbd>Esc</kbd> Cancel</span></div></div></article></section><p class="sheet-note">Proposed multi-window states using Pane’s existing UI sheet styles. Sample page previews. New controls are not yet implemented in the extension.</p></main></body></html>

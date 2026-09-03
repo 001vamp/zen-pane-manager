@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pane appearance controls preview</title>
+<style>html{color-scheme:light dark;font:15px system-ui;background:light-dark(#f4f5f8,#17181d);color:light-dark(#24252a,#eee)}body{max-width:660px;margin:40px auto;padding:0 24px}h1{font-size:26px}p{line-height:1.6}button,input,select{font:inherit;border:1px solid #8886;border-radius:7px;padding:7px;background:light-dark(#fff,#292b34);color:inherit}button{cursor:pointer}#rows>div{display:block;border-bottom:1px solid #8883}input[type=range]{padding:0}input[type=color]{padding:2px}</style>
+<h1>Pane appearance controls</h1><p>This preview runs Pane's settings controls with sample preferences. It does not change your browser settings.</p>
+<div id="rows"></div>
+<script type="module">
+import { numericSettings, colorSettings } from '../appearance.mjs';
+const values = new Map();
+const observers = new Set();
+window.Services = {prefs:{
+ getIntPref:(key,fallback)=>values.get(key)??fallback,
+ getStringPref:(key,fallback)=>values.get(key)??fallback,
+ getBoolPref:(key,fallback)=>values.get(key)??fallback,
+ setIntPref:save,setStringPref:save,
+ clearUserPref(key){values.delete(key);observers.forEach(o=>o.observe(null,'nsPref:changed',key));},
+ addObserver:(prefix,o)=>observers.add(o),removeObserver:(prefix,o)=>observers.delete(o)
+}};
+function save(key,value){values.set(key,value);observers.forEach(o=>o.observe(null,'nsPref:changed',key));}
+window.InspectorUtils={colorToRGBA(value){
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+ const ctx=canvas.getContext('2d');ctx.fillStyle=value;ctx.fillRect(0,0,1,1);
+ const [r,g,b,a]=ctx.getImageData(0,0,1,1).data;return {r,g,b,a:a/255};
+}};
+const rows=document.getElementById('rows');
+for(const setting of [...colorSettings.slice(0,1),...numericSettings,...colorSettings.slice(1)]){
+ const row=document.createElement('div');row.id='mod-pane-'+setting.key;rows.append(row);
+}
+await import('../pane-settings.uc.mjs');
+</script></html>

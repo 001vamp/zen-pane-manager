@@ -1,15 +1,22 @@
 {
   "id": "zen-pane-manager",
   "name": "Pane",
-  "description": "Replace the focused tab in a Zen split view while preserving the split layout and divider sizes.",
-  "version": "0.9.0",
+  "description": "Split, float, arrange, and replace open tabs in Zen Browser.",
+  "version": "0.10.0-dev",
   "author": "jasi",
   "homepage": "https://github.com/001vamp/zen-pane-manager",
   "readme": "https://raw.githubusercontent.com/001vamp/zen-pane-manager/main/README.md",
   "license": "MPL-2.0",
   "createdAt": "2026-09-01",
-  "tags": ["split-view", "tabs", "productivity", "chrome"],
-  "fork": ["zen"],
+  "tags": [
+    "split-view",
+    "tabs",
+    "productivity",
+    "chrome"
+  ],
+  "fork": [
+    "zen"
+  ],
   "style": {
     "chrome": "chrome.css"
   },
@@ -19,14 +26,26 @@
     "pane-diagnostics.uc.mjs": {
       "name": "Pane diagnostics",
       "description": "Provides privacy-safe startup and compatibility diagnostics for support requests.",
-      "include": ["chrome://browser/content/browser.xhtml"],
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ],
       "loadOrder": 40
     },
     "pane.uc.mjs": {
       "name": "Pane",
-      "description": "Adds a searchable picker that replaces the focused split pane without changing its size or position.",
-      "include": ["chrome://browser/content/browser.xhtml"],
+      "description": "Adds Pane\u2019s thumbnail picker, split layouts, live floating tabs, and pane replacement.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ],
       "loadOrder": 50
+    },
+    "pane-settings.uc.mjs": {
+      "name": "Pane appearance controls",
+      "description": "Adds sliders, precise values, color controls, and previews to Pane settings.",
+      "include": [
+        "about:preferences*"
+      ],
+      "loadOrder": 60
     }
   }
 }

@@ -14,7 +14,7 @@ const diagnostics = await readFile("pane-diagnostics.uc.mjs", "utf8");
 const readme = await readFile("README.md", "utf8");
 const changelog = await readFile("CHANGELOG.md", "utf8");
 
-for (const path of ["keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
+for (const path of ["multiwindow.mjs", "settings.html", "settings-page.mjs", "appearance.mjs", "pane-settings.uc.mjs", "keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
   try { await access(path); } catch { fail(`Sine package is missing ${path}`); }
 }
 
@@ -48,5 +48,9 @@ if (duplicates.length) fail(`duplicate preference keys: ${[...new Set(duplicates
 for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "eval(", "nsIProcess", "@mozilla.org/file"]) {
   if (source.includes(forbidden)) fail(`privileged source contains forbidden capability: ${forbidden}`);
 }
+
+
+
+if (!theme.scripts?.["pane-settings.uc.mjs"]?.include?.includes("about:preferences*")) fail("appearance controls must load in Sine settings");
 
 if (!process.exitCode) console.log(`Pane ${theme.version} validation passed (${properties.length} preferences).`);

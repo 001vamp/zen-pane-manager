@@ -22,7 +22,11 @@ export function parseBinding(value) {
 }
 
 export function matchesBinding(event, binding) {
-  if (!binding || event.repeat || event.isComposing || event.getModifierState?.('AltGraph')) return false;
+  if (!binding || event.repeat || event.isComposing) return false;
+  // Real macOS Option events report AltGraph, unlike WebDriver's synthetic Alt.
+  // Keep rejecting Windows/Linux AltGr text entry without rejecting Mac shortcuts.
+  const platform = event.view?.navigator?.platform ?? globalThis.navigator?.platform ?? '';
+  if (event.getModifierState?.('AltGraph') && !/Mac/i.test(platform)) return false;
   if (['ctrlKey', 'altKey', 'shiftKey', 'metaKey'].some(key => Boolean(event[key]) !== binding[key])) return false;
   // Option changes event.key on macOS (Option+R produces ®). Match the
   // physical letter/digit while Option is held so the default still works.

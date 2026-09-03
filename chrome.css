@@ -105,6 +105,7 @@
 }
 
 #pane-close,
+#pane-appearance,
 #pane-diagnostics {
   appearance: none;
   display: grid;
@@ -121,12 +122,14 @@
   font: 18px/1 system-ui;
 }
 
+#pane-appearance,
 #pane-diagnostics {
   padding-bottom: 0;
   font-size: 13px;
 }
 
 #pane-close:hover,
+#pane-appearance:hover,
 #pane-diagnostics:hover {
   opacity: 1;
   background: var(--pane-hover);
@@ -230,7 +233,7 @@
   width: 100%;
   min-height: 54px;
   box-sizing: border-box;
-  padding: 8px 9px;
+  padding: var(--pane-item-spacing, 8px) 9px;
   color: inherit;
   background: var(--pane-fill);
   border: 1px solid var(--pane-line);
@@ -385,7 +388,7 @@
   font: inherit;
 }
 
-#pane-dialog[compact] .pane-item { min-height: 44px; padding-block: 5px; }
+#pane-dialog[compact] .pane-item { min-height: 44px; padding-block: var(--pane-item-spacing, 5px); }
 
 .pane-button {
   min-width: 24px !important;
@@ -435,4 +438,134 @@
     animation: none;
     transition: none;
   }
+}
+
+/* Multi-window controls use the same Pane glass tokens as the picker. */
+#pane-open-modes { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 12px 0; }
+#pane-open-modes button { flex: 1; padding: 8px; border: 1px solid var(--pane-line); border-radius: 9px; background: var(--pane-fill); color: inherit; font: 11px system-ui; white-space: nowrap; cursor: pointer; }
+#pane-open-modes button[hidden] { display: none; }
+#pane-open-modes button[aria-pressed="true"], .pane-layout-menu button[aria-pressed="true"] { color: var(--pane-accent); background: color-mix(in srgb, var(--pane-accent) 12%, transparent); border-color: color-mix(in srgb, var(--pane-accent) 30%, var(--pane-line)); }
+#pane-open-modes button:focus-visible, .pane-layout-menu button:focus-visible, .pane-float-header:focus-visible, .pane-float-resize:focus-visible { outline: 2px solid var(--pane-accent); outline-offset: -2px; }
+.pane-preview { width: 100%; height: 100px; object-fit: cover; grid-column: 1 / -1; border-radius: 8px; background: var(--pane-fill); }
+.pane-layout-button { font-size: 17px !important; min-width: 26px; }
+.pane-layout-menu { position: fixed; z-index: 2147483647; box-sizing: border-box; width: 360px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; padding: 8px; border: 1px solid var(--pane-line); border-radius: 18px; color: light-dark(#1f2024,#f5f5f7); background: light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark)); backdrop-filter: blur(var(--pane-blur)) saturate(1.35); box-shadow: 0 24px 70px rgb(0 0 0 / .20), inset 0 1px rgb(255 255 255 / .3); font: 12px system-ui; }
+.pane-layout-header { display: flex; align-items: center; gap: 12px; padding: 6px 5px 12px; }
+.pane-layout-title { flex: 1; min-width: 0; }
+.pane-layout-heading { font-size: 14px; font-weight: 650; }
+.pane-layout-context { font-size: 11px; opacity: .65; padding-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Chrome and other mods style HTML buttons too; keep these rows faithful to Pane. */
+#pane-layout-menu button {
+  appearance: none !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font: inherit;
+  cursor: pointer;
+}
+#pane-layout-menu button:hover { background: var(--pane-hover) !important; }
+#pane-layout-menu .pane-layout-close { flex: 0 0 24px; width: 24px; min-height: 24px !important; height: 24px; padding: 0 !important; border-color: var(--pane-line) !important; border-radius: 50% !important; font-size: 17px; line-height: 1; }
+#pane-layout-menu .pane-layout-option { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 44px !important; padding: 7px 9px !important; margin-bottom: 3px !important; text-align: left; }
+.pane-layout-icon { flex: 0 0 18px; text-align: center; font-size: 18px; opacity: .65; }
+.pane-layout-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.pane-layout-label { font-weight: 600; }
+.pane-layout-description { font-size: 10px; line-height: 1.4; opacity: .65; }
+#pane-layout-menu .pane-layout-option[aria-pressed="true"] { background: color-mix(in srgb, var(--pane-accent) 16%, transparent) !important; border-color: color-mix(in srgb, var(--pane-accent) 55%, var(--pane-line)) !important; box-shadow: inset 0 1px rgb(255 255 255 / .12) !important; }
+.pane-layout-badge { flex-shrink: 0; padding: 4px 6px; border-radius: 6px; color: var(--pane-accent); background: color-mix(in srgb, var(--pane-accent) 12%, transparent); font-size: 10px; font-weight: 650; }
+#pane-layout-menu .pane-layout-add { width: 100%; min-height: 30px !important; padding: 6px 9px !important; text-align: left; font-size: 11px; }
+.pane-layout-footer { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px -8px -8px; padding: 9px 12px; border-top: 1px solid var(--pane-line); font-size: 10px; color: light-dark(#70717b,#b9bac4); }
+.pane-layout-hint { display: inline-flex; align-items: center; gap: 4px; }
+.pane-layout-hint kbd { border: 1px solid var(--pane-line); border-radius: 4px; padding: 1px 3px; font: inherit; }
+
+.browserSidebarContainer[pane-floating][zen-split] { flex-direction: column !important; transition: none !important; inset: var(--pane-float-y) auto auto var(--pane-float-x) !important; width: var(--pane-float-width) !important; height: var(--pane-float-height) !important; z-index: 20 !important; border: 1px solid var(--pane-line) !important; border-radius: 18px !important; overflow: hidden !important; box-shadow: 0 24px 70px rgb(0 0 0 / .28) !important; background: light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark)) !important; }
+.browserSidebarContainer[pane-floating] > .zen-view-splitter-header { display: none !important; }
+.pane-float-header { display: flex; flex-shrink: 0; align-items: center; gap: 12px; padding: 12px 14px; cursor: move; touch-action: none; user-select: none; background: light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark)); backdrop-filter: blur(var(--pane-blur)); color: light-dark(#1f2024,#f5f5f7); font: menu; }
+.pane-float-copy { flex: 1; min-width: 0; }
+.pane-float-title { font-size: 14px; font-weight: 670; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pane-float-context { opacity: .6; font-size: 11px; margin-top: 2px; }
+.pane-float-actions { display: flex; gap: 6px; }
+.pane-float-actions button { width: 25px; height: 25px; border: 1px solid var(--pane-line); border-radius: 50%; background: var(--pane-fill); color: inherit; font-size: 17px; cursor: pointer; padding: 0; }
+.pane-float-resize { position: absolute; right: 0; bottom: 0; z-index: 5; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px 0 0 0; cursor: nwse-resize; touch-action: none; background: light-dark(#f7f8fb,#23242b); color: light-dark(#777985,#bbbcc7); }
+/* Override Zen's more-specific inset animation while dragging a pop-up. */
+:root #tabbrowser-tabpanels[zen-split-view] > .browserSidebarContainer[pane-floating][zen-split] { transition: none !important; }
+.browserSidebarContainer[pane-floating] > .zen-view-splitter-header-container { display: none !important; }
+#pane-dialog { display: flex; flex-direction: column; }
+#pane-dialog > :not(#pane-results) { flex-shrink: 0; }
+#pane-results { min-height: 0; }
+:root[inDOMFullscreen] #tabbrowser-tabpanels > .browserSidebarContainer[pane-floating][zen-split] { inset: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important; }
+:root[inDOMFullscreen] .pane-float-header, :root[inDOMFullscreen] .pane-float-resize { display: none !important; }
+
+/* Generous edge hit areas stay above the live page without covering its controls. */
+.pane-float-resize[data-edge] { inset: auto; width: auto; height: auto; background: transparent; border-radius: 0; min-width: 0; min-height: 0; }
+.pane-float-resize[data-edge="n"] { top: 0; left: 16px; right: 16px; height: 6px; cursor: ns-resize; }
+.pane-float-resize[data-edge="s"] { bottom: 0; left: 16px; right: 26px; height: 6px; cursor: ns-resize; }
+.pane-float-resize[data-edge="e"] { right: 0; top: 16px; bottom: 26px; width: 6px; cursor: ew-resize; }
+.pane-float-resize[data-edge="w"] { left: 0; top: 16px; bottom: 16px; width: 6px; cursor: ew-resize; }
+.pane-float-resize[data-edge="nw"] { left: 0; top: 0; width: 16px; height: 16px; cursor: nwse-resize; }
+.pane-float-resize[data-edge="ne"] { right: 0; top: 0; width: 16px; height: 16px; cursor: nesw-resize; }
+.pane-float-resize[data-edge="sw"] { left: 0; bottom: 0; width: 16px; height: 16px; cursor: nesw-resize; }
+.pane-float-resize[data-edge="se"] { right: 0; bottom: 0; width: 26px; height: 26px; cursor: nwse-resize; border-radius: 6px 0 0 0; background: light-dark(#f7f8fb,#23242b); }
+
+/* Clear selection states, including when another mod styles all chrome buttons. */
+#pane-open-modes { gap: 7px; padding-block: 14px 4px; }
+#pane-open-modes > button {
+  appearance: none !important;
+  position: relative;
+  min-height: 36px;
+  border-radius: 12px !important;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent) !important;
+  background: light-dark(rgb(255 255 255 / .32), rgb(255 255 255 / .08)) !important;
+  color: inherit !important;
+  font-weight: 550;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+#pane-open-modes > button:hover:not([aria-pressed="true"]) {
+  background: light-dark(rgb(255 255 255 / .62), rgb(255 255 255 / .17)) !important;
+}
+#pane-open-modes > button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--pane-accent) 12%, #f5fffc) !important;
+  color: #172b28 !important;
+  border-color: rgb(255 255 255 / .95) !important;
+  font-weight: 750;
+  box-shadow: 0 3px 12px rgb(0 0 0 / .16), inset 0 1px 0 white;
+}
+#pane-open-modes > button[aria-pressed="true"]::after {
+  content: "✓";
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #f5fffc;
+  border-radius: 50%;
+  color: white;
+  background: #234b42;
+  font: 700 10px/1 system-ui;
+}
+#pane-results > .pane-item[aria-selected="true"] {
+  border-color: color-mix(in srgb, var(--pane-accent) 65%, currentColor) !important;
+  background: light-dark(rgb(255 255 255 / .85), rgb(255 255 255 / .20)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pane-accent) 65%, currentColor), 0 3px 12px rgb(0 0 0 / .10);
+}
+
+@media (prefers-reduced-motion: reduce) { #pane-open-modes > button { transition: none; } }
+.browserSidebarContainer[pane-floating] > .pane-float-resize {
+  appearance: none !important;
+  box-sizing: border-box !important;
+  padding: 0 !important;
+  border: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.browserSidebarContainer[pane-floating] > .pane-float-resize[data-edge="se"] {
+  background: light-dark(#f7f8fb,#23242b) !important;
+  border-radius: 6px 0 0 0 !important;
 }

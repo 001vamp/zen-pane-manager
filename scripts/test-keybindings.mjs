@@ -6,7 +6,7 @@ assert.equal(defaultBinding.label,'Ctrl+Alt+R');
 assert.ok(matchesBinding(event({}),defaultBinding));
 assert.ok(matchesBinding(event({key:'®'}),defaultBinding),'Mac Option must not break default');
 assert.ok(!matchesBinding(event({code:'KeyS',key:'ß'}),defaultBinding));
-for (const extra of [{repeat:true},{isComposing:true},{shiftKey:true},{metaKey:true},{getModifierState:()=>true}]) assert.ok(!matchesBinding(event(extra),defaultBinding));
+for (const extra of [{repeat:true},{isComposing:true},{shiftKey:true},{metaKey:true},{getModifierState:()=>true,view:{navigator:{platform:"Win32"}}}]) assert.ok(!matchesBinding(event(extra),defaultBinding));
 assert.equal(parseBinding('Control+Option+R').label,defaultBinding.label);
 assert.ok(matchesBinding(event({key:'P',code:'KeyP',ctrlKey:false,altKey:false,metaKey:true,shiftKey:true}),parseBinding('Command+Shift+P')));
 assert.ok(matchesBinding(event({key:'F8',ctrlKey:false,altKey:false}),parseBinding('F8')));
@@ -17,4 +17,6 @@ for (const invalid of ['', 'Ctrl', 'Ctrl++R', 'Ctrl+Ctrl+R','Hyper+R','Ctrl+made
 assert.equal(pickerBinding({getIntPref:()=>2}),null);
 assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'bad binding'}),null);
 assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Cmd+K'}).label,'Command+K');
+assert.ok(matchesBinding(event({key:'®',getModifierState:()=>true,view:{navigator:{platform:'MacIntel'}}}),defaultBinding),'Real Mac Option reports AltGraph and must match');
+assert.ok(!matchesBinding(event({key:'r',getModifierState:()=>true,view:{navigator:{platform:'Linux x86_64'}}}),defaultBinding),'Linux AltGr must not trigger a shortcut');
 console.log('Keybinding tests passed.');

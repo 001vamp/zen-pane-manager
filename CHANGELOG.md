@@ -2,7 +2,24 @@
 
 All notable changes to Pane are documented here.
 
-## Unreleased
+## 0.10.0-dev (unreleased)
+
+Inspired by u/doskey’s suggestion and the Samsung Galaxy Fold Multi Window team’s work. Thank you to both for inspiring Pane’s split and floating tab controls.
+
+- Make the selected layout a high-contrast rounded pill with a checkmark; strengthen tab-card and layout-menu selection states.
+- Resize floating tabs from all four edges and corners, with a visible bottom-right grip and anchored minimum sizes.
+
+- Fix real macOS Control+Option key events being rejected as AltGraph text entry.
+- Open Pane from a normal tab to create a split or floating view.
+- Add in-memory tab thumbnails, opening modes, and a keyboard-accessible layout menu.
+- Switch between side-by-side, stacked, and grid layouts using Zen’s native split engine.
+- Float a live tab inside the browser, drag or resize it, then dock it or return it to the sidebar.
+- Preserve the existing browser instance, form content, and scroll position through layout changes.
+- Keep the original pane replacement path and its divider-size preservation.
+
+
+- Add sliders with precise number entry, native color pickers with RGBA and opacity controls, and a live appearance preview in Sine settings.
+- Add per-control resets and support intermediate appearance values instead of only preset sizes.
 
 - Add custom picker and diagnostic shortcuts, including Command on Mac.
 - Keep Control+Option+R as the Mac default and fix Option-modified character matching.

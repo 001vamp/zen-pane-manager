@@ -3,7 +3,7 @@
 [![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-blue.svg)](LICENSE)
 [![Validate](https://github.com/001vamp/zen-pane-manager/actions/workflows/validate.yml/badge.svg)](https://github.com/001vamp/zen-pane-manager/actions/workflows/validate.yml)
 
-Replace the focused pane in a Zen Browser split view with another open tab—without unsplitting, rebuilding the layout, or losing your divider sizes.
+Split, float, arrange, and replace open tabs in Zen Browser. Pane keeps your existing tabs and page state as you change the layout.
 
 An open-source Sine mod by **[jasi (@001vamp)](https://github.com/001vamp)**.
 
@@ -15,16 +15,19 @@ See the [complete UI state sheet](docs/pane-ui-showcase.html) for compact, searc
 
 ## Use
 
-1. Click the split pane you want to replace.
-2. Press **Ctrl+Alt+R**.
-3. Search for another open tab in the current workspace.
-4. Press **Enter**.
+1. Press **Control+Option+R** on Mac or **Ctrl+Alt+R** on Windows from a regular tab.
+2. Choose **Split right**, **Split below**, **Add to grid**, or **Floating**.
+3. Pick another open tab in the current workspace, or search and press **Enter**.
 
-The old pane's tab stays open. The new tab takes its exact position and size.
+In an existing split, Pane defaults to **Replace**. The outgoing tab stays open unless you change that setting. Its replacement takes the exact same position and divider size.
 
-You can also click the **⇄** button in a split pane's header—no shortcut required. When opened this way, the picker appears over that pane so the replacement target stays visually obvious. Keyboard openings continue to use your chosen screen position.
+Click **⇄** in a split header to open the picker over that pane. Click **⋯** to change the layout, add another tab, float the selected tab, or return it to a normal tab. Choosing Grid with two tabs opens the picker for a third tab. Zen currently permits up to four tabs per split, including a floating tab.
 
-The compact glass picker initially shows only your four most recently used eligible tabs. Start typing to search every open tab, or choose **Show all** to expand the list manually. Pressing Escape clears a search or collapses the full list before closing the picker.
+A floating tab stays inside its Zen window. Drag its header to move it or drag any edge or corner to resize it. You can also focus either handle and use the arrow keys. The **×** button returns the tab to the sidebar without closing it. The layout menu can dock it back into a split or make it the normal full-page tab.
+
+The compact picker shows recent tabs with thumbnails. Search or **Show all** opens the full list. Thumbnails are captured in memory while the picker is open; Pane does not save or upload them. Sleeping tabs stay asleep and use their title and icon until opened. Escape clears search, collapses the full list, then closes the picker.
+
+**Development build:** multi-window support is being tested locally. One floating tab is supported per window. Floating placement is temporary; restarting Zen or disabling Pane returns the group to a normal native split. Other tabs and workspaces hide the floating group normally. This build has been exercised on macOS; Windows runtime testing is still needed.
 
 ## Thoughtful by default
 
@@ -49,9 +52,15 @@ Open Sine's settings for Pane to:
 - Set how many tabs appear in compact view, their ordering, website-name visibility, and whether the replaced tab stays open.
 - Fine-tune light and dark glass tints, blur, corners, columns, and the keyboard footer in Advanced customization.
 
-Appearance changes preview live. Choose **System glass** to reset the tint, blur, and corner shape to Pane's designed defaults. Advanced tint, blur, and corner controls take effect only with the **Custom** preset.
+### Sliders and colors
 
-CSS colors can be written as hex (`#7c5cff`), RGB/RGBA (`rgba(124, 92, 255, 0.72)`), HSL, or a system color such as `AccentColor`. Invalid colors safely fall back to the defaults. Fully transparent accents are also rejected because they would make keyboard focus impossible to see. **Auto** columns is recommended: it adapts the compact layout to narrow and wide picker sizes.
+Click **⚙ Appearance** in Pane's replacement picker to open its appearance page. The same controls also appear in **Settings → Sine Mods → Pane's gear button** when Sine's settings page is working. Pane adds sliders and editable number fields for width, tab spacing, recent-tab count, blur, and corner radius. Drag a slider or type an exact number. Changes save immediately; invalid entries leave your saved setting unchanged.
+
+Each color has a swatch that opens your system's color picker, an opacity slider and percentage field, and an editable HEX/RGBA field. The native picker layout varies by operating system. CSS colors such as `AccentColor` still work. Accent opacity is limited to 30% or higher to keep keyboard focus visible; glass tints allow full transparency.
+
+A live sample preview includes System, Light, and Dark modes. Editing tint, blur, or corners selects **Custom** glass automatically so the change takes effect. Presets remain available. Each control has a **Reset** button; **Reset appearance** restores appearance defaults without changing keyboard shortcuts or tab behavior.
+
+The enhanced controls require Pane's JavaScript permission, just like the picker. If you only see the original Sine fields, toggle Pane and reopen settings after updating. If Sine's settings page fails to load, use Pane's Appearance button or open `chrome://sine/content/zen-pane-manager/settings.html` directly. Slider ranges are width 320–1000 px, spacing 0–24 px, recent tabs 1–12, blur 0–80 px, and corners 0–48 px. The picker still fits within the available window or split pane.
 
 ### Custom keyboard shortcuts
 
@@ -126,7 +135,7 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 ## Compatibility
 
-Pane v0.9.0 targets Zen **1.21.16b** on Windows and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable. Pane also watches for split headers created or rebuilt after startup, which keeps its button available during session restoration and alongside mods that reorganize tab groups.
+Pane targets Zen **1.21.16b** and uses its internal `gZenViewSplitter` API. Zen can change that API between releases, so the mod validates the required methods before changing anything and shows a compatibility message if they are unavailable. Pane also watches for split headers created or rebuilt after startup, which keeps its button available during session restoration and alongside mods that reorganize tab groups.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for the release test matrix and known limitations.
 

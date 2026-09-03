@@ -5,7 +5,7 @@
 - [ ] `theme.json`, `package.json`, and `CHANGELOG.md` use the same version.
 - [ ] `npm test` passes.
 - [ ] The compatibility matrix is complete for the target Zen release.
-- [ ] The root GitHub ZIP contains `theme.json`, `keybindings.mjs`, `pane-diagnostics.uc.mjs`, `pane.uc.mjs`, `chrome.css`, and `preferences.json` at the paths declared by the manifest.
+- [ ] The root GitHub ZIP contains `theme.json`, `keybindings.mjs`, `multiwindow.mjs`, `appearance.mjs`, `pane-settings.uc.mjs`, `settings.html`, `settings-page.mjs`, `pane-diagnostics.uc.mjs`, `pane.uc.mjs`, `chrome.css`, and `preferences.json` at the paths declared by the manifest.
 - [ ] Sine 2.3+ live disable/enable unloads and reloads Pane without restarting Zen.
 - [ ] No private URLs, tab titles, profile paths, or local machine data are present.
 - [ ] License and attribution notices remain intact.
@@ -38,3 +38,14 @@
 - [ ] Submit through Sine's official marketplace issue template.
 
 - [ ] Verify custom picker and diagnostic shortcuts on macOS and Windows, including changing them without restarting.
+
+- [ ] Verify sliders, numeric edits, RGBA/opacity, reset, and native color selection in the appearance page and Sine panel.
+
+## Multi-window development checks
+
+- [ ] Run `scripts/test-zen-browser.py` against a disposable `pane-zen-qa` profile with Sine and this checkout installed (requires `marionette_driver`, port 2829).
+- [ ] Verify normal-tab entry, thumbnails, search, and all opening modes.
+- [ ] Verify side-by-side, stacked, grid, and the four-tab limit.
+- [ ] Verify floating drag/resize, form state, scroll, docking, sidebar return, tab closure, and unload cleanup.
+- [ ] Verify a replacement preserves user-adjusted divider sizes.
+- [ ] Test the same flows on Windows before publishing a release.

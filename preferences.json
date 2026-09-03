@@ -126,6 +126,11 @@
     "defaultValue": false
   },
   {
+    "id": "mod.pane.item-spacing",
+    "type": "text",
+    "label": "Tab spacing (use the slider when Pane scripts are enabled)"
+  },
+  {
     "property": "mod.pane.dim-background",
     "label": "Dim the page behind the picker",
     "type": "checkbox",

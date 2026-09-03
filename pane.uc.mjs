@@ -1,4 +1,6 @@
-import { matchesBinding, pickerBinding } from "./keybindings.mjs";
+import { createMultiwindow, modeLabels } from "./multiwindow.mjs?pane=0.10.0-dev-resize1";
+import { numericValue, glassPresets } from "./appearance.mjs";
+import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -15,7 +17,7 @@ const diagnosticLog = (event, details = {}) => window[DIAGNOSTICS_KEY]?.log?.(ev
 window[INSTANCE_KEY]?.destroy?.();
 document.getElementById("pane-overlay")?.remove();
 document.getElementById("pane-toast")?.remove();
-document.querySelectorAll(".pane-button").forEach(button => button.remove());
+document.querySelectorAll(".pane-button,.pane-layout-button").forEach(button => button.remove());
 const PREF = {
   urls: "mod.pane.show-urls",
   recent: "mod.pane.recent-first",
@@ -37,6 +39,8 @@ const PREF = {
 };
 
 let overlay, dialog, heading, context, search, results, count, sectionLabel, expandButton;
+let multiwindow, modeBar;
+let openMode = "replace", renderGeneration = 0;
 let targetTab = null;
 let candidates = [];
 let filtered = [];
@@ -81,7 +85,8 @@ const compatible = view =>
   Array.isArray(view._data) &&
   typeof view.getSplitNodeFromTab === "function" &&
   typeof view.resetTabState === "function" &&
-  typeof view.activateSplitView === "function";
+  typeof view.activateSplitView === "function" &&
+  ["splitTabs", "calculateLayoutTree", "removeTabFromGroup", "applyGridLayout", "removeSplitters"].every(name => typeof view[name] === "function");
 const workspaceId = tab => tab?.getAttribute("zen-workspace-id") ?? "";
 const tabTitle = tab => tab?.label?.trim() || "Untitled tab";
 const lastUsed = tab => tab?._lastAccessed ?? tab?.lastSeenActive ?? 0;
@@ -99,7 +104,7 @@ function displayUrl(tab) {
 function eligibleTabs(target, data) {
   const workspace = workspaceId(target);
   const tabs = [...gBrowser.tabs].filter(tab =>
-    tab !== target && !data.tabs.includes(tab) && !tab.closing && !tab.hidden &&
+    tab !== target && !data?.tabs.includes(tab) && !tab.closing && !tab.hidden &&
     !tab.pinned && !tab.hasAttribute("zen-empty-tab") && !tab.hasAttribute("zen-essential") &&
     !tab.splitView && workspaceId(tab) === workspace
   );
@@ -128,6 +133,8 @@ function closePicker(restoreFocus = true) {
   if (!overlay || overlay.hidden) return;
   const oldTarget = targetTab;
   overlay.hidden = true;
+  renderGeneration++;
+  results.replaceChildren();
   targetTab = null;
   paneAnchorTab = null;
   positionDialog();
@@ -159,12 +166,13 @@ function highlighted(text, query) {
 }
 
 function renderResults() {
+  const generation = ++renderGeneration;
   const query = search.value.trim().toLocaleLowerCase();
   const matches = candidates.filter(tab =>
     `${tabTitle(tab)} ${displayUrl(tab)}`.toLocaleLowerCase().includes(query)
   );
   const showAll = Boolean(query) || expanded;
-  const previewCount = choice(intPref(PREF.recentCount, 4), [2, 4, 6, 8], 4);
+  const previewCount = numericValue("recent-count", Services.prefs);
   filtered = showAll ? matches : matches.slice(0, previewCount);
   results.replaceChildren();
   dialog.toggleAttribute("expanded", showAll);
@@ -182,7 +190,7 @@ function renderResults() {
     const empty = document.createElement("div");
     empty.id = "pane-empty";
     const strong = document.createElement("strong");
-    strong.textContent = query ? "No matching tabs" : "Nothing to swap in yet";
+    strong.textContent = query ? "No matching tabs" : "No other tabs yet";
     const hint = document.createElement("span");
     hint.textContent = query
       ? "Try a page title, website, or shorter search."
@@ -198,7 +206,7 @@ function renderResults() {
     item.type = "button";
     item.setAttribute("role", "option");
     item.setAttribute("aria-selected", String(index === 0));
-    item.setAttribute("aria-label", `Replace with ${tabTitle(tab)}`);
+    item.setAttribute("aria-label", `${modeLabels[openMode]}: ${tabTitle(tab)}`);
     item.tabIndex = index === 0 ? 0 : -1;
 
     const iconBox = document.createElement("span");
@@ -223,13 +231,46 @@ function renderResults() {
     }
     const action = document.createElement("span");
     action.className = "pane-action";
-    action.textContent = "Replace";
+    action.textContent = modeLabels[openMode];
     item.append(iconBox, copy, action);
     item.addEventListener("mouseenter", () => selectResult(index));
-    item.addEventListener("click", () => replacePane(tab));
+    item.addEventListener("click", () => openCandidate(tab));
     results.appendChild(item);
+    if (!showAll && !tab.hasAttribute("pending")) {
+      const preview = document.createElement("canvas");
+      preview.className = "pane-preview"; preview.width = 360; preview.height = 190;
+      preview.setAttribute("aria-hidden", "true");
+      item.prepend(preview);
+      capturePreview(tab, preview, generation);
+    }
   });
   selectedIndex = 0;
+}
+
+async function capturePreview(tab, canvas, generation) {
+  try {
+    const { PageThumbs } = ChromeUtils.importESModule("resource://gre/modules/PageThumbs.sys.mjs");
+    await PageThumbs.captureToCanvas(tab.linkedBrowser, canvas, { fullViewport: true }, true);
+    if (generation !== renderGeneration || !canvas.isConnected) { canvas.width = canvas.height = 0; }
+  } catch { canvas.remove(); }
+}
+
+function setMode(mode) {
+  openMode = mode;
+  modeBar.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+  document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[mode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
+  renderResults();
+}
+
+function openCandidate(tab) {
+  if (openMode === "replace") {
+    multiwindow.clearFloat();
+    replacePane(tab); return;
+  }
+  const target = targetTab, mode = openMode;
+  closePicker(false);
+  try { multiwindow.add(target, tab, mode); }
+  catch (error) { showToast(error.message || "The layout could not be changed", "warning"); }
 }
 
 function buildPicker() {
@@ -275,7 +316,17 @@ function buildPicker() {
       copied ? "success" : "warning"
     );
   });
-  headerActions.append(diagnosticsButton, close);
+  const appearanceButton = document.createElement("button");
+  appearanceButton.id = "pane-appearance";
+  appearanceButton.type = "button";
+  appearanceButton.textContent = "⚙";
+  appearanceButton.setAttribute("aria-label", "Open Pane appearance settings");
+  appearanceButton.title = "Appearance";
+  appearanceButton.addEventListener("click", () => {
+    closePicker();
+    window.openTrustedLinkIn("chrome://sine/content/zen-pane-manager/settings.html", "tab");
+  });
+  headerActions.append(appearanceButton, diagnosticsButton, close);
   header.append(group, headerActions);
 
   const searchWrap = document.createElement("div");
@@ -312,7 +363,15 @@ function buildPicker() {
   const help = document.createElement("footer");
   help.id = "pane-help";
   help.innerHTML = "<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Replace</span><span><kbd>Esc</kbd> Cancel</span>";
-  dialog.append(header, searchWrap, sectionHeader, results, expandButton, help);
+  modeBar = document.createElement("div");
+  modeBar.id = "pane-open-modes";
+  modeBar.setAttribute("role", "group"); modeBar.setAttribute("aria-label", "Open tab as");
+  for (const [mode, label] of Object.entries(modeLabels)) {
+    const button = document.createElement("button");
+    button.type = "button"; button.dataset.mode = mode; button.textContent = label;
+    button.addEventListener("click", () => setMode(mode)); modeBar.append(button);
+  }
+  dialog.append(header, searchWrap, modeBar, sectionHeader, results, expandButton, help);
   overlay.appendChild(dialog);
   root.appendChild(overlay);
 
@@ -323,7 +382,7 @@ function buildPicker() {
     if (event.key === "ArrowDown") { event.preventDefault(); selectResult(selectedIndex + 1); }
     else if (event.key === "ArrowUp") { event.preventDefault(); selectResult(selectedIndex - 1); }
     else if (event.key === "Enter" && filtered[selectedIndex]) {
-      event.preventDefault(); replacePane(filtered[selectedIndex]);
+      event.preventDefault(); openCandidate(filtered[selectedIndex]);
     }
   });
 }
@@ -331,21 +390,15 @@ function buildPicker() {
 function applyAppearance() {
   if (!dialog || !overlay) return;
   const preset = choice(intPref(PREF.preset, 0), [0, 1, 2, 3, 4], 0);
-  const presets = [
-    { light: "rgba(247, 248, 251, 0.78)", dark: "rgba(24, 25, 30, 0.78)", blur: 38, radius: 24 },
-    { light: "rgba(255, 255, 255, 0.46)", dark: "rgba(18, 20, 26, 0.52)", blur: 18, radius: 18 },
-    { light: "rgba(247, 248, 251, 0.9)", dark: "rgba(24, 25, 30, 0.9)", blur: 52, radius: 24 },
-    { light: "rgba(224, 232, 255, 0.8)", dark: "rgba(40, 34, 62, 0.84)", blur: 38, radius: 30 },
-  ];
   const custom = {
     light: safeColor(stringPref(PREF.tintLight, "rgba(247, 248, 251, 0.78)"), "rgba(247, 248, 251, 0.78)"),
     dark: safeColor(stringPref(PREF.tintDark, "rgba(24, 25, 30, 0.78)"), "rgba(24, 25, 30, 0.78)"),
-    blur: choice(intPref(PREF.blur, 38), [0, 18, 28, 38, 52], 38),
-    radius: choice(intPref(PREF.radius, 24), [14, 18, 24, 30, 36], 24),
+    blur: numericValue("glass-blur", Services.prefs),
+    radius: numericValue("corner-radius", Services.prefs),
   };
-  const appearance = preset === 4 ? custom : presets[preset];
+  const appearance = preset === 4 ? custom : glassPresets[preset];
   const accent = safeAccent(stringPref(PREF.accent, "AccentColor"), "AccentColor");
-  const width = choice(intPref(PREF.width, 520), [420, 520, 640, 760], 520);
+  const width = numericValue("picker-width", Services.prefs);
   const requestedColumns = choice(intPref(PREF.columns, 0), [0, 1, 2, 3], 0);
   const autoColumns = width <= 420 ? 1 : width >= 640 ? 3 : 2;
   const columns = requestedColumns === 0
@@ -359,6 +412,7 @@ function applyAppearance() {
   dialog.style.setProperty("--pane-radius", `${appearance.radius}px`);
   dialog.style.setProperty("--pane-width", `${width}px`);
   dialog.style.setProperty("--pane-columns", String(columns));
+  dialog.style.setProperty("--pane-item-spacing", `${numericValue("item-spacing", Services.prefs)}px`);
   overlay.dataset.position = ["top", "upper", "center"][position];
   overlay.toggleAttribute("dim", boolPref(PREF.dim, false));
   dialog.toggleAttribute("hide-help", !boolPref(PREF.help, true));
@@ -377,7 +431,7 @@ function positionDialog() {
   const container = paneAnchorTab.linkedBrowser?.closest(".browserSidebarContainer");
   const rect = container?.getBoundingClientRect();
   if (!rect?.width) return;
-  const preferred = choice(intPref(PREF.width, 520), [420, 520, 640, 760], 520);
+  const preferred = numericValue("picker-width", Services.prefs);
   const actualWidth = Math.max(300, Math.min(preferred, rect.width - 24, window.innerWidth - 24));
   const left = Math.max(12, Math.min(rect.left + (rect.width - actualWidth) / 2, window.innerWidth - actualWidth - 12));
   const top = Math.max(42, rect.top + 18);
@@ -387,32 +441,35 @@ function positionDialog() {
   dialog.style.maxWidth = `${actualWidth}px`;
 }
 
-function openPicker(tab = gBrowser.selectedTab, anchorToPane = false) {
+function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedMode = null) {
+  multiwindow?.closeMenu();
   if (!compatible(splitter())) {
     diagnosticLog("picker blocked", { reason: "incompatible splitter" });
     showToast("This Zen version is not compatible with Pane yet", "error");
     return;
   }
   const data = activeData();
-  if (!data || !tab || !data.tabs.includes(tab)) {
-    diagnosticLog("picker blocked", { reason: "no active split pane" });
-    showToast("Choose a pane in an active split first", "warning");
-    return;
+  if (!tab || tab.closing || tab.pinned || tab.hasAttribute("zen-essential") || tab.hasAttribute("zen-empty-tab")) {
+    showToast("Choose a regular tab to open Pane", "warning"); return;
   }
+  const inSplit = Boolean(data?.tabs.includes(tab));
   targetTab = tab;
   paneAnchorTab = anchorToPane ? tab : null;
   candidates = eligibleTabs(tab, data);
-  heading.textContent = "Replace this pane";
+  openMode = requestedMode || (inSplit ? "replace" : "right");
+  modeBar.querySelector('[data-mode="replace"]').hidden = !inSplit;
+  heading.textContent = inSplit ? "Replace or arrange this pane" : "Open a tab alongside this one";
+  results.setAttribute("aria-label", "Available open tabs");
   context.textContent = `Currently showing ${tabTitle(tab)}`;
   dialog.toggleAttribute("compact", boolPref(PREF.compact, false));
   applyAppearance();
   expanded = false;
   search.value = "";
-  renderResults();
+  setMode(openMode);
   overlay.hidden = false;
   diagnosticLog("picker opened", {
     anchored: anchorToPane,
-    paneCount: data.tabs.length,
+    paneCount: data?.tabs.length ?? 1,
     candidateCount: candidates.length,
   });
   requestAnimationFrame(() => search.focus());
@@ -495,7 +552,20 @@ function ensurePaneButtons() {
     const header = container.querySelector(".zen-view-splitter-header");
     if (!header) return;
     const current = header.querySelector(".pane-button");
-    if (!boolPref(PREF.button, true)) { current?.remove(); return; }
+    if (!boolPref(PREF.button, true)) { current?.remove(); header.querySelector(".pane-layout-button")?.remove(); return; }
+    if (!header.querySelector(".pane-layout-button")) {
+      const arrange = document.createXULElement("toolbarbutton");
+      arrange.className = "pane-layout-button";
+      arrange.setAttribute("label", "⋯"); arrange.textContent = "⋯";
+      arrange.setAttribute("tooltiptext", "Arrange this pane");
+      arrange.setAttribute("aria-label", "Arrange this pane");
+      arrange.addEventListener("click", event => {
+        event.preventDefault(); event.stopPropagation();
+        const tab = gBrowser.getTabForBrowser(container.querySelector("browser"));
+        if (tab) multiwindow.openMenu(tab, arrange);
+      });
+      header.prepend(arrange);
+    }
     if (current) return;
     const button = document.createXULElement("toolbarbutton");
     button.className = "pane-button";
@@ -562,6 +632,8 @@ function trapDialogFocus(event) {
   if (event.key !== "Tab") return;
   const focusable = [
     search,
+    ...modeBar.querySelectorAll("button:not([hidden])"),
+    document.getElementById("pane-appearance"),
     ...results.querySelectorAll(".pane-item"),
     expandButton.hidden ? null : expandButton,
     document.getElementById("pane-diagnostics"),
@@ -600,6 +672,8 @@ const prefObserver = {
 
 function destroy() {
   diagnosticLog("Pane runtime unloading");
+  renderGeneration++;
+  multiwindow?.destroy();
   clearTimeout(toastTimer);
   if (buttonFrame) cancelAnimationFrame(buttonFrame);
   buttonFrame = 0;
@@ -611,7 +685,7 @@ function destroy() {
   try { Services.prefs.removeObserver("mod.pane.", prefObserver); } catch (e) {}
   overlay?.remove();
   document.getElementById("pane-toast")?.remove();
-  document.querySelectorAll(".pane-button").forEach(button => button.remove());
+  document.querySelectorAll(".pane-button,.pane-layout-button").forEach(button => button.remove());
   root.removeAttribute("pane-ready");
   if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
 }
@@ -620,6 +694,16 @@ function initialize() {
   try {
     diagnosticLog("Pane runtime initializing", { documentReady: document.readyState });
     buildPicker();
+    multiwindow = createMultiwindow(window, {
+      notify: showToast,
+      chooseTab: (tab, mode) => openPicker(tab, false, mode),
+      appearance: node => {
+        for (let i = 0; i < dialog.style.length; i++) {
+          const property = dialog.style[i];
+          if (property.startsWith("--pane-")) node.style.setProperty(property, dialog.style.getPropertyValue(property));
+        }
+      },
+    });
     window.addEventListener("keydown", onShortcut, true);
     window.addEventListener("ZenViewSplitter:SplitViewActivated", onSplitActivated);
     window.addEventListener("resize", onWindowResize);
@@ -639,7 +723,7 @@ function initialize() {
     ensurePaneButtons();
     applyAppearance();
     root.setAttribute("pane-ready", "true");
-    window[INSTANCE_KEY] = { destroy, version: "0.9.0" };
+    window[INSTANCE_KEY] = { destroy, openPicker, multiwindow, version: "0.10.0-dev" };
 
     // Sine 2.3+ uses this callback for clean live disable/reload. Without it,
     // Sine intentionally keeps an already imported module running.
@@ -647,7 +731,7 @@ function initialize() {
 
     const binding = pickerBinding(Services.prefs);
     diagnosticLog("Pane runtime ready", { binding: binding?.label ?? "disabled" });
-    console.log(TAG, `0.9.0 ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
+    console.log(TAG, `0.10.0-dev ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
   } catch (error) {
     console.error(TAG, "failed to initialize", error);
     diagnosticLog("Pane initialization failed", { error: error?.name });

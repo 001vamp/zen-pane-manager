@@ -1,0 +1,6 @@
+<!doctype html>
+<!-- This Source Code Form is subject to the Mozilla Public License, v. 2.0.
+     You can obtain a copy at https://mozilla.org/MPL/2.0/. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pane appearance</title>
+<style>html{color-scheme:light dark;font:15px system-ui;background:light-dark(#f4f5f8,#17181d);color:light-dark(#24252a,#eee)}body{max-width:660px;margin:40px auto;padding:0 24px}h1{font-size:26px}p{line-height:1.6}button,input,select{font:inherit;border:1px solid #8886;border-radius:7px;padding:7px;background:light-dark(#fff,#292b34);color:inherit}button{cursor:pointer}#rows>div{display:block;border-bottom:1px solid #8883}input[type=range]{padding:0}input[type=color]{padding:2px}</style></head>
+<body><h1>Pane appearance</h1><p>Make Pane yours. Changes save automatically and apply to every open picker.</p><label for="preset">Glass style </label><select id="preset"><option value="0">System</option><option value="1">Clear</option><option value="2">Frosted</option><option value="3">Tinted</option><option value="4">Custom</option></select><div id="rows"></div><p id="load-error" role="alert"></p><script type="module" src="settings-page.mjs?v=1"></script></body></html>

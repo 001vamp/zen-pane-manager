@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { boundedNumber, numericSettings, numericValue } from '../appearance.mjs';
+const width = numericSettings.find(s => s.key === 'picker-width');
+assert.equal(boundedNumber('537',width),537);
+assert.equal(boundedNumber('',width),520);
+assert.equal(boundedNumber('bad',width),520);
+assert.equal(boundedNumber(Infinity,width),520);
+assert.equal(boundedNumber(2000,width),1000);
+assert.equal(boundedNumber(-10,width),320);
+const prefs = { getBoolPref:()=>true, getIntPref:(key,fallback)=>fallback };
+assert.equal(numericValue('item-spacing',prefs),5,'existing compact spacing is preserved');
+prefs.getBoolPref=()=>false;
+assert.equal(numericValue('item-spacing',prefs),8);
+prefs.getIntPref=()=>537;
+assert.equal(numericValue('picker-width',prefs),537,'intermediate values are not rounded to presets');
+console.log('Appearance value tests passed.');

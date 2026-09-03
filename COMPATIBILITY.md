@@ -4,7 +4,8 @@
 
 - Zen Browser: 1.21.16b
 - Firefox platform: 154.0.1
-- Operating system: Windows
+- Development runtime tested: macOS
+- Windows: multi-window runtime verification pending
 - Mod loader: Sine 2.3+
 
 ## Windows support
@@ -13,7 +14,7 @@ Pane does not use native executables, architecture-specific binaries, registry e
 
 Sine must have **Install JavaScript from unofficial sources** enabled because Pane is currently installed from its public GitHub repository rather than Sine's verified store. After a first install, toggle Pane once and fully restart Zen so Sine's browser-chrome loader starts from a clean state.
 
-The ⇄ control exists only inside an active split pane header. If both the control and keyboard shortcut are absent, press **Ctrl+Alt+D**. A copied report proves Pane's independent diagnostic bootstrap loaded; no response means Sine blocked or did not load the privileged scripts. The Browser Console should contain `[Pane] 0.9.0 ready` when the main runtime succeeds.
+The ⇄ control exists only inside an active split pane header. If both the control and keyboard shortcut are absent, press **Ctrl+Alt+D**. A copied report proves Pane's independent diagnostic bootstrap loaded; no response means Sine blocked or did not load the privileged scripts. The Browser Console should contain `[Pane] 0.10.0-dev ready` when the main runtime succeeds.
 
 Pane relies on Zen's private `gZenViewSplitter` object. The mod checks for the exact methods it needs before offering a replacement, but a future Zen release may still change their behavior.
 
@@ -50,3 +51,11 @@ Run this matrix before tagging a stable release:
 - Tabs from another workspace
 
 These tabs are hidden from the picker instead of being offered with unreliable behavior.
+
+## Multi-window development verification
+
+Pane 0.10.0-dev was loaded through Sine 2.3.4.1c in a disposable macOS Zen profile. Live tests passed for normal-tab entry, right/below/grid layouts, floating browser identity, unsaved form content, scroll position, keyboard move/resize, tab switching, close-to-sidebar, native tab closure, four-tab limit, injected-failure rollback, and unload cleanup. Replacement retained the same layout leaf and custom divider size.
+
+The local installed build was also enabled alongside Advanced Tab Groups and Safari-like Zen. Control+Option+R was verified with real Mac key events. Firefox reports Option as AltGraph on macOS, which Pane now handles separately from Windows/Linux AltGr text entry.
+
+Floating placement is a temporary presentation of a native Zen split. One floating tab is supported per window. Disabling Pane or restarting Zen restores the native split. It is not an OS-level always-on-top window. Windows and playback-specific tests remain part of the stable-release gate.
