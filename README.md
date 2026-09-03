@@ -132,7 +132,8 @@ For local development, copy this folder into your Zen profile's `chrome/sine-mod
 
 - Only replaces a pane in the currently active split view.
 - Only offers ordinary open tabs from the same workspace.
-- Supports pinned tabs, Essentials, and tabs inside folders, including collapsed folders. Pane opens a normal copy for the split or floating view and preserves the saved original. Essentials are available in the active workspace.
+- Pinned tabs and ordinary folder tabs use their original tabs. Splits stay pinned and remain in the source folder when started there. Combining a pinned tab with a normal tab pins the companion too.
+- Essentials and live-folder items use copies to preserve their special behavior. The picker labels these choices “Open a copy in this pane.” Essentials are available in the active workspace.
 - Never offers a tab already participating in another split.
 - Leaves the outgoing tab open and available in the sidebar.
 - Preserves horizontal, vertical, grid, and nested split-tree ratios.

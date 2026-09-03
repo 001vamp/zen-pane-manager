@@ -36,6 +36,6 @@ console.log("Folder eligibility and protected tab exclusions passed.");
 const essential = { ...ordinary, hasAttribute: name => name === "zen-essential" };
 assert.equal(isSupportedTab(essential), true);
 assert.equal(needsTabCopy(essential), true);
-assert.equal(needsTabCopy({ ...ordinary, pinned: true }), true);
+assert.equal(needsTabCopy({ ...ordinary, pinned: true }), false);
 assert.equal(needsTabCopy(ordinary), false);
 assert.equal(tabWorkspace({ gZenWorkspaces: { activeWorkspace: "active" } }, essential), "active");

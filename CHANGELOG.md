@@ -4,6 +4,10 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Clearly label Essential and live-folder choices with “Open a copy in this pane.”
+
+- Keep original pinned and ordinary folder tabs in pinned splits instead of duplicating them; pin normal companions when combining with a pinned tab. Essentials and live-folder items still use copies.
+
 - Support pinned tabs and Essentials as picker sources and targets, using normal copies while preserving saved originals.
 
 - Briefly reveal controls when switching panes, widen the top-edge target, and delay hiding to make toolbars easier to reach.

@@ -2,7 +2,7 @@
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
 // Preserve saved tabs by using normal copies for layout operations.
-export const needsTabCopy = tab => Boolean(tab?.pinned || tab?.hasAttribute("zen-essential"));
+export const needsTabCopy = tab => Boolean(tab?.hasAttribute("zen-essential") || tab?.hasAttribute("zen-live-folder-item-id"));
 export const tabWorkspace = (win, tab) => tab?.hasAttribute("zen-essential")
   ? win.gZenWorkspaces.activeWorkspace : (tab?.getAttribute("zen-workspace-id") ?? "");
 export const isSupportedTab = tab => Boolean(tab && !tab.closing && !tab.hidden && !tab.hasAttribute("zen-empty-tab"));
@@ -250,6 +250,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     clearFloat();
     const snapshot = current ? { tree: copyTree(current.layoutTree), type: current.gridType } : null;
     const originalTarget = target, copies = [];
+    const originalTabs = [...new Set([...(current?.tabs ?? []), target, incoming])];
+    const originalState = originalTabs.map(tab => ({ tab, pinned: tab.pinned, group: tab.group }));
     const prepare = tab => {
       if (!needsTabCopy(tab) || tab.splitView) return tab;
       const copy = browser.duplicateTab(tab, true);
@@ -258,6 +260,12 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     };
     try {
       target = prepare(target); incoming = prepare(incoming);
+      // Zen duplicates mixed pinned/unpinned inputs. Keep one pinned split instead.
+      if (target.pinned || incoming.pinned) {
+        for (const tab of [...(current?.tabs ?? []), target, incoming]) {
+          if (!tab.pinned) browser.pinTab(tab);
+        }
+      }
       const data = view.splitTabs([target, incoming], layoutTypes[mode] || "vsep");
       if (!data?.tabs.includes(incoming)) throw new Error("Zen could not create this layout");
       // Zen adds to an existing tree without applying the requested direction.
@@ -276,6 +284,10 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
         if (snapshot && view._data.includes(current)) {
           current.layoutTree = snapshot.tree; current.gridType = snapshot.type;
           view.activateSplitView(current, true);
+        }
+        for (const { tab, pinned, group } of originalState) {
+          if (tab.pinned !== pinned) pinned ? browser.pinTab(tab) : browser.unpinTab(tab);
+          if (group?.isConnected && tab.group !== group) browser.moveTabToExistingGroup(tab, group);
         }
         browser.selectedTab = originalTarget;
       } catch (rollbackError) { console.error("[Pane] Layout rollback failed", rollbackError); }
