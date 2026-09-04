@@ -19,4 +19,8 @@ The Open Source Definition requires free redistribution and does not allow a lic
 
 MPL still prevents a distributor from turning modified covered files into closed source. Anyone who lawfully receives a copy retains the right to redistribute the covered source, including at no charge. Official releases maintained by [jasi](https://github.com/001vamp) are intended to remain freely available.
 
+## Third-party assets
+
+Pane uses a small vendored selection of [Lucide](https://lucide.dev/) icon data, version 1.41.0, under the ISC License. The required notice is included at `LICENSES/LUCIDE-ICONS.txt`.
+
 This document explains the maintainer's intent and is not an additional license restriction.

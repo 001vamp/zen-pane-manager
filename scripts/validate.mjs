@@ -14,7 +14,7 @@ const diagnostics = await readFile("pane-diagnostics.uc.mjs", "utf8");
 const readme = await readFile("README.md", "utf8");
 const changelog = await readFile("CHANGELOG.md", "utf8");
 
-for (const path of ["multiwindow.mjs", "settings.html", "settings-page.mjs", "appearance.mjs", "pane-settings.uc.mjs", "keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
+for (const path of ["icons.mjs", "LICENSES/LUCIDE-ICONS.txt", "multiwindow.mjs", "settings.html", "settings-page.mjs", "appearance.mjs", "pane-settings.uc.mjs", "keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
   try { await access(path); } catch { fail(`Sine package is missing ${path}`); }
 }
 

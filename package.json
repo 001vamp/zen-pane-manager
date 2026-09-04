@@ -10,7 +10,7 @@
     "url": "https://github.com/001vamp/zen-pane-manager.git"
   },
   "scripts": {
-    "check": "node --check pane-diagnostics.uc.mjs && node --check pane.uc.mjs && node scripts/validate.mjs && node scripts/test-diagnostics.mjs && node scripts/test-keybindings.mjs && node --check pane-settings.uc.mjs && node scripts/test-appearance.mjs && node --check settings-page.mjs && node --check multiwindow.mjs && node scripts/test-multiwindow.mjs",
+    "check": "node --check pane-diagnostics.uc.mjs && node --check pane.uc.mjs && node --check icons.mjs && node scripts/test-icons.mjs && node scripts/validate.mjs && node scripts/test-diagnostics.mjs && node scripts/test-keybindings.mjs && node --check pane-settings.uc.mjs && node scripts/test-appearance.mjs && node --check settings-page.mjs && node --check multiwindow.mjs && node scripts/test-multiwindow.mjs",
     "test": "npm run check"
   },
   "engines": {

@@ -1,3 +1,4 @@
+import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
 import { createMultiwindow, modeLabels, needsTabCopy, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-pinned-originals1";
 import { numericValue, glassPresets } from "./appearance.mjs";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev";
@@ -184,7 +185,10 @@ function renderResults() {
       : boolPref(PREF.recent, true) ? "Recently used" : "Open tabs";
   count.textContent = query ? `${matches.length} found` : `${candidates.length} open`;
   expandButton.hidden = Boolean(query) || candidates.length <= previewCount;
-  expandButton.textContent = expanded ? "Show less  ↑" : `Show all ${candidates.length} tabs  ↓`;
+  expandButton.replaceChildren();
+  const expandLabel = document.createElement("span");
+  expandLabel.textContent = expanded ? "Show less" : `Show all ${candidates.length} tabs`;
+  expandButton.append(expandLabel, paneIcon(document, expanded ? "up" : "down"));
   expandButton.setAttribute("aria-expanded", String(expanded));
   if (!matches.length) {
     const empty = document.createElement("div");
@@ -247,6 +251,7 @@ function renderResults() {
       const preview = document.createElement("canvas");
       preview.className = "pane-preview"; preview.width = 360; preview.height = 190;
       preview.setAttribute("aria-hidden", "true");
+      item.classList.add("pane-item-preview");
       item.prepend(preview);
       capturePreview(tab, preview, generation);
     }
@@ -264,7 +269,12 @@ async function capturePreview(tab, canvas, generation) {
 
 function setMode(mode) {
   openMode = mode;
-  modeBar.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+  modeBar.querySelectorAll("button").forEach(b => {
+    const selected = b.dataset.mode === mode;
+    b.setAttribute("aria-pressed", String(selected));
+    b.querySelector(".pane-mode-check")?.remove();
+    if (selected) { const check = paneIcon(document, "check"); check.classList.add("pane-mode-check"); b.append(check); }
+  });
   document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[mode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
   renderResults();
 }
@@ -305,7 +315,7 @@ function buildPicker() {
   const close = document.createElement("button");
   close.id = "pane-close";
   close.type = "button";
-  close.textContent = "×";
+  setPaneIcon(close, "close");
   close.setAttribute("aria-label", "Close Pane");
   close.addEventListener("click", () => closePicker());
   const headerActions = document.createElement("div");
@@ -313,7 +323,7 @@ function buildPicker() {
   const diagnosticsButton = document.createElement("button");
   diagnosticsButton.id = "pane-diagnostics";
   diagnosticsButton.type = "button";
-  diagnosticsButton.textContent = "ⓘ";
+  setPaneIcon(diagnosticsButton, "info");
   diagnosticsButton.setAttribute("aria-label", "Copy privacy-safe Pane diagnostics");
   diagnosticsButton.setAttribute("title", "Copy Pane diagnostics");
   diagnosticsButton.addEventListener("click", () => {
@@ -326,7 +336,7 @@ function buildPicker() {
   const appearanceButton = document.createElement("button");
   appearanceButton.id = "pane-appearance";
   appearanceButton.type = "button";
-  appearanceButton.textContent = "⚙";
+  setPaneIcon(appearanceButton, "settings");
   appearanceButton.setAttribute("aria-label", "Open Pane appearance settings");
   appearanceButton.title = "Appearance";
   appearanceButton.addEventListener("click", () => {
@@ -340,7 +350,7 @@ function buildPicker() {
   searchWrap.id = "pane-search-wrap";
   const searchIcon = document.createElement("span");
   searchIcon.id = "pane-search-icon";
-  searchIcon.textContent = "⌕";
+  searchIcon.append(paneIcon(document, "search"));
   search = document.createElement("input");
   search.id = "pane-search";
   search.type = "search";
@@ -375,7 +385,8 @@ function buildPicker() {
   modeBar.setAttribute("role", "group"); modeBar.setAttribute("aria-label", "Open tab as");
   for (const [mode, label] of Object.entries(modeLabels)) {
     const button = document.createElement("button");
-    button.type = "button"; button.dataset.mode = mode; button.textContent = label;
+    button.type = "button"; button.dataset.mode = mode; button.append(document.createTextNode(label), paneIcon(document, "check"));
+    button.querySelector(".pane-svg").classList.add("pane-mode-check");
     button.addEventListener("click", () => setMode(mode)); modeBar.append(button);
   }
   dialog.append(header, searchWrap, modeBar, sectionHeader, results, expandButton, help);
@@ -608,12 +619,22 @@ function ensurePaneButtons() {
     const header = container.querySelector(".zen-view-splitter-header");
     if (!header) return;
     const current = header.querySelector(".pane-button");
+    const nativeRearrange = header.querySelector(".zen-tab-rearrange-button");
+    const nativeUnsplit = header.querySelector(".zen-tab-unsplit-button");
+    if (nativeRearrange && nativeRearrange.getAttribute("data-pane-icon") !== "grip") {
+      nativeRearrange.setAttribute("aria-label", "Move this pane");
+      setPaneNativeIcon(nativeRearrange, "grip");
+    }
+    if (nativeUnsplit && nativeUnsplit.getAttribute("data-pane-icon") !== "unsplit") {
+      nativeUnsplit.setAttribute("aria-label", "Remove this pane from the split");
+      setPaneNativeIcon(nativeUnsplit, "unsplit");
+    }
     if (!boolPref(PREF.button, true)) { current?.remove(); header.querySelector(".pane-layout-button")?.remove(); header.querySelectorAll(".pane-history-button").forEach(b => b.remove()); return; }
     if (!header.querySelector(".pane-layout-button")) {
       const arrange = document.createXULElement("toolbarbutton");
       arrange.className = "pane-layout-button";
       arrange.setAttribute("tabindex", "0");
-      arrange.setAttribute("label", "⋯"); arrange.textContent = "⋯";
+      arrange.setAttribute("label", ""); setPaneIcon(arrange, "more");
       arrange.setAttribute("tooltiptext", "Arrange this pane");
       arrange.setAttribute("aria-label", "Arrange this pane");
       arrange.addEventListener("click", event => {
@@ -630,8 +651,8 @@ function ensurePaneButtons() {
     button.setAttribute("tabindex", "0");
     button.setAttribute("tooltiptext", "Replace this pane with another open tab");
     button.setAttribute("aria-label", "Replace this split pane");
-    button.setAttribute("label", "⇄");
-    button.textContent = "⇄";
+    button.setAttribute("label", "");
+    setPaneIcon(button, "swap");
     button.addEventListener("click", event => {
       event.preventDefault(); event.stopPropagation();
       const browser = container.querySelector("browser");

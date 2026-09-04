@@ -1,3 +1,4 @@
+import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
@@ -21,7 +22,7 @@ export function addHistoryControls(win, parent) {
     control.type = "button";
     control.className = "pane-history-button";
     control.dataset.direction = direction;
-    control.textContent = direction === "back" ? "‹" : "›";
+    setPaneIcon(control, direction);
     control.title = direction === "back" ? "Go back in this pane" : "Go forward in this pane";
     control.setAttribute("aria-label", control.title);
     control.addEventListener("click", event => {
@@ -163,15 +164,16 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       const copy = el("div", "pane-float-copy");
       copy.append(el("div", "pane-float-title", f.tab.label));
       const actions = el("div", "pane-float-actions");
-      const arrange = button("⋯", () => openMenu(f.tab, header)); arrange.setAttribute("aria-label", "Arrange floating tab");
-      const close = button("×", () => run(() => detach(f.tab, false))); close.setAttribute("aria-label", "Return floating tab to sidebar");
-      const pin = button("⌖", () => {
+      const arrange = button("", () => openMenu(f.tab, header)); arrange.setAttribute("aria-label", "Arrange floating tab");
+      const close = button("", () => run(() => detach(f.tab, false))); close.setAttribute("aria-label", "Return floating tab to sidebar");
+      const pin = button("", () => {
         const pinned = header.toggleAttribute("data-pinned");
         pin.setAttribute("aria-pressed", String(pinned));
         pin.title = pinned ? "Auto-hide header" : "Keep header visible";
       });
       pin.setAttribute("aria-label", "Keep floating header visible");
       pin.setAttribute("aria-pressed", "false"); pin.title = "Keep header visible";
+      setPaneIcon(pin, "pin"); setPaneIcon(arrange, "more"); setPaneIcon(close, "close");
       actions.append(pin, arrange, close); header.append(copy, actions);
       f.container.prepend(header);
       addHistoryControls(win, actions);
@@ -306,25 +308,26 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     const header = el("div", "pane-layout-header");
     const heading = el("div", "pane-layout-title");
     heading.append(el("div", "pane-layout-heading", "Arrange this tab"), el("div", "pane-layout-context", tab.label));
-    const close = button("×", () => closeMenu(true), "pane-layout-close");
+    const close = button("", () => closeMenu(true), "pane-layout-close");
     close.setAttribute("aria-label", "Close layout menu");
     header.append(heading, close); menu.append(header);
     const group = groupFor(tab);
     const currentMode = floating?.tab === tab ? "float" : !group ? "normal" :
       Object.keys(layoutTypes).find(mode => layoutTypes[mode] === group.gridType);
     const options = [
-      ["right", "▥", "Split right", "Place beside the other tabs"],
-      ["below", "▤", "Split below", "Place below the other tabs"],
-      ["grid", "⊞", "Grid", "Arrange with other split tabs"],
-      ["float", "▣", "Floating", "Move and resize this tab"],
-      ["normal", "↗", "Return to a normal tab", "Show this tab in the main view"],
+      ["right", "Split right", "Place beside the other tabs"],
+      ["below", "Split below", "Place below the other tabs"],
+      ["grid", "Grid", "Arrange with other split tabs"],
+      ["float", "Floating", "Move and resize this tab"],
+      ["normal", "Return to a normal tab", "Show this tab in the main view"],
     ];
-    for (const [mode, symbol, label, description] of options) {
+    for (const [mode, label, description] of options) {
       const current = mode === currentMode;
       const b = button("", () => run(() => arrange(tab, mode)), "pane-layout-option");
       b.dataset.mode = mode;
       b.setAttribute("aria-pressed", String(current));
-      const icon = el("span", "pane-layout-icon", symbol);
+      const icon = el("span", "pane-layout-icon");
+      icon.append(paneIcon(doc, mode === "normal" ? "normal" : mode));
       icon.setAttribute("aria-hidden", "true");
       const copy = el("span", "pane-layout-copy");
       copy.append(el("span", "pane-layout-label", label), el("span", "pane-layout-description", current ? "Current layout" : description));
@@ -332,7 +335,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       if (current) b.append(el("span", "pane-layout-badge", "Current"));
       menu.append(b);
     }
-    menu.append(button("+ Add another tab…", () => { closeMenu(); chooseTab(tab, "right"); }, "pane-layout-add"));
+    const add = button("", () => { closeMenu(); chooseTab(tab, "right"); }, "pane-layout-add");
+    add.append(paneIcon(doc, "plus"), doc.createTextNode("Add another tab…"));
+    menu.append(add);
     const footer = el("div", "pane-layout-footer");
     for (const [key, label] of [["↑ ↓", "Navigate"], ["Enter", "Apply"], ["Esc", "Cancel"]]) {
       const hint = el("span", "pane-layout-hint");
