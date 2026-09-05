@@ -61,7 +61,10 @@ export function resizeRectangle(rect, edge, dx, dy, width, height) {
 // The original browser node and browsing context never leave their container.
 export function createMultiwindow(win, { notify, chooseTab, appearance }) {
   const doc = win.document, browser = win.gBrowser, view = win.gZenViewSplitter;
-  let floating = null, menu = null, menuTab = null, frame = 0, disposed = false;
+  const floats = new Map();
+  const backgrounds = new WeakMap();
+  let topLayer = 20;
+  let menu = null, menuTab = null, frame = 0, disposed = false;
   const groupFor = tab => view._data.find(data => data.tabs.includes(tab));
   const containerFor = tab => tab?.linkedBrowser?.closest(".browserSidebarContainer");
   const el = (tag, className, text) => {
@@ -87,76 +90,97 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       throw new Error("That tab is no longer available for this layout");
     }
   }
-  function clearFloat(restore = true) {
-    if (!floating) return;
-    const old = floating; floating = null;
-    old.abort.abort();
-    old.container.removeAttribute("pane-floating");
-    old.container.querySelectorAll(".pane-float-header,.pane-float-resize").forEach(n => n.remove());
-    for (const prop of ["x", "y", "width", "height"]) old.container.style.removeProperty(`--pane-float-${prop}`);
-    old.tab.removeAttribute("pane-floating-tab");
-    if (restore && view._data.includes(old.data) && view.currentView === view._data.indexOf(old.data)) {
-      view.removeSplitters(); view.applyGridLayout(old.data.layoutTree);
+  function removeFloat(f) {
+    floats.delete(f.tab);
+    f.abort.abort();
+    f.container.removeAttribute("pane-floating");
+    f.container.querySelectorAll(".pane-float-header,.pane-float-resize").forEach(n => n.remove());
+    for (const prop of ["x", "y", "width", "height", "z"]) f.container.style.removeProperty(`--pane-float-${prop}`);
+    f.tab.removeAttribute("pane-floating-tab");
+  }
+  function clearFloat(restore = true, tab = null) {
+    const removed = tab ? [floats.get(tab)].filter(Boolean) : [...floats.values()];
+    for (const f of removed) removeFloat(f);
+    if (restore && removed.length) {
+      const data = view._data[view.currentView];
+      if (data && removed.some(f => f.data === data)) {
+        view.removeSplitters(); view.applyGridLayout(data.layoutTree);
+      }
+      applyFloat();
     }
   }
-  function positionFloat() {
-    if (!floating) return;
-    const bounds = view.tabBrowserPanel.getBoundingClientRect();
-    floating.rect = fitRectangle(floating.rect, bounds.width, bounds.height);
-    for (const [prop, value] of Object.entries(floating.rect)) floating.container.style.setProperty(`--pane-float-${prop}`, `${value}px`);
+  function raiseFloat(f) {
+    f.container.style.setProperty("--pane-float-z", String(++topLayer));
   }
-  function bindPointer(handle, resizing) {
-    const { signal } = floating.abort;
+  function positionFloat(f) {
+    const bounds = view.tabBrowserPanel.getBoundingClientRect();
+    f.rect = fitRectangle(f.rect, bounds.width, bounds.height);
+    for (const [prop, value] of Object.entries(f.rect)) f.container.style.setProperty(`--pane-float-${prop}`, `${value}px`);
+  }
+  function bindPointer(handle, resizing, f) {
+    const { signal } = f.abort;
     let drag = null;
     handle.addEventListener("pointerdown", event => {
       if (event.button !== 0 || event.target.closest("button") && !resizing) return;
       event.preventDefault(); event.stopPropagation();
-      drag = { x: event.clientX, y: event.clientY, rect: { ...floating.rect } };
+      drag = { x: event.clientX, y: event.clientY, rect: { ...f.rect } };
       handle.setAttribute("data-dragging", "true");
       handle.setPointerCapture(event.pointerId);
     }, { signal });
     handle.addEventListener("pointermove", event => {
-      if (!drag || !floating) return;
+      if (!drag || !floats.has(f.tab)) return;
       const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
       const bounds = view.tabBrowserPanel.getBoundingClientRect();
-      floating.rect = resizing
+      f.rect = resizing
         ? resizeRectangle(drag.rect, resizing, dx, dy, bounds.width, bounds.height)
         : { ...drag.rect, x: drag.rect.x + dx, y: drag.rect.y + dy };
-      positionFloat();
+      positionFloat(f);
     }, { signal });
     for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) handle.addEventListener(name, () => { drag = null; handle.removeAttribute("data-dragging"); }, { signal });
     handle.addEventListener("keydown", event => {
       const moves = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] };
-      if (!moves[event.key] || event.target !== handle || !floating) return;
+      if (!moves[event.key] || event.target !== handle || !floats.has(f.tab)) return;
       event.preventDefault(); event.stopPropagation();
       const [dx, dy] = moves[event.key];
       if (resizing) {
         const bounds = view.tabBrowserPanel.getBoundingClientRect();
-        floating.rect = resizeRectangle(floating.rect, resizing, dx, dy, bounds.width, bounds.height);
+        f.rect = resizeRectangle(f.rect, resizing, dx, dy, bounds.width, bounds.height);
       } else {
-        floating.rect.x += dx; floating.rect.y += dy;
+        f.rect.x += dx; f.rect.y += dy;
       }
-      positionFloat();
+      positionFloat(f);
     }, { signal });
   }
   function applyFloat() {
-    if (!floating) return;
-    const f = floating;
-    if (f.tab.closing || !f.tab.isConnected || !view._data.includes(f.data) || !f.data.tabs.includes(f.tab) || f.data.tabs.length < 2) {
-      clearFloat(); return;
+    for (const f of [...floats.values()]) {
+      const data = groupFor(f.tab);
+      if (f.tab.closing || !f.tab.isConnected || !data || data.tabs.length < 2) removeFloat(f);
+      else f.data = data;
     }
-    // Let Zen hide the entire group when changing tabs or workspaces.
-    if (view._data[view.currentView] !== f.data) return;
-    const remaining = f.data.tabs.filter(t => t !== f.tab);
-    if (!f.remaining || remaining.some((t, i) => f.remaining[i] !== t) || remaining.length !== f.remaining.length) {
-      f.remaining = remaining;
-      f.backgroundTree = view.calculateLayoutTree(remaining, f.data.gridType);
+    const data = view._data[view.currentView];
+    if (!data) return;
+    let active = [...floats.values()].filter(f => f.data === data);
+    if (!active.length) return;
+    // Always leave a native background leaf for Zen to lay out.
+    if (data.tabs.every(tab => floats.has(tab))) {
+      removeFloat(active[0]);
+      active = active.slice(1);
+    }
+    const remaining = data.tabs.filter(tab => !floats.has(tab));
+    let background = backgrounds.get(data);
+    if (!background || background.source !== data.layoutTree || background.type !== data.gridType ||
+        remaining.length !== background.tabs.length || remaining.some((tab, i) => tab !== background.tabs[i])) {
+      background = { source: data.layoutTree, type: data.gridType, tabs: remaining,
+        tree: view.calculateLayoutTree(remaining, data.gridType) };
+      backgrounds.set(data, background);
     }
     view.removeSplitters();
-    view.applyGridLayout(f.backgroundTree);
-    // Native close/replacement operations must still find the real layout leaves.
+    view.applyGridLayout(background.tree);
     const restoreMap = node => node.children ? node.children.forEach(restoreMap) : view._tabToSplitNode.set(node.tab, node);
-    restoreMap(f.data.layoutTree);
+    restoreMap(data.layoutTree);
+    for (const f of active) renderFloat(f);
+  }
+  function renderFloat(f) {
     f.container.setAttribute("pane-floating", "true");
     if (!f.container.querySelector(".pane-float-header")) {
       const header = el("div", "pane-float-header");
@@ -167,17 +191,22 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       const arrange = button("", () => openMenu(f.tab, header)); arrange.setAttribute("aria-label", "Arrange floating tab");
       const close = button("", () => run(() => detach(f.tab, false))); close.setAttribute("aria-label", "Return floating tab to sidebar");
       const pin = button("", () => {
-        const pinned = header.toggleAttribute("data-pinned");
+        const pinned = f.headerPinned = !f.headerPinned;
+        header.toggleAttribute("data-pinned", pinned);
         pin.setAttribute("aria-pressed", String(pinned));
         pin.title = pinned ? "Auto-hide header" : "Keep header visible";
+        pin.setAttribute("aria-label", pin.title);
       });
       pin.setAttribute("aria-label", "Keep floating header visible");
-      pin.setAttribute("aria-pressed", "false"); pin.title = "Keep header visible";
+      header.toggleAttribute("data-pinned", Boolean(f.headerPinned));
+      pin.setAttribute("aria-pressed", String(Boolean(f.headerPinned)));
+      pin.title = f.headerPinned ? "Auto-hide header" : "Keep header visible";
+      pin.setAttribute("aria-label", pin.title);
       setPaneIcon(pin, "pin"); setPaneIcon(arrange, "more"); setPaneIcon(close, "close");
       actions.append(pin, arrange, close); header.append(copy, actions);
       f.container.prepend(header);
       addHistoryControls(win, actions);
-      bindPointer(header, false);
+      bindPointer(header, false, f);
       for (const edge of ["se", "n", "s", "e", "w", "ne", "nw", "sw"]) {
         const resize = button(edge === "se" ? "◢" : "", () => {}, "pane-float-resize");
         resize.dataset.edge = edge;
@@ -185,23 +214,31 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
         resize.title = "Drag to resize";
         // One visible keyboard handle; the remaining handles are pointer targets.
         if (edge !== "se") { resize.tabIndex = -1; resize.setAttribute("aria-hidden", "true"); }
-        f.container.append(resize); bindPointer(resize, edge);
+        f.container.append(resize); bindPointer(resize, edge, f);
       }
     }
     f.container.querySelector(".pane-float-title").textContent = f.tab.label;
     appearance(f.container);
-    positionFloat();
+    positionFloat(f);
   }
   function floatTab(tab) {
     checkTab(tab);
     const data = groupFor(tab);
     if (!data || data.tabs.length < 2) throw new Error("Choose another tab to float alongside this one");
-    clearFloat();
+    if (floats.has(tab)) { raiseFloat(floats.get(tab)); return; }
+    if (data.tabs.filter(t => !floats.has(t)).length <= 1) {
+      throw new Error("Keep one tab in the background before floating another");
+    }
     const bounds = view.tabBrowserPanel.getBoundingClientRect();
-    floating = { tab, data, container: containerFor(tab), abort: new win.AbortController(), rect: {
+    const offset = [...floats.values()].filter(f => f.data === data).length * 32;
+    const f = { tab, data, container: containerFor(tab), abort: new win.AbortController(), headerPinned: false, rect: {
       width: Math.min(480, bounds.width * .6), height: Math.min(420, bounds.height * .7),
-      x: Math.max(0, bounds.width - 500), y: Math.max(0, bounds.height - 440),
+      x: Math.max(0, bounds.width - 500 - offset), y: Math.max(0, bounds.height - 440 - offset),
     } };
+    floats.set(tab, f);
+    f.container.addEventListener("pointerdown", () => raiseFloat(f), { capture: true, signal: f.abort.signal });
+    f.container.addEventListener("focusin", () => raiseFloat(f), { signal: f.abort.signal });
+    raiseFloat(f);
     tab.setAttribute("pane-floating-tab", "true");
     applyFloat();
   }
@@ -213,13 +250,14 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     if (!data) { chooseTab(tab, mode); return; }
     if (mode === "grid" && data.tabs.length < 3) { chooseTab(tab, "grid"); return; }
     if (!layoutTypes[mode]) throw new Error("Unknown layout");
-    clearFloat();
+    clearFloat(false, tab);
     const oldTree = data.layoutTree, oldType = data.gridType;
     try {
       data.gridType = layoutTypes[mode];
       data.layoutTree = view.calculateLayoutTree(data.tabs, data.gridType);
       view.activateSplitView(data, true);
       browser.selectedTab = tab;
+      applyFloat();
     } catch (error) {
       data.layoutTree = oldTree; data.gridType = oldType;
       view.activateSplitView(data, true);
@@ -231,10 +269,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     const data = groupFor(tab);
     if (!data) return;
     const other = data.tabs.find(t => t !== tab);
-    clearFloat();
+    clearFloat(false, tab);
     view.removeTabFromGroup(tab, undefined, { forUnsplit: true });
     if (select) browser.selectedTab = tab;
     else if (other && !other.closing) browser.selectedTab = other;
+    applyFloat();
     browser.selectedBrowser?.focus();
   }
   function copyTree(node) {
@@ -249,7 +288,6 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     const current = groupFor(target);
     if ((current?.tabs.length ?? 1) >= view.MAX_TABS) throw new Error("This split has reached Zen’s tab limit");
     if (!layoutTypes[mode] && mode !== "float") throw new Error("Unknown layout");
-    clearFloat();
     const snapshot = current ? { tree: copyTree(current.layoutTree), type: current.gridType } : null;
     const originalTarget = target, copies = [];
     const originalTabs = [...new Set([...(current?.tabs ?? []), target, incoming])];
@@ -278,9 +316,10 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
       }
       browser.selectedTab = incoming;
       if (mode === "float") floatTab(incoming);
+      else applyFloat();
       incoming.linkedBrowser.focus();
     } catch (error) {
-      clearFloat(false);
+      clearFloat(false, incoming);
       try {
         if (groupFor(incoming)) view.removeTabFromGroup(incoming, undefined, { forUnsplit: true });
         if (snapshot && view._data.includes(current)) {
@@ -294,6 +333,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
         browser.selectedTab = originalTarget;
       } catch (rollbackError) { console.error("[Pane] Layout rollback failed", rollbackError); }
       for (const copy of copies) if (copy?.isConnected && !copy.closing) browser.removeTab(copy, { animate: false });
+      applyFloat();
       throw error;
     }
   }
@@ -312,7 +352,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     close.setAttribute("aria-label", "Close layout menu");
     header.append(heading, close); menu.append(header);
     const group = groupFor(tab);
-    const currentMode = floating?.tab === tab ? "float" : !group ? "normal" :
+    const currentMode = floats.has(tab) ? "float" : !group ? "normal" :
       Object.keys(layoutTypes).find(mode => layoutTypes[mode] === group.gridType);
     const options = [
       ["right", "Split right", "Place beside the other tabs"],
@@ -371,7 +411,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
   for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
   return {
     add, arrange, openMenu, closeMenu, clearFloat, sync,
-    get floatingTab() { return floating?.tab ?? null; },
+    get floatingTabs() { return [...floats.keys()]; },
     destroy() {
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
       closeMenu(); clearFloat();

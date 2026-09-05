@@ -75,7 +75,7 @@ Reports include versions and loading information, but no tab titles, URLs, searc
 Pane has been tested on **macOS and Windows**, including everyday use by the maintainer.
 
 - Zen allows up to four tabs per split, including a floating tab.
-- Pane supports one floating tab per window. It stays inside that Zen window.
+- Float up to three tabs in a split, with at least one tab left in the background. Each floating tab has its own position, size, and header pin. Floating tabs stay inside their Zen window.
 - Floating placement is temporary. Restarting Zen or disabling Pane returns the group to a native split.
 - Pane uses Zen’s internal split API, which can change between releases.
 

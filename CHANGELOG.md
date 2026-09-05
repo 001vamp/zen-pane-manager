@@ -4,6 +4,8 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Float multiple tabs in the same split, each with its own position, size, and header pin. Docking or closing one keeps the others floating.
+
 - Replace platform-dependent text glyphs with a consistent vendored Lucide icon set across picker, split, layout, and floating controls.
 
 - Use filled destination shapes in the layout menu, restore the native move and remove toolbar icons, and keep thumbnail titles and URLs inside their cards with comfortable bottom spacing.

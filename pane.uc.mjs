@@ -1,5 +1,5 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, needsTabCopy, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-pinned-originals1";
+import { createMultiwindow, modeLabels, needsTabCopy, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-multiple-floats1";
 import { numericValue, glassPresets } from "./appearance.mjs";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -281,7 +281,7 @@ function setMode(mode) {
 
 function openCandidate(tab) {
   if (openMode === "replace") {
-    multiwindow.clearFloat();
+    multiwindow.clearFloat(true, targetTab);
     replacePane(tab); return;
   }
   const target = targetTab, mode = openMode;
