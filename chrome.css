@@ -585,12 +585,18 @@
   gap: 8px;
   border-radius: 16px 16px 0 0;
   transform: translateY(calc(-100% + 12px));
-  transition: transform 160ms ease;
+  /* Keep the top-edge hover target without painting a strip of the header. */
+  opacity: 0;
+  transition: transform 160ms ease, opacity 160ms ease;
   transition-delay: 350ms;
 }
 .browserSidebarContainer[pane-floating] > .pane-float-header:is(:hover, :focus-within, [data-pinned], [data-dragging], [data-pane-reveal]) {
   transform: translateY(0);
+  opacity: 1;
   transition-delay: 0ms;
+}
+.browserSidebarContainer[pane-floating] > .pane-float-header:not(:hover, :focus-within, [data-pinned], [data-dragging], [data-pane-reveal]) > * {
+  pointer-events: none;
 }
 .pane-float-header .pane-float-title { font-size: 12px; font-weight: 600; line-height: 24px; }
 .pane-float-header .pane-float-actions { gap: 4px; }
