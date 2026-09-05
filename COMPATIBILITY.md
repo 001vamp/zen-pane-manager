@@ -4,8 +4,8 @@
 
 - Zen Browser: 1.21.16b
 - Firefox platform: 154.0.1
-- Development runtime tested: macOS
-- Windows: multi-window runtime verification pending
+- Runtime tested: macOS and Windows
+- Windows testing: maintainer reports successful everyday use
 - Mod loader: Sine 2.3+
 
 ## Windows support
@@ -43,14 +43,12 @@ Run this matrix before tagging a stable release:
 - [ ] Restart Zen and confirm the split session restores
 - [ ] Simulate an incompatible Zen API and confirm no layout changes occur
 
-## Deliberate exclusions for the public beta
+## Tabs outside the picker
 
-- Pinned tabs
-- Essential tabs
 - Tabs in another split view
 - Tabs from another workspace
 
-These tabs are hidden from the picker instead of being offered with unreliable behavior.
+Pinned and ordinary folder tabs are supported using the original tab. Essentials and live-folder items open as copies, labeled in the picker.
 
 ## Multi-window development verification
 
@@ -58,4 +56,4 @@ Pane 0.10.0-dev was loaded through Sine 2.3.4.1c in a disposable macOS Zen profi
 
 The local installed build was also enabled alongside Advanced Tab Groups and Safari-like Zen. Control+Option+R was verified with real Mac key events. Firefox reports Option as AltGraph on macOS, which Pane now handles separately from Windows/Linux AltGr text entry.
 
-Floating placement is a temporary presentation of a native Zen split. One floating tab is supported per window. Disabling Pane or restarting Zen restores the native split. It is not an OS-level always-on-top window. Windows and playback-specific tests remain part of the stable-release gate.
+Floating placement is a temporary presentation of a native Zen split. One floating tab is supported per window. Disabling Pane or restarting Zen restores the native split. It is not an OS-level always-on-top window. The maintainer has also tested Pane on Windows in everyday use. The checklist above gives contributors scenarios to reproduce on their own setups; it is not a record of which Windows tests were completed.
