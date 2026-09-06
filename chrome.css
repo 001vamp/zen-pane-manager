@@ -703,3 +703,15 @@
 
 #pane-expand { display: flex; align-items: center; justify-content: center; gap: 5px; }
 #pane-expand .pane-svg { width: 14px; height: 14px; }
+
+/* An Essential keeps an entry here while its original page is in a split. */
+.pane-essential-link {
+  appearance: none; display: grid; place-items: center; flex: 1;
+  min-width: 36px; height: 36px; padding: 8px; margin: 2px;
+  border: 1px solid transparent; border-radius: 10px;
+  background: color-mix(in srgb, currentColor 8%, transparent); color: inherit;
+  cursor: pointer;
+}
+.pane-essential-link img { width: 20px; height: 20px; object-fit: contain; }
+.pane-essential-link:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
+.pane-essential-link:focus-visible { outline: 2px solid AccentColor; outline-offset: -2px; }

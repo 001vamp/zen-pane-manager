@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { fitRectangle, resizeRectangle, layoutTypes, isSupportedTab, needsTabCopy, tabWorkspace } from "../multiwindow.mjs";
+import { fitRectangle, resizeRectangle, layoutTypes, isSupportedTab, tabWorkspace } from "../multiwindow.mjs";
 assert.deepEqual(layoutTypes, { right: "vsep", below: "hsep", grid: "grid" });
 assert.deepEqual(fitRectangle({x:900,y:800,width:480,height:420},800,600), {x:320,y:180,width:480,height:420});
 assert.deepEqual(fitRectangle({x:-20,y:-10,width:10,height:20},800,600), {x:0,y:0,width:260,height:180});
@@ -35,7 +35,4 @@ console.log("Folder eligibility and protected tab exclusions passed.");
 
 const essential = { ...ordinary, hasAttribute: name => name === "zen-essential" };
 assert.equal(isSupportedTab(essential), true);
-assert.equal(needsTabCopy(essential), true);
-assert.equal(needsTabCopy({ ...ordinary, pinned: true }), false);
-assert.equal(needsTabCopy(ordinary), false);
 assert.equal(tabWorkspace({ gZenWorkspaces: { activeWorkspace: "active" } }, essential), "active");

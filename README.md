@@ -46,9 +46,9 @@ The close button returns the tab to the sidebar. It does not close the page. Use
 
 ### Pinned tabs, folders, and Essentials
 
-Pinned tabs and ordinary folder tabs use the original tab. A split started in a folder stays there. Adding a normal tab to a pinned split pins that tab too.
+Pane uses the original tab for standard tabs, pinned tabs, folder tabs, and Essentials. This keeps the page's history, playback, forms, and scroll position intact.
 
-**Essentials and live-folder items open as copies** to preserve their special behavior. Pane labels these choices **Open a copy in this pane**.
+While an Essential is split, its Essential slot becomes a shortcut to that same split tab. When any tab leaves the split, Pane returns it to its original workspace, section, folder, and sidebar position. If its old folder no longer exists, Pane returns it to the normal pinned or unpinned section instead.
 
 The picker shows tabs from the active workspace and leaves out tabs already in another split.
 
@@ -83,7 +83,7 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for more detail.
 
 ## About
 
-Pane runs locally, with no telemetry or accounts. Tab previews are captured in memory and are not saved or uploaded. Sleeping tabs stay asleep until opened. See [Privacy](PRIVACY.md) and [Security](SECURITY.md).
+Pane runs locally, with no telemetry or accounts. Tab previews are captured in memory and are not saved or uploaded. Pane stores only tab placement details in Zen's local session data so it can restore special tabs after a restart. Sleeping tabs stay asleep until opened. See [Privacy](PRIVACY.md) and [Security](SECURITY.md).
 
 Try Pane with your own tabs, layouts, and mods. If something breaks, try to reproduce it and [open an issue](https://github.com/001vamp/zen-pane-manager/issues/new?template=bug_report.yml) with the steps and a diagnostic report. Testing, debugging, and fixes are welcome.
 

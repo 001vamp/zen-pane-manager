@@ -41,6 +41,7 @@ Run this matrix before tagging a stable release:
 - [ ] Run beside Advanced Tab Groups and confirm both remain active after reload
 - [ ] Copy diagnostics before creating a split, during a split, and after a failed compatibility check
 - [ ] Restart Zen and confirm the split session restores
+- [ ] Split Essentials, pinned tabs, standard tabs, and folder tabs together, then confirm each returns to its original section and position
 - [ ] Simulate an incompatible Zen API and confirm no layout changes occur
 
 ## Tabs outside the picker
@@ -48,7 +49,7 @@ Run this matrix before tagging a stable release:
 - Tabs in another split view
 - Tabs from another workspace
 
-Pinned and ordinary folder tabs are supported using the original tab. Essentials and live-folder items open as copies, labeled in the picker.
+Standard tabs, pinned tabs, folder tabs, and Essentials use their original browser instance. Pane records their original workspace, section, folder, and position in local SessionStore data, then restores that placement when they leave the split. If a recorded folder has been deleted, the tab returns to its workspace's normal pinned or unpinned section.
 
 ## Multi-window development verification
 

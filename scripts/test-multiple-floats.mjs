@@ -54,7 +54,7 @@ Object.assign(win, {document:doc, AbortController, gZenViewSplitter:view,
   gBrowser:{selectedTab:tabs[0],tabContainer:new Node(doc)},
   requestAnimationFrame:fn => { queued=fn; return 1; }, cancelAnimationFrame(){queued=null;},
 });
-const controller = createMultiwindow(win,{notify(){},chooseTab(){},appearance(){}});
+const controller = createMultiwindow(win,{notify(){},chooseTab(){},appearance(){},origins:{begin(){},end(){},destroy(){}}});
 const container = tab => tab.linkedBrowser.parent;
 const header = tab => container(tab).querySelector('.pane-float-header');
 const flush = () => {const fn=queued;queued=null;fn?.();};

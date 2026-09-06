@@ -1,5 +1,5 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, needsTabCopy, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-multiple-floats1";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-original-tabs2";
 import { numericValue, glassPresets } from "./appearance.mjs";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -210,8 +210,7 @@ function renderResults() {
     item.type = "button";
     item.setAttribute("role", "option");
     item.setAttribute("aria-selected", String(index === 0));
-    const opensCopy = needsTabCopy(tab);
-    item.setAttribute("aria-label", `${modeLabels[openMode]}: ${tabTitle(tab)}${opensCopy ? ". Open a copy in this pane" : ""}`);
+    item.setAttribute("aria-label", `${modeLabels[openMode]}: ${tabTitle(tab)}`);
     item.tabIndex = index === 0 ? 0 : -1;
 
     const iconBox = document.createElement("span");
@@ -234,15 +233,9 @@ function renderResults() {
       url.appendChild(highlighted(displayUrl(tab), query));
       copy.appendChild(url);
     }
-    if (opensCopy) {
-      const note = document.createElement("span");
-      note.className = "pane-url pane-copy-notice";
-      note.textContent = "Open a copy in this pane";
-      copy.appendChild(note);
-    }
     const action = document.createElement("span");
     action.className = "pane-action";
-    action.textContent = opensCopy ? "Open copy" : modeLabels[openMode];
+    action.textContent = modeLabels[openMode];
     item.append(iconBox, copy, action);
     item.addEventListener("mouseenter", () => selectResult(index));
     item.addEventListener("click", () => openCandidate(tab));
@@ -478,9 +471,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   modeBar.querySelector('[data-mode="replace"]').hidden = !inSplit;
   heading.textContent = inSplit ? "Replace or arrange this pane" : "Open a tab alongside this one";
   results.setAttribute("aria-label", "Available open tabs");
-  context.textContent = needsTabCopy(tab)
-    ? `A copy of ${tabTitle(tab)} will open alongside your selection`
-    : `Currently showing ${tabTitle(tab)}`;
+  context.textContent = `Currently showing ${tabTitle(tab)}`;
   dialog.toggleAttribute("compact", boolPref(PREF.compact, false));
   applyAppearance();
   expanded = false;
@@ -526,16 +517,9 @@ function replacePane(incoming) {
     showToast("Zen’s split layout is not ready yet", "warning"); return;
   }
   diagnosticLog("replacement started", { paneCount: data.tabs.length });
-  const originalIncomingGroup = incoming.group;
-  const originalPinState = [...data.tabs, incoming].map(tab => ({ tab, pinned: tab.pinned }));
-  let changed = false, savedTabCopy = null;
+  let changed = false;
+  multiwindow.origins.begin([...data.tabs, incoming]);
   try {
-    if (needsTabCopy(incoming)) {
-      incoming = savedTabCopy = gBrowser.duplicateTab(incoming, true);
-    }
-    if (incoming.pinned || outgoing.pinned) {
-      for (const tab of [...data.tabs, incoming]) if (!tab.pinned) gBrowser.pinTab(tab);
-    }
     if (incoming.group !== splitGroup) gBrowser.moveTabToExistingGroup(incoming, splitGroup);
     data.tabs[index] = incoming;
     leaf.tab = incoming;
@@ -571,15 +555,8 @@ function replacePane(incoming) {
         gBrowser.selectedTab = outgoing;
       } catch (rollbackError) { console.error(TAG, "rollback failed", rollbackError); }
     }
-    if (!savedTabCopy && originalIncomingGroup?.isConnected && incoming.group !== originalIncomingGroup) {
-      gBrowser.moveTabToExistingGroup(incoming, originalIncomingGroup);
-    }
-    for (const { tab, pinned } of originalPinState) {
-      if (tab.isConnected && tab.pinned !== pinned) pinned ? gBrowser.pinTab(tab) : gBrowser.unpinTab(tab);
-    }
-    if (savedTabCopy?.isConnected && !savedTabCopy.closing) gBrowser.removeTab(savedTabCopy, { animate: false });
     showToast("The pane was not changed", "error");
-  }
+  } finally { multiwindow.origins.end(); }
 }
 
 const toolbarReveals = new Map();

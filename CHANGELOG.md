@@ -10,11 +10,9 @@ All notable changes to Pane are documented here.
 
 - Use filled destination shapes in the layout menu, restore the native move and remove toolbar icons, and keep thumbnail titles and URLs inside their cards with comfortable bottom spacing.
 
-- Clearly label Essential and live-folder choices with “Open a copy in this pane.”
+- Split standard tabs, pinned tabs, folder tabs, and Essentials with their original browser instances, preserving page history, playback, forms, and scroll position.
 
-- Keep original pinned and ordinary folder tabs in pinned splits instead of duplicating them; pin normal companions when combining with a pinned tab. Essentials and live-folder items still use copies.
-
-- Support pinned tabs and Essentials as picker sources and targets, using normal copies while preserving saved originals.
+- Return tabs to their original workspace, section, folder, and sidebar position after they leave a split, including after a browser restart. Essentials keep a shortcut in their section while split.
 
 - Briefly reveal controls when switching panes, widen the top-edge target, and delay hiding to make toolbars easier to reach.
 
@@ -22,7 +20,7 @@ All notable changes to Pane are documented here.
 
 - Auto-hide split toolbars until the pointer reaches their top edge or their controls receive keyboard focus.
 
-- Support folder tabs in the picker, replacement, splits, and floating views using normal copies that preserve the originals in their folders.
+- Support folder tabs in the picker, replacement, splits, and floating views while returning them to their original folders afterward.
 
 - Slim floating headers to one row and auto-hide them over the page, with a keep-visible toggle and keyboard access.
 

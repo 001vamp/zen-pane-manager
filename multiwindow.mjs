@@ -1,9 +1,8 @@
+import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
-// Preserve saved tabs by using normal copies for layout operations.
-export const needsTabCopy = tab => Boolean(tab?.hasAttribute("zen-essential") || tab?.hasAttribute("zen-live-folder-item-id"));
 export const tabWorkspace = (win, tab) => tab?.hasAttribute("zen-essential")
   ? win.gZenWorkspaces.activeWorkspace : (tab?.getAttribute("zen-workspace-id") ?? "");
 export const isSupportedTab = tab => Boolean(tab && !tab.closing && !tab.hidden && !tab.hasAttribute("zen-empty-tab"));
@@ -59,7 +58,7 @@ export function resizeRectangle(rect, edge, dx, dy, width, height) {
 
 // Floating is a presentation of a native split, not a second browser or iframe.
 // The original browser node and browsing context never leave their container.
-export function createMultiwindow(win, { notify, chooseTab, appearance }) {
+export function createMultiwindow(win, { notify, chooseTab, appearance, origins = createTabOrigins(win) }) {
   const doc = win.document, browser = win.gBrowser, view = win.gZenViewSplitter;
   const floats = new Map();
   const backgrounds = new WeakMap();
@@ -289,23 +288,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
     if ((current?.tabs.length ?? 1) >= view.MAX_TABS) throw new Error("This split has reached Zen’s tab limit");
     if (!layoutTypes[mode] && mode !== "float") throw new Error("Unknown layout");
     const snapshot = current ? { tree: copyTree(current.layoutTree), type: current.gridType } : null;
-    const originalTarget = target, copies = [];
-    const originalTabs = [...new Set([...(current?.tabs ?? []), target, incoming])];
-    const originalState = originalTabs.map(tab => ({ tab, pinned: tab.pinned, group: tab.group }));
-    const prepare = tab => {
-      if (!needsTabCopy(tab) || tab.splitView) return tab;
-      const copy = browser.duplicateTab(tab, true);
-      copies.push(copy);
-      return copy;
-    };
+    const originalTarget = target;
+    origins.begin([...new Set([...(current?.tabs ?? []), target, incoming])]);
     try {
-      target = prepare(target); incoming = prepare(incoming);
-      // Zen duplicates mixed pinned/unpinned inputs. Keep one pinned split instead.
-      if (target.pinned || incoming.pinned) {
-        for (const tab of [...(current?.tabs ?? []), target, incoming]) {
-          if (!tab.pinned) browser.pinTab(tab);
-        }
-      }
       const data = view.splitTabs([target, incoming], layoutTypes[mode] || "vsep");
       if (!data?.tabs.includes(incoming)) throw new Error("Zen could not create this layout");
       // Zen adds to an existing tree without applying the requested direction.
@@ -326,16 +311,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
           current.layoutTree = snapshot.tree; current.gridType = snapshot.type;
           view.activateSplitView(current, true);
         }
-        for (const { tab, pinned, group } of originalState) {
-          if (tab.pinned !== pinned) pinned ? browser.pinTab(tab) : browser.unpinTab(tab);
-          if (group?.isConnected && tab.group !== group) browser.moveTabToExistingGroup(tab, group);
-        }
         browser.selectedTab = originalTarget;
       } catch (rollbackError) { console.error("[Pane] Layout rollback failed", rollbackError); }
-      for (const copy of copies) if (copy?.isConnected && !copy.closing) browser.removeTab(copy, { animate: false });
       applyFloat();
       throw error;
-    }
+    } finally { origins.end(); }
   }
   function run(action) {
     closeMenu();
@@ -410,11 +390,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance }) {
   doc.addEventListener("mousedown", outside, true);
   for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
   return {
-    add, arrange, openMenu, closeMenu, clearFloat, sync,
+    add, arrange, openMenu, closeMenu, clearFloat, sync, origins,
     get floatingTabs() { return [...floats.keys()]; },
     destroy() {
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
-      closeMenu(); clearFloat();
+      closeMenu(); clearFloat(); origins.destroy();
       win.removeEventListener("ZenViewSplitter:SplitViewActivated", sync);
       win.removeEventListener("resize", sync);
       doc.removeEventListener("mousedown", outside, true);
