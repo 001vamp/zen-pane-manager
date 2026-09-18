@@ -23,7 +23,7 @@ You need Zen Browser and Sine **2.3 or newer**. Pane targets Zen **1.21.16b**. S
 
 ## Use Pane
 
-Press **Control+Option+R** on Mac or **Ctrl+Alt+R** on Windows. Choose what you want to do, then pick an open tab:
+Press **Control+Option+R** on Mac or **Alt+Shift+P** on Windows and Linux. Choose what you want to do, then pick an open tab:
 
 - **Replace** swaps the tab in the current split pane. The outgoing tab stays open by default.
 - **Split right** or **Split below** puts the chosen tab beside or below it.
@@ -66,7 +66,7 @@ If the shortcut does nothing and the split toolbar has no Pane button:
 2. Toggle Pane off and back on.
 3. Fully quit Zen and reopen it.
 
-Still stuck? Press **Control+Option+D** on Mac or **Ctrl+Alt+D** on Windows to copy a diagnostic report. The picker’s **info button** copies the same report. Paste it into a [bug report](https://github.com/001vamp/zen-pane-manager/issues/new?template=bug_report.yml) and describe what you were doing.
+Still stuck? Press **Control+Option+D** on Mac or **Alt+Shift+D** on Windows and Linux to copy a diagnostic report. The picker’s **info button** copies the same report. Paste it into a [bug report](https://github.com/001vamp/zen-pane-manager/issues/new?template=bug_report.yml) and describe what you were doing.
 
 Reports include versions and loading information, but no tab titles, URLs, searches, browsing history, or file paths. If the diagnostic shortcut also does nothing, include your Zen and Sine versions in the issue.
 

@@ -36,12 +36,32 @@ export function matchesBinding(event, binding) {
   return String(event.key).toLowerCase() === binding.key.toLowerCase();
 }
 
-export function pickerBinding(prefs) {
+const currentPlatform = () => globalThis.navigator?.platform ?? '';
+
+export function defaultPickerBinding(platform = currentPlatform()) {
+  return parseBinding(/Mac/i.test(platform) ? 'Ctrl+Alt+R' : 'Alt+Shift+P');
+}
+
+export function defaultDiagnosticsBinding(platform = currentPlatform()) {
+  return parseBinding(/Mac/i.test(platform) ? 'Ctrl+Alt+D' : 'Alt+Shift+D');
+}
+
+export function diagnosticsBinding(prefs, platform = currentPlatform()) {
+  let configured = 'Auto';
+  try { configured = prefs.getStringPref('mod.pane.diagnostics-keybinding', 'Auto'); } catch {}
+  // Move untouched Windows/Linux installs away from the previous default.
+  if (configured === 'Auto' || (!/Mac/i.test(platform) && configured === 'Ctrl+Alt+D')) {
+    return defaultDiagnosticsBinding(platform);
+  }
+  return parseBinding(configured);
+}
+
+export function pickerBinding(prefs, platform = currentPlatform()) {
   let selection = 0;
   try { selection = prefs.getIntPref('mod.pane.shortcut', 0); } catch {}
   if (selection === 2) return null;
   if (selection === 3) {
     try { return parseBinding(prefs.getStringPref('mod.pane.custom-shortcut', '')); } catch { return null; }
   }
-  return parseBinding(selection === 1 ? 'Ctrl+Alt+S' : 'Ctrl+Alt+R');
+  return selection === 1 ? parseBinding('Alt+Shift+P') : defaultPickerBinding(platform);
 }

@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
-import { parseBinding, matchesBinding, pickerBinding } from '../keybindings.mjs';
+import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding } from '../keybindings.mjs';
 const event = overrides => ({key:'r', code:'KeyR',ctrlKey:true,altKey:true,shiftKey:false,metaKey:false,...overrides});
-const defaultBinding = pickerBinding({getIntPref:()=>0});
+const defaultBinding = pickerBinding({getIntPref:()=>0}, 'MacIntel');
 assert.equal(defaultBinding.label,'Ctrl+Alt+R');
+assert.equal(pickerBinding({getIntPref:()=>0}, 'Win32').label,'Alt+Shift+P');
+assert.equal(pickerBinding({getIntPref:()=>1}, 'MacIntel').label,'Alt+Shift+P');
+assert.equal(defaultDiagnosticsBinding('Win32').label,'Alt+Shift+D');
+assert.equal(defaultDiagnosticsBinding('MacIntel').label,'Ctrl+Alt+D');
+assert.equal(diagnosticsBinding({getStringPref:()=> 'Auto'}, 'Win32').label,'Alt+Shift+D');
+assert.equal(diagnosticsBinding({getStringPref:()=> 'Ctrl+Alt+D'}, 'Win32').label,'Alt+Shift+D');
+assert.equal(diagnosticsBinding({getStringPref:()=> 'Alt+F6'}, 'Win32').label,'Alt+F6');
 assert.ok(matchesBinding(event({}),defaultBinding));
 assert.ok(matchesBinding(event({key:'®'}),defaultBinding),'Mac Option must not break default');
 assert.ok(!matchesBinding(event({code:'KeyS',key:'ß'}),defaultBinding));

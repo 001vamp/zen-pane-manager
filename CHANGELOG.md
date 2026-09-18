@@ -4,6 +4,10 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Use Alt+Shift+P as the Windows and Linux default instead of Ctrl+Alt or Ctrl+Shift shortcuts that collide with Zen and AltGr keyboard layouts. Mac keeps Control+Option+R.
+
+- Move Windows and Linux diagnostics to Alt+Shift+D while keeping Control+Option+D on Mac.
+
 - Float multiple tabs in the same split, each with its own position, size, and header pin. Docking or closing one keeps the others floating.
 
 - Replace platform-dependent text glyphs with a consistent vendored Lucide icon set across picker, split, layout, and floating controls.
