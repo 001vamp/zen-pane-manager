@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 
+Object.defineProperty(globalThis, "navigator", {
+  value: { platform: "Win32" },
+  configurable: true,
+});
+
 const listeners = new Map();
 let copied = "";
 let unloaded = null;
@@ -84,15 +89,16 @@ assert.match(copied, /^Pane diagnostics/mu);
 const shortcut = listeners.get("keydown");
 assert.equal(typeof shortcut, "function");
 shortcut({
-  ctrlKey: true,
+  ctrlKey: false,
   altKey: true,
-  shiftKey: false,
+  shiftKey: true,
   metaKey: false,
-  key: "d",
+  key: "D",
+  code: "KeyD",
   preventDefault() {},
   stopPropagation() {},
 });
-assert.equal(alerted, true);
+assert.equal(alerted, true, "Windows diagnostic default must work");
 
 // Custom diagnostic preferences are read on every keypress.
 Services.prefs.getPrefType = name => name === "mod.pane.diagnostics-keybinding" ? 32 : 0;
