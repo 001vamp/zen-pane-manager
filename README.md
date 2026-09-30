@@ -32,6 +32,10 @@ Press **Control+Option+R** on Mac or **Alt+Shift+P** on Windows and Linux. Choos
 
 Search by title or website, or click **Show all** for the full list. Use the arrow keys to select a tab and **Enter** to apply. **Escape** clears the search, collapses the list, then closes the picker.
 
+From a solo tab, **Existing splits** shows combined previews of split groups in your workspace. Choose **Add** to put your current tab into that group's grid, or **Floating** to float it over the group. **Enter** adds it and **Shift+Enter** floats it. Groups with four tabs show **Split full**.
+
+Choose **Unsplit** on a split card to separate the whole group. Every page stays open and returns to its original place in the sidebar.
+
 ### Pane toolbar
 
 The toolbar appears briefly when you switch panes. Move your pointer to the **top center of the pane** to bring it back. It hides when you move away and stays visible while you use its controls with the keyboard.
@@ -50,7 +54,7 @@ Pane uses the original tab for standard tabs, pinned tabs, folder tabs, and Esse
 
 While an Essential is split, its Essential slot becomes a shortcut to that same split tab. When any tab leaves the split, Pane returns it to its original workspace, section, folder, and sidebar position. If its old folder no longer exists, Pane returns it to the normal pinned or unpinned section instead.
 
-The picker shows tabs from the active workspace and leaves out tabs already in another split.
+The picker shows tabs and split destinations from the active workspace. When replacing a pane, it leaves out tabs already in another split.
 
 ## Settings
 

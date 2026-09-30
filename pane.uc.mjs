@@ -1,5 +1,5 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-original-tabs2";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-join-splits2";
 import { numericValue, glassPresets } from "./appearance.mjs";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev-windows2";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -110,8 +110,18 @@ function eligibleTabs(target, data) {
     !tab.splitView && workspaceId(tab) === workspace
   );
   if (boolPref(PREF.recent, true)) tabs.sort((a, b) => lastUsed(b) - lastUsed(a));
-  return tabs;
+  const groups = target.splitView ? [] : splitter()._data.filter(group =>
+    group.tabs.length >= 2 && !group.tabs.includes(target) &&
+    group.tabs.every(tab => !tab.closing && tab.isConnected && workspaceId(tab) === workspace)
+  ).map(group => ({ kind: "split", group }));
+  return [...groups, ...tabs];
 }
+
+const candidateTitle = candidate => candidate.kind === "split"
+  ? candidate.group.tabs.map(tabTitle).join(" + ") : tabTitle(candidate);
+const candidateSearch = candidate => candidate.kind === "split"
+  ? candidate.group.tabs.map(tab => `${tabTitle(tab)} ${displayUrl(tab)}`).join(" ")
+  : `${tabTitle(candidate)} ${displayUrl(candidate)}`;
 
 function showToast(message, kind = "info") {
   let toast = document.getElementById("pane-toast");
@@ -153,6 +163,11 @@ function selectResult(index) {
     item.tabIndex = i === selectedIndex ? 0 : -1;
   });
   items[selectedIndex]?.scrollIntoView({ block: "nearest" });
+  if (filtered[selectedIndex]?.kind === "split") {
+    document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Add</span><span><kbd>Shift</kbd>+<kbd>Enter</kbd> Floating</span><span><kbd>Esc</kbd> Cancel</span>`;
+  } else {
+    document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[openMode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
+  }
 }
 
 function highlighted(text, query) {
@@ -170,7 +185,7 @@ function renderResults() {
   const generation = ++renderGeneration;
   const query = search.value.trim().toLocaleLowerCase();
   const matches = candidates.filter(tab =>
-    `${tabTitle(tab)} ${displayUrl(tab)}`.toLocaleLowerCase().includes(query)
+    candidateSearch(tab).toLocaleLowerCase().includes(query)
   );
   const showAll = Boolean(query) || expanded;
   const previewCount = numericValue("recent-count", Services.prefs);
@@ -178,6 +193,7 @@ function renderResults() {
   results.replaceChildren();
   dialog.toggleAttribute("expanded", showAll);
   dialog.toggleAttribute("searching", Boolean(query));
+  sectionLabel.hidden = !query && candidates.some(candidate => candidate.kind === "split");
   sectionLabel.textContent = query
     ? "Search results"
     : expanded
@@ -187,7 +203,7 @@ function renderResults() {
   expandButton.hidden = Boolean(query) || candidates.length <= previewCount;
   expandButton.replaceChildren();
   const expandLabel = document.createElement("span");
-  expandLabel.textContent = expanded ? "Show less" : `Show all ${candidates.length} tabs`;
+  expandLabel.textContent = expanded ? "Show less" : `Show all ${candidates.length} choices`;
   expandButton.append(expandLabel, paneIcon(document, expanded ? "up" : "down"));
   expandButton.setAttribute("aria-expanded", String(expanded));
   if (!matches.length) {
@@ -205,6 +221,16 @@ function renderResults() {
   }
   const showUrls = boolPref(PREF.urls, true);
   filtered.forEach((tab, index) => {
+    if (index === 0 || (tab.kind !== "split" && filtered[index - 1]?.kind === "split")) {
+      const label = document.createElement("div");
+      label.className = "pane-choice-section";
+      label.textContent = tab.kind === "split" ? "Existing splits" : "Open tabs";
+      results.append(label);
+    }
+    if (tab.kind === "split") {
+      renderSplitCandidate(tab, index, query, generation);
+      return;
+    }
     const item = document.createElement("button");
     item.className = "pane-item";
     item.type = "button";
@@ -250,6 +276,90 @@ function renderResults() {
     }
   });
   selectedIndex = 0;
+  if (filtered[0]?.kind === "split") selectResult(0);
+}
+
+function renderSplitCandidate(candidate, index, query, generation) {
+  const { group } = candidate;
+  const full = group.tabs.length >= splitter().MAX_TABS;
+  const item = document.createElement("div");
+  item.className = "pane-item pane-split-choice";
+  item.setAttribute("role", "option");
+  item.setAttribute("aria-selected", String(index === 0));
+  item.setAttribute("aria-disabled", String(full));
+  item.setAttribute("aria-label", `${candidateTitle(candidate)}. ${group.tabs.length} tabs. ${full ? "Split full" : "Enter to add this tab, Shift+Enter to float"}`);
+  item.tabIndex = index === 0 ? 0 : -1;
+  const preview = document.createElement("div");
+  preview.className = "pane-split-preview";
+  preview.dataset.layout = group.gridType;
+  for (const member of group.tabs) {
+    const cell = document.createElement("div");
+    cell.className = "pane-split-preview-cell";
+    const fallback = document.createElement("span");
+    fallback.textContent = tabTitle(member);
+    const icon = document.createElement("img");
+    icon.alt = "";
+    icon.src = member.getAttribute("image") || "chrome://global/skin/icons/defaultFavicon.svg";
+    const placeholder = document.createElement("div");
+    placeholder.className = "pane-split-placeholder";
+    placeholder.append(icon, fallback);
+    cell.append(placeholder);
+    if (!member.hasAttribute("pending")) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 180; canvas.height = 100;
+      canvas.setAttribute("aria-hidden", "true");
+      cell.append(canvas);
+      capturePreview(member, canvas, generation);
+    }
+    preview.append(cell);
+  }
+  const title = document.createElement("span");
+  title.className = "pane-title";
+  title.append(highlighted(candidateTitle(candidate), query));
+  const detail = document.createElement("span");
+  detail.className = "pane-url";
+  detail.textContent = `${group.tabs.length} tabs${full ? " · Split full" : " · Add your current tab"}`;
+  const copy = document.createElement("span");
+  copy.className = "pane-copy"; copy.append(title, detail);
+  const actions = document.createElement("span");
+  actions.className = "pane-split-actions";
+  for (const [mode, label] of [["grid", "Add"], ["float", "Floating"]]) {
+    const button = document.createElement("button");
+    button.type = "button"; button.disabled = full;
+    button.append(paneIcon(document, mode === "grid" ? "grid" : "float"), document.createTextNode(label));
+    button.setAttribute("aria-label", `${label} current tab to ${candidateTitle(candidate)}`);
+    button.addEventListener("click", event => { event.stopPropagation(); openCandidate(candidate, mode); });
+    actions.append(button);
+  }
+  const unsplit = document.createElement("button");
+  unsplit.type = "button";
+  unsplit.className = "pane-split-unsplit";
+  unsplit.title = "Unsplit this group and keep every tab open";
+  unsplit.setAttribute("aria-label", `Unsplit ${candidateTitle(candidate)}. Keep every tab open`);
+  unsplit.append(paneIcon(document, "unsplit"), document.createTextNode("Unsplit"));
+  unsplit.addEventListener("click", event => {
+    event.stopPropagation();
+    try {
+      multiwindow.unsplit(group);
+      candidates = eligibleTabs(targetTab, activeData());
+      renderResults();
+      search.focus();
+      showToast("Split separated. All tabs are still open", "success");
+    } catch (error) { showToast(error.message || "The split could not be separated", "warning"); }
+  });
+  actions.append(unsplit);
+  item.append(preview, copy, actions);
+  item.addEventListener("mouseenter", () => selectResult(index));
+  item.addEventListener("click", () => { if (!full) openCandidate(candidate, "grid"); });
+  item.addEventListener("keydown", event => {
+    if (event.target !== item) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault(); openCandidate(candidate, event.shiftKey ? "float" : "grid");
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault(); selectResult(index + (event.key === "ArrowDown" ? 1 : -1));
+    }
+  });
+  results.append(item);
 }
 
 async function capturePreview(tab, canvas, generation) {
@@ -272,7 +382,16 @@ function setMode(mode) {
   renderResults();
 }
 
-function openCandidate(tab) {
+function openCandidate(tab, requestedMode = null) {
+  if (tab.kind === "split") {
+    const current = targetTab;
+    const mode = requestedMode || (openMode === "float" ? "float" : "grid");
+    try {
+      multiwindow.join(tab.group, current, mode);
+      closePicker(false);
+    } catch (error) { showToast(error.message || "The split could not be changed", "warning"); }
+    return;
+  }
   if (openMode === "replace") {
     multiwindow.clearFloat(true, targetTab);
     replacePane(tab); return;
@@ -393,7 +512,7 @@ function buildPicker() {
     if (event.key === "ArrowDown") { event.preventDefault(); selectResult(selectedIndex + 1); }
     else if (event.key === "ArrowUp") { event.preventDefault(); selectResult(selectedIndex - 1); }
     else if (event.key === "Enter" && filtered[selectedIndex]) {
-      event.preventDefault(); openCandidate(filtered[selectedIndex]);
+      event.preventDefault(); openCandidate(filtered[selectedIndex], event.shiftKey ? "float" : null);
     }
   });
 }
@@ -693,6 +812,7 @@ function trapDialogFocus(event) {
     ...modeBar.querySelectorAll("button:not([hidden])"),
     document.getElementById("pane-appearance"),
     ...results.querySelectorAll(".pane-item"),
+    ...results.querySelectorAll(".pane-split-actions button:not(:disabled)"),
     expandButton.hidden ? null : expandButton,
     document.getElementById("pane-diagnostics"),
     document.getElementById("pane-close"),

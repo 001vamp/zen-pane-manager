@@ -4,6 +4,9 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Show combined previews of existing splits when opening Pane from a solo tab. Add that tab to the selected split as a grid pane or a floating pane.
+- Unsplit a group directly from its card while keeping every page open. Give split previews, labels, and actions their own space, with a quieter Unsplit button.
+
 - Use Alt+Shift+P as the Windows and Linux default instead of Ctrl+Alt or Ctrl+Shift shortcuts that collide with Zen and AltGr keyboard layouts. Mac keeps Control+Option+R.
 
 - Move Windows and Linux diagnostics to Alt+Shift+D while keeping Control+Option+D on Mac.

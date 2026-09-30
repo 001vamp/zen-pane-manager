@@ -46,7 +46,7 @@ Run this matrix before tagging a stable release:
 
 ## Tabs outside the picker
 
-- Tabs in another split view
+- Individual tabs in another split view (solo tabs can select the whole split as a destination)
 - Tabs from another workspace
 
 Standard tabs, pinned tabs, folder tabs, and Essentials use their original browser instance. Pane records their original workspace, section, folder, and position in local SessionStore data, then restores that placement when they leave the split. If a recorded folder has been deleted, the tab returns to its workspace's normal pinned or unpinned section.

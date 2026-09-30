@@ -321,6 +321,24 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     closeMenu();
     try { action(); } catch (error) { notify(error.message || "The layout could not be changed", "warning"); }
   }
+  function join(data, incoming, mode = "grid") {
+    if (!view._data.includes(data) || data.tabs.length < 2) throw new Error("That split is no longer available");
+    if (!["grid", "float"].includes(mode)) throw new Error("Choose Add or Floating for an existing split");
+    const target = data.tabs.find(tab => !floats.has(tab)) || data.tabs[0];
+    add(target, incoming, mode);
+  }
+  function unsplit(data) {
+    if (!view._data.includes(data) || data.tabs.length < 2) throw new Error("That split is no longer available");
+    const selected = browser.selectedTab;
+    const members = [...data.tabs];
+    for (const tab of members) clearFloat(false, tab);
+    for (const tab of members) {
+      if (groupFor(tab) === data) view.removeTabFromGroup(tab, undefined, { forUnsplit: true });
+    }
+    origins.reconcile?.();
+    if (selected?.isConnected && !selected.closing) browser.selectedTab = selected;
+    sync();
+  }
   function openMenu(tab, anchor) {
     closeMenu(); menuTab = tab;
     menu = el("div", "pane-layout-menu"); menu.id = "pane-layout-menu";
@@ -390,7 +408,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
   doc.addEventListener("mousedown", outside, true);
   for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
   return {
-    add, arrange, openMenu, closeMenu, clearFloat, sync, origins,
+    add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins,
     get floatingTabs() { return [...floats.keys()]; },
     destroy() {
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
