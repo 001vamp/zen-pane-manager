@@ -210,6 +210,7 @@
 #pane-results {
   display: grid;
   grid-template-columns: repeat(var(--pane-columns), minmax(0, 1fr));
+  grid-auto-rows: max-content;
   gap: 7px;
   max-height: 420px;
   overflow-y: auto;
@@ -463,8 +464,8 @@
   background: var(--pane-fill);
 }
 .pane-choice-section { grid-column: 1 / -1; font-size: 10px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; opacity: .65; padding: 4px 5px; }
-#pane-results .pane-split-choice { display: flex; flex-direction: column; align-items: stretch; height: auto !important; min-height: min-content; gap: 10px; padding: 9px 9px 11px; cursor: pointer; }
-#pane-results .pane-split-choice > .pane-copy { grid-column: 1; grid-row: 2; padding: 2px 2px 4px; min-width: 0; }
+#pane-results .pane-split-choice { display: block; height: auto !important; min-height: 0; padding: 9px 9px 11px; cursor: pointer; }
+#pane-results .pane-split-choice > .pane-copy { margin-block: 10px; padding: 2px 2px 4px; min-width: 0; }
 #pane-results .pane-split-choice .pane-title { display: block; line-height: 1.35; }
 #pane-results .pane-split-choice .pane-url { display: block; margin-top: 3px; line-height: 1.35; }
 .pane-split-preview { display: grid; flex: 0 0 100px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; width: 100%; height: 100px; overflow: hidden; border-radius: 8px; }

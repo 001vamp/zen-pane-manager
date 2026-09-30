@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pane UI screenshots</title>
+<link rel="stylesheet" href="../chrome.css">
+<style>
+  /* Only the white sheet and sample page content belong to this showcase.
+     Pane controls use chrome.css and icons.mjs directly. */
+  :root { color-scheme: light; --pane-accent: #6554c0; font-family: system-ui; }
+  body { margin: 0; background: white; }
+  main { padding: 48px; width: fit-content; }
+  #pane-dialog { font-family: system-ui; }
+  .pane-layout-menu { position: relative; }
+  .sample-page { padding: 52px 28px 30px; font: 13px/1.65 system-ui; color: #363943; background: #fff; }
+  .sample-page h2 { font-size: 22px; margin: 8px 0; }
+  .sample-page p { color: #70717b; }
+  .sample-page .note { border: 1px solid #e7e7ec; border-radius: 10px; padding: 14px; margin-top: 18px; }
+  .sample-preview { padding: 10px; width: 100%; height: 100%; box-sizing: border-box; font-size: 8px; background: #fafafd; color: #56586a; }
+  .sample-preview strong { display: block; margin-bottom: 8px; }
+  .sample-preview i { display: block; height: 4px; background: #e5e3ef; border-radius: 3px; margin: 6px 0; }
+  .browserSidebarContainer { position: relative; }
+</style>
+<main></main>
+<script type="module">
+import { paneIcon } from '../icons.mjs';
+const root = document.querySelector('main');
+const state = new URLSearchParams(location.search).get('state') || 'splits';
+const icon = (name) => name === 'resize' ? '◢' : paneIcon(document, name).outerHTML;
+const button = (name, id = '') => `<button ${id ? `id="${id}"` : ''} type="button" aria-label="${name}">${icon(name)}</button>`;
+const help = `<div id="pane-help"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${state === 'picker' ? 'Replace' : 'Add'}</span>${state === 'splits' ? '<span><kbd>Shift</kbd> + <kbd>Enter</kbd> Floating</span>' : ''}<span><kbd>Esc</kbd> Cancel</span></div>`;
+const tabs = [['Pane roadmap','github.com','grid'], ['Zen documentation','docs.zen-browser.app','normal'], ['Project notes','notes.example','normal'], ['Design references','design.example','float']];
+const tab = ([title,url,kind],selected=false) => `<button class="pane-item" aria-selected="${selected}"><span class="pane-icon-wrap">${icon(kind)}</span><span class="pane-copy"><span class="pane-title">${title}</span><span class="pane-url">${url}</span></span></button>`;
+const preview = (title) => `<div class="pane-split-preview-cell"><div class="sample-preview"><strong>${title}</strong><i></i><i></i><i style="width:65%"></i><i></i><i style="width:80%"></i></div></div>`;
+if (state === 'picker' || state === 'splits') {
+  const modes = state === 'picker' ? ['Replace','Split right','Split below','Add to grid','Floating'] : ['Split right','Split below','Add to grid','Floating'];
+  root.innerHTML = `<div id="pane-dialog"><div id="pane-header"><div id="pane-heading-group"><div id="pane-heading">${state === 'picker' ? 'Replace or arrange this pane' : 'Open a tab alongside this one'}</div><div id="pane-context">Currently showing Project notes</div></div><div id="pane-header-actions">${button('settings','pane-appearance')}${button('info','pane-diagnostics')}${button('close','pane-close')}</div></div><div id="pane-search-wrap"><span id="pane-search-icon">${icon('search')}</span><input id="pane-search" placeholder="Find an open tab..."><span id="pane-count">8 open</span></div><div id="pane-open-modes">${modes.map((mode,i)=>`<button aria-pressed="${i===0}">${mode}${i===0?icon('check').replace('class="pane-svg"','class="pane-svg pane-mode-check"'):''}</button>`).join('')}</div><div id="pane-section-header"><span id="pane-section-label">${state === 'picker' ? 'Recently used' : ''}</span></div><div id="pane-results">${state === 'splits' ? `<div class="pane-choice-section">Existing splits</div><div class="pane-item pane-split-choice" aria-selected="true"><div class="pane-split-preview" data-layout="vsep">${preview('Release notes')}${preview('Pane roadmap')}</div><span class="pane-copy"><span class="pane-title">Release notes + Pane roadmap</span><span class="pane-url">2 tabs · Add your current tab</span></span><span class="pane-split-actions"><button>${icon('grid')} Add</button><button>${icon('float')} Floating</button><button class="pane-split-unsplit">${icon('unsplit')} Unsplit</button></span></div><div class="pane-choice-section">Open tabs</div>` : ''}${tabs.map((t,i)=>tab(t,state === 'picker' && i===0)).join('')}</div><button id="pane-expand">Show all 8 ${state === 'picker' ? 'tabs' : 'choices'} ${icon('down')}</button>${help}</div>`;
+} else if (state === 'arrange') {
+  const options = [['right','Split right','Place beside the other tabs'],['below','Split below','Place below the other tabs'],['grid','Grid','Arrange with other split tabs'],['float','Floating','Current layout'],['normal','Return to a normal tab','Show this tab in the main view']];
+  root.innerHTML = `<div id="pane-layout-menu" class="pane-layout-menu"><div class="pane-layout-header"><div class="pane-layout-title"><div class="pane-layout-heading">Arrange this tab</div><div class="pane-layout-context">Project notes</div></div>${button('close').replace('<button','<button class="pane-layout-close"')}</div>${options.map(([name,label,desc])=>`<button class="pane-layout-option" aria-pressed="${name==='float'}"><span class="pane-layout-icon">${icon(name)}</span><span class="pane-layout-copy"><span class="pane-layout-label">${label}</span><span class="pane-layout-description">${desc}</span></span>${name==='float'?'<span class="pane-layout-badge">Current</span>':''}</button>`).join('')}<button class="pane-layout-add">${icon('plus')} Add another tab...</button><div class="pane-layout-footer"><span class="pane-layout-hint"><kbd>↑ ↓</kbd> Navigate</span><span class="pane-layout-hint"><kbd>Enter</kbd> Apply</span><span class="pane-layout-hint"><kbd>Esc</kbd> Cancel</span></div></div>`;
+} else if (state === 'floating') {
+  root.innerHTML = `<div class="browserSidebarContainer" pane-floating zen-split style="--pane-float-width:520px;--pane-float-height:310px"><div class="pane-float-header" data-pinned><div class="pane-float-copy"><div class="pane-float-title">Project notes</div></div><div class="pane-float-actions">${button('back')}${button('forward')}${button('pin')}${button('more')}${button('close')}</div></div><div class="sample-page"><small>PROJECT NOTES</small><h2>A little room to think.</h2><p>Keep a reference beside your work without leaving the page.</p><div class="note"><strong>Next up</strong><br>Review the layout · Compare references · Save your notes</div></div><button class="pane-float-resize" data-edge="se" aria-label="Resize floating tab">${icon('resize')}</button></div>`;
+}
+// Keep the documentation's split example compact, with two recent open tabs.
+if (state === 'splits') {
+  [...root.querySelectorAll('#pane-results > button')].slice(2).forEach(tab => tab.remove());
+}
+</script>
+</html>

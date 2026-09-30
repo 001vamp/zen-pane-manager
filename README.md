@@ -1,10 +1,12 @@
 # Pane for Zen Browser
 
-Replace a tab in a Zen split without rebuilding the split or losing your divider sizes. You can also split tabs side by side, stack them, make a grid, or float a tab over the page.
+Split, float, arrange, and swap tabs in Zen Browser. Keep your pages open and your tabs where they belong.
 
 A [Sine](https://github.com/CosmoCreeper/Sine) mod by [jasi (@001vamp)](https://github.com/001vamp).
 
-![Pane picker showing recently used tabs](docs/pane-ui-compact.png)
+![Pane’s current picker with replace, split, grid, and floating actions](docs/pane-current-picker.png)
+
+Start with one tab or an existing split. Pick another open tab, choose a layout, and keep working. Replacing a pane keeps the split position and divider sizes.
 
 ## Install
 
@@ -32,9 +34,13 @@ Press **Control+Option+R** on Mac or **Alt+Shift+P** on Windows and Linux. Choos
 
 Search by title or website, or click **Show all** for the full list. Use the arrow keys to select a tab and **Enter** to apply. **Escape** clears the search, collapses the list, then closes the picker.
 
-From a solo tab, **Existing splits** shows combined previews of split groups in your workspace. Choose **Add** to put your current tab into that group's grid, or **Floating** to float it over the group. **Enter** adds it and **Shift+Enter** floats it. Groups with four tabs show **Split full**.
+### Join or separate a split
+
+From a solo tab, **Existing splits** shows the split groups in your workspace. Choose **Add** to join a group's grid, or **Floating** to float your current tab over it. **Enter** adds it; **Shift+Enter** floats it.
 
 Choose **Unsplit** on a split card to separate the whole group. Every page stays open and returns to its original place in the sidebar.
+
+![An existing split with combined previews and Add, Floating, and Unsplit controls](docs/pane-current-splits.png)
 
 ### Pane toolbar
 
@@ -42,11 +48,17 @@ The toolbar appears briefly when you switch panes. Move your pointer to the **to
 
 Use it to open the picker, go back or forward, rearrange the pane, or remove it from the split. The **three-dot menu** lets you change layouts or add another tab.
 
+![Pane’s layout menu with split right, split below, grid, floating, and normal tab options](docs/pane-current-arrange.png)
+
 ### Floating tabs
 
 Drag the header to move a floating tab. Drag any edge or corner to resize it. The header hides automatically; hover over the top edge to reveal it, or use **Keep header visible** to leave it open.
 
+You can float several tabs over the same split. Each has its own size, position, navigation controls, and header pin.
+
 The close button returns the tab to the sidebar. It does not close the page. Use the layout menu to dock it back into a split or return it to the main view.
+
+![A floating tab with back, forward, pin, layout, close, and resize controls](docs/pane-current-floating.png)
 
 ### Pinned tabs, folders, and Essentials
 
@@ -92,5 +104,7 @@ Pane runs locally, with no telemetry or accounts. Tab previews are captured in m
 Try Pane with your own tabs, layouts, and mods. If something breaks, try to reproduce it and [open an issue](https://github.com/001vamp/zen-pane-manager/issues/new?template=bug_report.yml) with the steps and a diagnostic report. Testing, debugging, and fixes are welcome.
 
 See [Contributing](CONTRIBUTING.md), the [roadmap](ROADMAP.md), and the [changelog](CHANGELOG.md).
+
+The images above use sample tabs on a white HTML sheet, with Pane’s [actual stylesheet](chrome.css) and icons. The [screenshot sheet](docs/pane-readme-showcase.html) is included in the repo.
 
 Licensed under [MPL-2.0](LICENSE). Third-party notices are in [LICENSE-NOTES.md](LICENSE-NOTES.md). Pane is a community project, independent of Zen Browser and Sine.
