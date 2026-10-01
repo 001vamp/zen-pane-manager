@@ -49,3 +49,5 @@
 - [ ] Verify floating drag/resize, form state, scroll, docking, sidebar return, tab closure, and unload cleanup.
 - [ ] Verify a replacement preserves user-adjusted divider sizes.
 - [ ] Test the same flows on Windows before publishing a release.
+
+For feature updates, update `UPDATE_NOTICE` in `pane.uc.mjs` with a new ID and short summary. IDs are remembered across windows and restarts. Routine fixes should keep the existing ID. Set `mod.pane.update-notices` to false in about:config to disable notices.

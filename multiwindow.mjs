@@ -67,6 +67,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   let topLayer = 20;
   let menu = null, menuTab = null, frame = 0, disposed = false;
   let edgeHint = null;
+  let hintTimer = null, hintTab = null;
+  const reducedMotion = win.matchMedia?.('(prefers-reduced-motion: reduce)');
   const groupFor = tab => view._data.find(data => data.tabs.includes(tab));
   const containerFor = tab => tab?.linkedBrowser?.closest(".browserSidebarContainer");
   const el = (tag, className, text) => {
@@ -87,12 +89,21 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (restore) menuTab?.linkedBrowser?.focus();
     menuTab = null;
   }
-  function hideEdgeHint() { edgeHint?.remove(); edgeHint = null; }
+  function hideEdgeHint() {
+    if (hintTimer !== null) win.clearTimeout(hintTimer);
+    hintTimer = null; hintTab = null;
+    edgeHint?.remove(); edgeHint = null;
+  }
+  function scheduleEdgeHint(tab, event) {
+    hideEdgeHint(); hintTab = tab;
+    const point = { clientX: event.clientX, clientY: event.clientY };
+    hintTimer = win.setTimeout(() => { hintTimer = null; showEdgeHint(tab, point); }, 200);
+  }
   function showEdgeHint(tab, event) {
     const data = groupFor(tab);
-    if (!accordions.has(data) || accordions.get(data).active === tab || view._data[view.currentView] !== data) return;
+    if (disposed || hintTab !== tab || !accordions.has(data) || accordions.get(data).active === tab || view._data[view.currentView] !== data) return;
     if (!edgeHint || edgeHint.dataset.tab !== String(data.tabs.indexOf(tab))) {
-      hideEdgeHint();
+      edgeHint?.remove();
       edgeHint = el("div", "pane-accordion-edge-hint");
       edgeHint.dataset.tab = String(data.tabs.indexOf(tab));
       edgeHint.setAttribute("role", "tooltip");
@@ -123,6 +134,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const state = accordions.get(data);
     if (!state) return;
     hideEdgeHint();
+    state.animation?.cancel();
     for (const [container, handle] of state.handles) {
       handle.remove();
       container.querySelector(".pane-accordion-bar")?.remove();
@@ -147,6 +159,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const next = data.tabs[nextIndex];
     if (!next || next === state.active) return;
     hideEdgeHint();
+    state.direction = Math.sign(step);
     browser.selectedTab = next;
     state.active = next;
     applyAccordion();
@@ -176,6 +189,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       if (data.tabs.includes(browser.selectedTab)) state.active = browser.selectedTab;
       if (!data.tabs.includes(state.active)) state.active = data.tabs[0];
       const activeIndex = data.tabs.indexOf(state.active);
+      const previousIndex = data.tabs.indexOf(state.presented);
+      const changed = state.presented && state.presented !== state.active;
       // Presentation only: leave Zen's tree and divider sizes untouched.
       view.removeSplitters();
       const width = view.tabBrowserPanel.getBoundingClientRect().width;
@@ -206,8 +221,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
             if (tab === state.active) { openMenu(tab, handle); return; }
             browser.selectedTab = tab; state.active = tab; applyAccordion(); tab.linkedBrowser.focus();
           }, "pane-accordion-handle");
-          handle.addEventListener("pointerenter", event => showEdgeHint(tab, event));
-          handle.addEventListener("pointermove", event => showEdgeHint(tab, event));
+          handle.addEventListener("pointerenter", event => scheduleEdgeHint(tab, event));
           handle.addEventListener("pointerleave", hideEdgeHint);
           handle.addEventListener("keydown", event => {
             if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -238,6 +252,17 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         navigation[0].disabled = navigation[1].disabled = false;
         appearance(container);
       }
+      if (changed) {
+        state.animation?.cancel(); state.animation = null;
+        if (!reducedMotion?.matches) {
+          const direction = state.direction || Math.sign(activeIndex - previousIndex) || 1;
+          // Animate the incoming page's position, never its dimensions or browsing context.
+          state.animation = containerFor(state.active)?.animate?.([
+            { transform: `translateX(${direction * 12}px)` }, { transform: 'translateX(0)' },
+          ], { duration: 160, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        }
+      }
+      state.presented = state.active; state.direction = 0;
     }
   }
   function startAccordion(tab) {
@@ -580,7 +605,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     (menu.querySelector('[data-mode][aria-pressed="true"]') || menu.querySelector("[data-mode]")).focus();
   }
   function sync() {
-    hideEdgeHint();
+    if (hintTab && (hintTab.closing || !hintTab.isConnected || groupFor(hintTab) !== view._data[view.currentView]
+      || browser.selectedTab === hintTab)) hideEdgeHint();
     if (frame || disposed) return;
     frame = win.requestAnimationFrame(() => { frame = 0; applyFloat(); applyAccordion(); });
   }
@@ -599,8 +625,13 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   }
   win.addEventListener("keydown", onAccordionShortcut, true);
   win.addEventListener("blur", hideEdgeHint);
+  function onResize() { hideEdgeHint(); sync(); }
+  function motionChanged() {
+    if (reducedMotion.matches) for (const state of accordions.values()) { state.animation?.cancel(); state.animation = null; }
+  }
+  reducedMotion?.addEventListener('change', motionChanged);
   win.addEventListener("ZenViewSplitter:SplitViewActivated", sync);
-  win.addEventListener("resize", sync);
+  win.addEventListener("resize", onResize);
   doc.addEventListener("mousedown", outside, true);
   for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
   return {
@@ -613,9 +644,10 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       for (const data of [...accordions.keys()]) clearAccordion(data);
       clearFloat(); origins.destroy();
       win.removeEventListener("ZenViewSplitter:SplitViewActivated", sync);
-      win.removeEventListener("resize", sync);
+      win.removeEventListener("resize", onResize);
       win.removeEventListener("keydown", onAccordionShortcut, true);
       win.removeEventListener("blur", hideEdgeHint);
+      reducedMotion?.removeEventListener('change', motionChanged);
       doc.removeEventListener("mousedown", outside, true);
       for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.removeEventListener(name, tabChanged);
     },

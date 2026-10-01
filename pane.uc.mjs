@@ -1,5 +1,5 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-accordion5";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-accordion6";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.10.0-dev-accordion4";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev-windows2";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -40,7 +40,8 @@ const PREF = {
 };
 
 let overlay, dialog, heading, context, search, results, count, sectionLabel, expandButton;
-let multiwindow, modeBar;
+let multiwindow, modeBar, updateNotice;
+let updateNoticeTimer;
 let openMode = "replace", renderGeneration = 0;
 let targetTab = null;
 let candidates = [];
@@ -138,6 +139,47 @@ function showToast(message, kind = "info") {
   toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (toast.hidden = true), 2600);
+}
+
+// Change this ID only for a user-facing feature announcement, not every build.
+const UPDATE_NOTICE = {
+  id: "accordion-motion-2026-10",
+  title: "New in Pane: accordion tabs",
+  message: "Keep one page expanded and switch through the others from their edges. This update adds smoother switching and keyboard navigation.",
+};
+
+function showUpdateNotice() {
+  if (Services.prefs.getStringPref("mod.pane.last-update-notice", "") === UPDATE_NOTICE.id ||
+      !Services.prefs.getBoolPref("mod.pane.update-notices", true)) return;
+  // Wait for a focused window so a background window cannot consume the notice.
+  if (!document.hasFocus()) {
+    updateNoticeTimer = setTimeout(showUpdateNotice, 3000);
+    return;
+  }
+  updateNotice = document.createElement("div");
+  updateNotice.id = "pane-update-notice";
+  updateNotice.setAttribute("role", "status");
+  updateNotice.setAttribute("aria-live", "polite");
+  const heading = document.createElement("strong");
+  heading.textContent = UPDATE_NOTICE.title;
+  const message = document.createElement("p");
+  message.textContent = UPDATE_NOTICE.message;
+  // A self-contained layout reference needs no network request or extra assets.
+  const preview = document.createElement("div");
+  preview.className = "pane-update-preview";
+  preview.setAttribute("aria-hidden", "true");
+  for (const label of ["Notes", "Design", "Your page"]) {
+    const pane = document.createElement("span");
+    pane.textContent = label;
+    preview.appendChild(pane);
+  }
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.textContent = "Got it";
+  dismiss.addEventListener("click", () => { updateNotice?.remove(); updateNotice = null; });
+  updateNotice.append(heading, message, preview, dismiss);
+  root.appendChild(updateNotice);
+  Services.prefs.setStringPref("mod.pane.last-update-notice", UPDATE_NOTICE.id);
 }
 
 function closePicker(restoreFocus = true) {
@@ -866,6 +908,9 @@ function destroy() {
   toolbarReveals.clear();
   renderGeneration++;
   multiwindow?.destroy();
+  clearTimeout(updateNoticeTimer);
+  updateNotice?.remove();
+  updateNotice = null;
   gBrowser.removeTabsProgressListener(historyProgress);
   clearTimeout(toastTimer);
   if (buttonFrame) cancelAnimationFrame(buttonFrame);
@@ -919,6 +964,7 @@ function initialize() {
     ensurePaneButtons();
     applyAppearance();
     root.setAttribute("pane-ready", "true");
+    updateNoticeTimer = setTimeout(showUpdateNotice, 3000);
     window[INSTANCE_KEY] = { destroy, openPicker, multiwindow, version: "0.10.0-dev" };
 
     // Sine 2.3+ uses this callback for clean live disable/reload. Without it,

@@ -6,6 +6,7 @@ class Node {
   constructor(doc, name = 'div') {
     this.ownerDocument = doc; this.name = name; this.children = []; this.attrs = new Map();
     this.listeners = new Map(); this.className = ''; this.dataset = {}; this.isConnected = true;
+    this.animations = [];
     this.classList = { add: name => { this.className += ` ${name}`; } };
     this.style = { setProperty: (k,v) => this.attrs.set(k,v), removeProperty: k => this.attrs.delete(k) };
   }
@@ -30,6 +31,7 @@ class Node {
   removeEventListener(name, fn) { this.listeners.set(name,(this.listeners.get(name) ?? []).filter(f => f !== fn)); }
   emit(name, props = {}) { for (const fn of this.listeners.get(name) ?? []) fn({ target:this, preventDefault(){}, stopPropagation(){}, ...props }); }
   focus() { this.ownerDocument.activeElement = this; }
+  animate(keyframes,options) { const animation = {keyframes,options,cancel(){this.cancelled=true;}}; this.animations.push(animation); return animation; }
 }
 const doc = new Node(null); doc.ownerDocument = doc;
 doc.createElementNS = (ns,tag) => new Node(doc,tag);
@@ -51,9 +53,13 @@ const view = {
   removeTabFromGroup(tab) {data.tabs=data.tabs.filter(t=>t!==tab);tab.splitView=false;data.layoutTree=tree(data.tabs);},
 };
 const win = new Node(doc); let queued;
+const timers = new Map(); let timerId = 0;
+const motion = new Node(doc); motion.matches = false;
 Object.assign(win, {document:doc, AbortController, gZenViewSplitter:view,
   gBrowser:{selectedTab:tabs[0],tabContainer:new Node(doc)},
   requestAnimationFrame:fn => { queued=fn; return 1; }, cancelAnimationFrame(){queued=null;},
+  setTimeout:fn => { timers.set(++timerId,fn); return timerId; }, clearTimeout:id => timers.delete(id),
+  matchMedia:()=>motion,
 });
 const shortcutPrefs = new Map();
 const prefs = {getStringPref:(key,fallback)=>shortcutPrefs.get(key) ?? fallback,getIntPref:()=>0,getBoolPref:(key,fallback)=>fallback};
@@ -121,13 +127,20 @@ assert.equal(container(tabs[0]).getAttribute('--pane-accordion-right'),'88px','b
 assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'),'44px');
 const hoverHandle = container(tabs[0]).querySelector('.pane-accordion-handle');
 hoverHandle.emit('pointerenter',{clientX:20,clientY:50});
+assert.equal(doc.querySelector('.pane-accordion-edge-hint'),null,'hint waits before appearing');
+for (const [id,fn] of [...timers]) { timers.delete(id); fn(); }
 assert.equal(doc.querySelector('.pane-accordion-hint-title').textContent,tabs[0].label,'hover identifies the background tab');
 hoverHandle.emit('pointerleave');
 assert.equal(doc.querySelector('.pane-accordion-edge-hint'),null,'leaving an edge hides its hint');
+hoverHandle.emit('pointerenter',{clientX:20,clientY:50}); hoverHandle.emit('pointerleave');
+assert.equal(timers.size,0,'brief edge crossings cancel the delayed hint');
 container(tabs[0]).querySelector('.pane-accordion-handle').emit('click');
 assert.equal(win.gBrowser.selectedTab,tabs[0],'clicking a strip focuses its original tab');
+const firstMotion = container(tabs[0]).animations.at(-1);
+assert.equal(firstMotion.options.duration,160,'switching uses a short position animation');
 container(tabs[0]).querySelector('.pane-accordion-handle').emit('keydown',{key:'ArrowRight'});
 assert.equal(win.gBrowser.selectedTab,tabs[2],'Right expands the next accordion tab');
+assert.ok(firstMotion.cancelled,'rapid switches cancel the previous animation');
 container(tabs[2]).querySelector('.pane-accordion-handle').emit('keydown',{key:'End'});
 assert.equal(win.gBrowser.selectedTab,tabs[3]);
 const shortcut = {key:'ArrowRight',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false};
@@ -136,6 +149,13 @@ assert.equal(win.gBrowser.selectedTab,tabs[0],'global Next wraps to the first ta
 assert.equal(doc.activeElement,tabs[0].linkedBrowser,'navigation focuses the newly expanded page');
 win.emit('keydown',{...shortcut,key:'ArrowLeft'});
 assert.equal(win.gBrowser.selectedTab,tabs[3],'global Previous wraps to the last tab');
+motion.matches = true; motion.emit('change');
+assert.ok(container(tabs[3]).animations.at(-1).cancelled,'enabling reduced motion stops an in-flight animation');
+const motionCount = container(tabs[0]).animations.length;
+win.emit('keydown',shortcut);
+assert.equal(container(tabs[0]).animations.length,motionCount,'reduced motion prevents new switch animations');
+win.emit('keydown',{...shortcut,key:'ArrowLeft'});
+motion.matches = false;
 win.emit('keydown',{...shortcut,altKey:false,shiftKey:false});
 assert.equal(win.gBrowser.selectedTab,tabs[3],'ordinary arrows leave page navigation alone');
 shortcutPrefs.set('mod.pane.accordion-next','Disabled');
@@ -199,7 +219,9 @@ assert.equal(controller.floatingTabs.length,0);
 assert.deepEqual(lastLayout,data.layoutTree,'unload restores the full native split');
 const unloadingAccordion = createMultiwindow(win,{notify(){},chooseTab(){},appearance(){},origins:{destroy(){}}});
 unloadingAccordion.arrange(tabs[0],'accordion');
+container(tabs[1]).querySelector('.pane-accordion-handle').emit('pointerenter',{clientX:10,clientY:50});
 unloadingAccordion.destroy();
+assert.equal(timers.size,0,'unload cancels pending hover hints');
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length,0,'unloading restores tiled presentation');
 assert.equal(lastLayout,data.layoutTree,'unloading accordion restores the unchanged native tree');
 assert.equal((win.listeners.get('keydown') ?? []).length,0,'unload removes accordion shortcuts');

@@ -4,10 +4,13 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- A dismissible feature notice shows once when a new announcement ships, with a small layout reference.
+
 - Horizontal accordion for existing splits, with live page edges and restoration of the original tiled layout.
 - Customizable previous/next accordion shortcuts, navigation that wraps, and shortcut hints in the layout menu.
 - Soft shadows separate accordion tabs by default. Optional edge lines have thickness, color, and opacity controls.
 - Wider accordion edges are easier to click, with small favicon and title hints on hover.
+- Smoother accordion switching and toolbar controls, delayed hover hints that stay in place, and reduced-motion support.
 - Returning a pane to a normal tab keeps focus on the remaining split. Accordion controls recover when Zen rebuilds them.
 
 - Show combined previews of existing splits when opening Pane from a solo tab. Add that tab to the selected split as a grid pane or a floating pane.
