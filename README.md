@@ -60,6 +60,14 @@ The close button returns the tab to the sidebar. It does not close the page. Use
 
 ![A floating tab with back, forward, pin, layout, close, and resize controls](docs/pane-current-floating.png)
 
+### Horizontal accordion (prototype)
+
+In an existing split, open the layout menu and choose **Horizontal accordion**. One tab comes forward while narrow live edges of the other pages remain visible. Hover an edge for a small favicon and title hint, then click to switch tabs. Use **Option+Shift+Left/Right** on Mac or **Alt+Shift+Left/Right** on Windows or Linux to switch from the page. Navigation wraps at either end. When an edge has keyboard focus, plain **Left/Right**, **Home**, and **End** also work.
+
+In Pane’s settings, change either accordion shortcut or enter **Disabled** to turn it off. Duplicate shortcuts within Pane are flagged and inactive until corrected. Accordion uses soft shadows to separate tabs. Optional edge lines are off by default; adjust their thickness, color, and opacity in the appearance controls.
+
+Hover the top edge of the active page to reveal its title and controls. Use the arrows to switch tabs, the three-dot button to arrange them, or the grid button to **Restore tiled layout** with your previous divider sizes. Dock any floating tabs before entering accordion. This prototype is temporary and returns to tiles when Pane is disabled or Zen restarts.
+
 ### Pinned tabs, folders, and Essentials
 
 Pane uses the original tab for standard tabs, pinned tabs, folder tabs, and Essentials. This keeps the page's history, playback, forms, and scroll position intact.

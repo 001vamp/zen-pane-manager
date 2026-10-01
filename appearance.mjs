@@ -7,11 +7,13 @@ export const numericSettings = [
   { key: 'item-spacing', label: 'Tab spacing', min: 0, max: 24, value: 8, unit: 'px' },
   { key: 'glass-blur', label: 'Glass blur', min: 0, max: 80, value: 38, unit: 'px', custom: true },
   { key: 'corner-radius', label: 'Corner radius', min: 0, max: 48, value: 24, unit: 'px', custom: true },
+  { key: 'accordion-border-width', label: 'Accordion edge thickness', min: 0, max: 8, value: 0, unit: 'px' },
 ];
 export const colorSettings = [
   { key: 'accent-color', label: 'Focus and highlight color', value: 'AccentColor', minAlpha: 30 },
   { key: 'tint-light', label: 'Light-mode glass tint', value: 'rgba(247, 248, 251, 0.78)', minAlpha: 0, custom: true },
   { key: 'tint-dark', label: 'Dark-mode glass tint', value: 'rgba(24, 25, 30, 0.78)', minAlpha: 0, custom: true },
+  { key: 'accordion-border-color', label: 'Accordion edge color', value: 'rgba(255, 255, 255, 1)', minAlpha: 0 },
 ];
 export function boundedNumber(value, setting) {
   const number = typeof value === 'string' && !value.trim() ? NaN : Number(value);

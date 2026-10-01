@@ -1,6 +1,6 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-join-splits2";
-import { numericValue, glassPresets } from "./appearance.mjs";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-accordion5";
+import { numericValue, glassPresets } from "./appearance.mjs?pane=0.10.0-dev-accordion4";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev-windows2";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -543,6 +543,9 @@ function applyAppearance() {
   dialog.style.setProperty("--pane-width", `${width}px`);
   dialog.style.setProperty("--pane-columns", String(columns));
   dialog.style.setProperty("--pane-item-spacing", `${numericValue("item-spacing", Services.prefs)}px`);
+  dialog.style.setProperty("--pane-accordion-border-width", `${numericValue("accordion-border-width", Services.prefs)}px`);
+  const edgeColor = stringPref("mod.pane.accordion-border-color", "rgba(255, 255, 255, 1)");
+  dialog.style.setProperty("--pane-accordion-border-color", CSS.supports("color", edgeColor) ? edgeColor : "white");
   overlay.dataset.position = ["top", "upper", "center"][position];
   overlay.toggleAttribute("dim", boolPref(PREF.dim, false));
   dialog.toggleAttribute("hide-help", !boolPref(PREF.help, true));
@@ -839,6 +842,7 @@ const prefObserver = {
   observe(subject, topic, name) {
     if (name === PREF.button) ensurePaneButtons();
     applyAppearance();
+    multiwindow?.sync();
     if (!overlay.hidden) {
       const data = activeData();
       if (targetTab && data && [PREF.recent].includes(name)) candidates = eligibleTabs(targetTab, data);
@@ -884,6 +888,7 @@ function initialize() {
     diagnosticLog("Pane runtime initializing", { documentReady: document.readyState });
     buildPicker();
     multiwindow = createMultiwindow(window, {
+      prefs: Services.prefs,
       notify: showToast,
       chooseTab: (tab, mode) => openPicker(tab, false, mode),
       appearance: node => {

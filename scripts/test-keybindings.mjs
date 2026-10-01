@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding } from '../keybindings.mjs';
+import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, shortcutLabel } from '../keybindings.mjs';
 const event = overrides => ({key:'r', code:'KeyR',ctrlKey:true,altKey:true,shiftKey:false,metaKey:false,...overrides});
 const defaultBinding = pickerBinding({getIntPref:()=>0}, 'MacIntel');
 assert.equal(defaultBinding.label,'Ctrl+Alt+R');
@@ -26,4 +26,21 @@ assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'bad binding'}),
 assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Cmd+K'}).label,'Command+K');
 assert.ok(matchesBinding(event({key:'®',getModifierState:()=>true,view:{navigator:{platform:'MacIntel'}}}),defaultBinding),'Real Mac Option reports AltGraph and must match');
 assert.ok(!matchesBinding(event({key:'r',getModifierState:()=>true,view:{navigator:{platform:'Linux x86_64'}}}),defaultBinding),'Linux AltGr must not trigger a shortcut');
-console.log('Keybinding tests passed.');
+const prefs = values => ({getStringPref:(key,fallback)=>values[key] ?? fallback,getIntPref:()=>0,getBoolPref:(key,fallback)=>values[key] ?? fallback});
+for (const platform of ['MacIntel','Win32','Linux x86_64']) {
+  const bindings = accordionBindings(prefs({}),platform);
+  assert.equal(bindings[0].binding.label,'Alt+Shift+ArrowLeft');
+  assert.equal(bindings[1].binding.label,'Alt+Shift+ArrowRight');
+  assert.ok(matchesBinding(event({key:'ArrowRight',ctrlKey:false,shiftKey:true}),bindings[1].binding));
+  assert.ok(!matchesBinding(event({key:'ArrowRight',ctrlKey:false,shiftKey:false}),bindings[1].binding));
+}
+assert.equal(shortcutLabel(accordionBindings(prefs({}))[0].binding,'MacIntel'),'Option+Shift+←');
+for (const disabled of ['Disabled','disabled','']) assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':disabled}))[1].binding,null);
+const duplicate = accordionBindings(prefs({'mod.pane.accordion-previous':'Alt+Shift+Right'}));
+assert.ok(duplicate.every(record=>record.error && !record.binding),'both duplicate navigation bindings are disabled');
+assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+P'}),'Win32')[1].error,/picker/);
+assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+D'}),'Win32')[1].error,/diagnostics/);
+assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+D','mod.pane.diagnostics-shortcut':false}),'Win32')[1].binding);
+assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Hyper+R'}))[1].error);
+assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+F8'}))[1].binding.label,'Ctrl+F8');
+console.log('Keybinding tests passed, including accordion customization and conflicts.');

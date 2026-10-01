@@ -1,5 +1,6 @@
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
+import { accordionBindings, matchesBinding, shortcutLabel } from "./keybindings.mjs?pane=0.10.0-dev-accordion4";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
@@ -58,12 +59,14 @@ export function resizeRectangle(rect, edge, dx, dy, width, height) {
 
 // Floating is a presentation of a native split, not a second browser or iframe.
 // The original browser node and browsing context never leave their container.
-export function createMultiwindow(win, { notify, chooseTab, appearance, origins = createTabOrigins(win) }) {
+export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = win.Services?.prefs, origins = createTabOrigins(win) }) {
   const doc = win.document, browser = win.gBrowser, view = win.gZenViewSplitter;
   const floats = new Map();
+  const accordions = new Map();
   const backgrounds = new WeakMap();
   let topLayer = 20;
   let menu = null, menuTab = null, frame = 0, disposed = false;
+  let edgeHint = null;
   const groupFor = tab => view._data.find(data => data.tabs.includes(tab));
   const containerFor = tab => tab?.linkedBrowser?.closest(".browserSidebarContainer");
   const el = (tag, className, text) => {
@@ -84,10 +87,169 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     if (restore) menuTab?.linkedBrowser?.focus();
     menuTab = null;
   }
+  function hideEdgeHint() { edgeHint?.remove(); edgeHint = null; }
+  function showEdgeHint(tab, event) {
+    const data = groupFor(tab);
+    if (!accordions.has(data) || accordions.get(data).active === tab || view._data[view.currentView] !== data) return;
+    if (!edgeHint || edgeHint.dataset.tab !== String(data.tabs.indexOf(tab))) {
+      hideEdgeHint();
+      edgeHint = el("div", "pane-accordion-edge-hint");
+      edgeHint.dataset.tab = String(data.tabs.indexOf(tab));
+      edgeHint.setAttribute("role", "tooltip");
+      edgeHint.setAttribute("aria-hidden", "true");
+      const icon = el("span", "pane-accordion-hint-icon");
+      const fallback = () => icon.replaceChildren(paneIcon(doc, "right"));
+      const favicon = tab.getAttribute("image") || tab.image;
+      if (favicon) {
+        const image = el("img", ""); image.setAttribute("src", favicon); image.setAttribute("alt", "");
+        image.addEventListener("error", fallback, { once: true }); icon.append(image);
+      } else fallback();
+      edgeHint.append(icon, el("span", "pane-accordion-hint-title", tab.label));
+      appearance(edgeHint);
+      (doc.documentElement ?? doc).append(edgeHint);
+    }
+    const size = edgeHint.getBoundingClientRect?.() ?? { width: 280, height: 36 };
+    const width = win.innerWidth ?? view.tabBrowserPanel.getBoundingClientRect().width;
+    const height = win.innerHeight ?? view.tabBrowserPanel.getBoundingClientRect().height;
+    edgeHint.style.setProperty("left", `${Math.max(8, Math.min(event.clientX + 14, width - size.width - 8))}px`);
+    edgeHint.style.setProperty("top", `${Math.max(8, Math.min(event.clientY + 14, height - size.height - 8))}px`);
+  }
   function checkTab(tab) {
     if (!isSupportedTab(tab) || !tab.isConnected) {
       throw new Error("That tab is no longer available for this layout");
     }
+  }
+  function clearAccordion(data, restore = true) {
+    const state = accordions.get(data);
+    if (!state) return;
+    hideEdgeHint();
+    for (const [container, handle] of state.handles) {
+      handle.remove();
+      container.querySelector(".pane-accordion-bar")?.remove();
+      container.removeAttribute("pane-accordion");
+      container.removeAttribute("pane-accordion-active");
+      for (const name of ["left", "right", "z", "strip", "line-left", "line-right"]) container.style.removeProperty(`--pane-accordion-${name}`);
+      container.removeAttribute("pane-accordion-edge");
+      const page = state.pages.get(container);
+      if (page) page.node.toggleAttribute("inert", page.inert);
+    }
+    accordions.delete(data);
+    if (restore && view._data[view.currentView] === data) {
+      view.removeSplitters(); view.applyGridLayout(data.layoutTree);
+    }
+  }
+  function accordionStep(data, step, focusHandle = false) {
+    const state = accordions.get(data);
+    if (!state) return;
+    const index = data.tabs.indexOf(state.active);
+    const nextIndex = Math.abs(step) >= data.tabs.length ? (step < 0 ? 0 : data.tabs.length - 1)
+      : (index + step + data.tabs.length) % data.tabs.length;
+    const next = data.tabs[nextIndex];
+    if (!next || next === state.active) return;
+    hideEdgeHint();
+    browser.selectedTab = next;
+    state.active = next;
+    applyAccordion();
+    if (focusHandle) state.handles.get(containerFor(next))?.focus();
+    else next.linkedBrowser.focus();
+  }
+  function applyAccordion() {
+    for (const [data, state] of [...accordions]) {
+      if (!view._data.includes(data) || data.tabs.length < 2) { clearAccordion(data); continue; }
+      const containers = data.tabs.map(containerFor);
+      for (const [container, handle] of [...state.handles]) {
+        if (!containers.includes(container)) {
+          handle.remove(); state.handles.delete(container);
+          container.querySelector(".pane-accordion-bar")?.remove();
+          container.removeAttribute("pane-accordion"); container.removeAttribute("pane-accordion-active");
+          for (const name of ["left", "right", "z", "strip", "line-left", "line-right"]) container.style.removeProperty(`--pane-accordion-${name}`);
+          container.removeAttribute("pane-accordion-edge");
+          const page = state.pages.get(container);
+          if (page) page.node.toggleAttribute("inert", page.inert);
+          state.pages.delete(container);
+        }
+      }
+      if (view._data[view.currentView] !== data) continue;
+      if (!data.tabs.includes(state.active) && browser.selectedTab === state.active) {
+        browser.selectedTab = data.tabs[0];
+      }
+      if (data.tabs.includes(browser.selectedTab)) state.active = browser.selectedTab;
+      if (!data.tabs.includes(state.active)) state.active = data.tabs[0];
+      const activeIndex = data.tabs.indexOf(state.active);
+      // Presentation only: leave Zen's tree and divider sizes untouched.
+      view.removeSplitters();
+      const width = view.tabBrowserPanel.getBoundingClientRect().width;
+      const strip = Math.min(44, width / (data.tabs.length + 2));
+      for (let i = 0; i < data.tabs.length; i++) {
+        const tab = data.tabs[i], container = containers[i];
+        if (!container) continue;
+        const active = tab === state.active;
+        container.setAttribute("pane-accordion", "horizontal");
+        container.toggleAttribute("pane-accordion-active", active);
+        if (!state.pages.has(container)) state.pages.set(container, { node: tab.linkedBrowser, inert: tab.linkedBrowser.hasAttribute("inert") });
+        tab.linkedBrowser.toggleAttribute("inert", !active || state.pages.get(container).inert);
+        // Every page keeps the same readable width. Layer them to expose live edges.
+        const left = i * strip;
+        const right = (data.tabs.length - i - 1) * strip;
+        container.style.setProperty("--pane-accordion-left", `${left}px`);
+        container.style.setProperty("--pane-accordion-right", `${right}px`);
+        container.style.setProperty("--pane-accordion-strip", `${strip}px`);
+        container.style.setProperty("--pane-accordion-z", String(data.tabs.length - Math.abs(i - activeIndex)));
+        container.setAttribute("pane-accordion-edge", i < activeIndex ? "left" : "right");
+        container.style.setProperty("--pane-accordion-line-left", i < activeIndex || (active && i > 0) ? "var(--pane-accordion-border-width)" : "0px");
+        container.style.setProperty("--pane-accordion-line-right", i > activeIndex || (active && i < data.tabs.length - 1) ? "var(--pane-accordion-border-width)" : "0px");
+        let handle = state.handles.get(container);
+        if (!handle || !container.querySelector(".pane-accordion-bar")?.contains(handle) || !container.querySelector(".pane-accordion-controls")) {
+          container.querySelector(".pane-accordion-bar")?.remove();
+          handle = button("", () => {
+            hideEdgeHint();
+            if (tab === state.active) { openMenu(tab, handle); return; }
+            browser.selectedTab = tab; state.active = tab; applyAccordion(); tab.linkedBrowser.focus();
+          }, "pane-accordion-handle");
+          handle.addEventListener("pointerenter", event => showEdgeHint(tab, event));
+          handle.addEventListener("pointermove", event => showEdgeHint(tab, event));
+          handle.addEventListener("pointerleave", hideEdgeHint);
+          handle.addEventListener("keydown", event => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault(); event.stopPropagation();
+            const step = event.key === "Home" ? -data.tabs.length : event.key === "End" ? data.tabs.length : event.key === "ArrowLeft" ? -1 : 1;
+            accordionStep(data, step, true);
+          });
+          const bar = el("div", "pane-accordion-bar");
+          const controls = el("span", "pane-accordion-controls");
+          for (const [name, label, callback] of [
+            ["back", "Previous accordion tab", () => accordionStep(data, -1, true)],
+            ["forward", "Next accordion tab", () => accordionStep(data, 1, true)],
+            ["more", "Arrange accordion tabs", () => openMenu(state.active, bar)],
+            ["grid", "Restore tiled layout", () => arrange(state.active, "tiles")],
+          ]) {
+            const control = button("", callback);
+            setPaneIcon(control, name); control.title = label; control.setAttribute("aria-label", label);
+            controls.append(control);
+          }
+          bar.append(handle, controls); container.append(bar); state.handles.set(container, handle);
+        }
+        handle.textContent = tab.label;
+        handle.removeAttribute("title");
+        handle.setAttribute("aria-label", `${tab.label}. ${active ? "Click to arrange. " : ""}Use Left and Right to switch tabs`);
+        handle.setAttribute("aria-pressed", String(active));
+        const controls = container.querySelector(".pane-accordion-controls");
+        const navigation = controls.querySelectorAll("button");
+        navigation[0].disabled = navigation[1].disabled = false;
+        appearance(container);
+      }
+    }
+  }
+  function startAccordion(tab) {
+    const data = groupFor(tab);
+    if (!data || data.tabs.length < 2) throw new Error("Create a split before using accordion");
+    if (data.tabs.some(t => floats.has(t))) throw new Error("Dock the floating tabs before using accordion");
+    if (!data.tabs.every(t => containerFor(t))) throw new Error("Wait for the split panes to finish loading");
+    view.activateSplitView(data, true);
+    browser.selectedTab = tab;
+    if (!accordions.has(data)) accordions.set(data, { active: tab, handles: new Map(), pages: new Map() });
+    try { applyAccordion(); } catch (error) { clearAccordion(data); throw error; }
+    tab.linkedBrowser.focus();
   }
   function removeFloat(f) {
     floats.delete(f.tab);
@@ -188,7 +350,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
       copy.append(el("div", "pane-float-title", f.tab.label));
       const actions = el("div", "pane-float-actions");
       const arrange = button("", () => openMenu(f.tab, header)); arrange.setAttribute("aria-label", "Arrange floating tab");
-      const close = button("", () => run(() => detach(f.tab, false))); close.setAttribute("aria-label", "Return floating tab to sidebar");
+      const close = button("", () => run(() => detach(f.tab))); close.setAttribute("aria-label", "Return floating tab to sidebar");
       const pin = button("", () => {
         const pinned = f.headerPinned = !f.headerPinned;
         header.toggleAttribute("data-pinned", pinned);
@@ -224,6 +386,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     checkTab(tab);
     const data = groupFor(tab);
     if (!data || data.tabs.length < 2) throw new Error("Choose another tab to float alongside this one");
+    clearAccordion(data);
     if (floats.has(tab)) { raiseFloat(floats.get(tab)); return; }
     if (data.tabs.filter(t => !floats.has(t)).length <= 1) {
       throw new Error("Keep one tab in the background before floating another");
@@ -243,12 +406,15 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
   }
   function arrange(tab, mode) {
     checkTab(tab);
+    if (mode === "accordion") return startAccordion(tab);
+    if (mode === "tiles") { clearAccordion(groupFor(tab)); tab.linkedBrowser.focus(); return; }
     if (mode === "float") return floatTab(tab);
-    if (mode === "normal") return detach(tab, true);
+    if (mode === "normal") return detach(tab);
     const data = groupFor(tab);
     if (!data) { chooseTab(tab, mode); return; }
     if (mode === "grid" && data.tabs.length < 3) { chooseTab(tab, "grid"); return; }
     if (!layoutTypes[mode]) throw new Error("Unknown layout");
+    clearAccordion(data);
     clearFloat(false, tab);
     const oldTree = data.layoutTree, oldType = data.gridType;
     try {
@@ -263,15 +429,16 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
       throw error;
     }
   }
-  function detach(tab, select) {
+  function detach(tab) {
     checkTab(tab);
     const data = groupFor(tab);
     if (!data) return;
-    const other = data.tabs.find(t => t !== tab);
+    const remaining = data.tabs.filter(t => t !== tab && !t.closing);
+    const other = remaining.includes(browser.selectedTab) ? browser.selectedTab : remaining[0];
+    clearAccordion(data);
     clearFloat(false, tab);
     view.removeTabFromGroup(tab, undefined, { forUnsplit: true });
-    if (select) browser.selectedTab = tab;
-    else if (other && !other.closing) browser.selectedTab = other;
+    if (other && !other.closing) browser.selectedTab = other;
     applyFloat();
     browser.selectedBrowser?.focus();
   }
@@ -287,6 +454,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     const current = groupFor(target);
     if ((current?.tabs.length ?? 1) >= view.MAX_TABS) throw new Error("This split has reached Zen’s tab limit");
     if (!layoutTypes[mode] && mode !== "float") throw new Error("Unknown layout");
+    clearAccordion(current);
     const snapshot = current ? { tree: copyTree(current.layoutTree), type: current.gridType } : null;
     const originalTarget = target;
     origins.begin([...new Set([...(current?.tabs ?? []), target, incoming])]);
@@ -330,6 +498,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
   function unsplit(data) {
     if (!view._data.includes(data) || data.tabs.length < 2) throw new Error("That split is no longer available");
     const selected = browser.selectedTab;
+    clearAccordion(data);
     const members = [...data.tabs];
     for (const tab of members) clearFloat(false, tab);
     for (const tab of members) {
@@ -340,6 +509,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     sync();
   }
   function openMenu(tab, anchor) {
+    hideEdgeHint();
     closeMenu(); menuTab = tab;
     menu = el("div", "pane-layout-menu"); menu.id = "pane-layout-menu";
     menu.setAttribute("role", "dialog"); menu.setAttribute("aria-label", "Arrange this tab");
@@ -350,22 +520,25 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     close.setAttribute("aria-label", "Close layout menu");
     header.append(heading, close); menu.append(header);
     const group = groupFor(tab);
-    const currentMode = floats.has(tab) ? "float" : !group ? "normal" :
+    const currentMode = accordions.has(group) ? "accordion" : floats.has(tab) ? "float" : !group ? "normal" :
       Object.keys(layoutTypes).find(mode => layoutTypes[mode] === group.gridType);
     const options = [
       ["right", "Split right", "Place beside the other tabs"],
       ["below", "Split below", "Place below the other tabs"],
       ["grid", "Grid", "Arrange with other split tabs"],
       ["float", "Floating", "Move and resize this tab"],
-      ["normal", "Return to a normal tab", "Show this tab in the main view"],
+      ["normal", "Return to a normal tab", "Keep this tab open and stay on the remaining split"],
     ];
+    if (group?.tabs.length >= 2) options.splice(3, 0,
+      ["accordion", "Horizontal accordion", "Expand one tab and switch from the side strips"],
+      ...(accordions.has(group) ? [["tiles", "Restore tiled layout", "Bring back your previous divider sizes"]] : []));
     for (const [mode, label, description] of options) {
       const current = mode === currentMode;
       const b = button("", () => run(() => arrange(tab, mode)), "pane-layout-option");
       b.dataset.mode = mode;
       b.setAttribute("aria-pressed", String(current));
       const icon = el("span", "pane-layout-icon");
-      icon.append(paneIcon(doc, mode === "normal" ? "normal" : mode));
+      icon.append(paneIcon(doc, mode === "accordion" ? "right" : mode === "tiles" ? "grid" : mode));
       icon.setAttribute("aria-hidden", "true");
       const copy = el("span", "pane-layout-copy");
       copy.append(el("span", "pane-layout-label", label), el("span", "pane-layout-description", current ? "Current layout" : description));
@@ -376,6 +549,15 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     const add = button("", () => { closeMenu(); chooseTab(tab, "right"); }, "pane-layout-add");
     add.append(paneIcon(doc, "plus"), doc.createTextNode("Add another tab…"));
     menu.append(add);
+    if (accordions.has(group)) {
+      const hints = el("div", "pane-accordion-shortcuts");
+      for (const record of accordionBindings(prefs, win.navigator?.platform)) {
+        const hint = el("span", "pane-layout-hint");
+        hint.append(el("kbd", "", shortcutLabel(record.binding, win.navigator?.platform)), el("span", "", record.label));
+        hints.append(hint);
+      }
+      menu.append(hints);
+    }
     const footer = el("div", "pane-layout-footer");
     for (const [key, label] of [["↑ ↓", "Navigate"], ["Enter", "Apply"], ["Esc", "Cancel"]]) {
       const hint = el("span", "pane-layout-hint");
@@ -398,23 +580,42 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, origins 
     (menu.querySelector('[data-mode][aria-pressed="true"]') || menu.querySelector("[data-mode]")).focus();
   }
   function sync() {
+    hideEdgeHint();
     if (frame || disposed) return;
-    frame = win.requestAnimationFrame(() => { frame = 0; applyFloat(); });
+    frame = win.requestAnimationFrame(() => { frame = 0; applyFloat(); applyAccordion(); });
   }
   function outside(event) { if (menu && !menu.contains(event.target)) closeMenu(); }
   function tabChanged() { closeMenu(); sync(); }
+  function onAccordionShortcut(event) {
+    const picker = doc.getElementById?.('pane-overlay');
+    if (menu || (picker && !picker.hidden)) return;
+    const data = view._data[view.currentView];
+    if (!accordions.has(data) || !data.tabs.includes(browser.selectedTab)) return;
+    const bindings = accordionBindings(prefs, win.navigator?.platform);
+    const index = bindings.findIndex(record => matchesBinding(event, record.binding));
+    if (index < 0) return;
+    event.preventDefault(); event.stopPropagation();
+    accordionStep(data, index === 0 ? -1 : 1);
+  }
+  win.addEventListener("keydown", onAccordionShortcut, true);
+  win.addEventListener("blur", hideEdgeHint);
   win.addEventListener("ZenViewSplitter:SplitViewActivated", sync);
   win.addEventListener("resize", sync);
   doc.addEventListener("mousedown", outside, true);
   for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
   return {
-    add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins,
+    add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins, accordionStep,
     get floatingTabs() { return [...floats.keys()]; },
     destroy() {
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
-      closeMenu(); clearFloat(); origins.destroy();
+      closeMenu();
+      hideEdgeHint();
+      for (const data of [...accordions.keys()]) clearAccordion(data);
+      clearFloat(); origins.destroy();
       win.removeEventListener("ZenViewSplitter:SplitViewActivated", sync);
       win.removeEventListener("resize", sync);
+      win.removeEventListener("keydown", onAccordionShortcut, true);
+      win.removeEventListener("blur", hideEdgeHint);
       doc.removeEventListener("mousedown", outside, true);
       for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.removeEventListener(name, tabChanged);
     },

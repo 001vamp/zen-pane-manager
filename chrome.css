@@ -13,7 +13,92 @@
   --pane-line: light-dark(rgb(20 20 28 / 0.1), rgb(255 255 255 / 0.12));
   --pane-fill: light-dark(rgb(255 255 255 / 0.66), rgb(255 255 255 / 0.075));
   --pane-hover: light-dark(rgb(20 20 28 / 0.075), rgb(255 255 255 / 0.105));
+  --pane-accordion-border-width: 0px;
+  --pane-accordion-border-color: rgba(255, 255, 255, 1);
 }
+
+/* Accordion reuses the native browser containers without changing the split tree. */
+:root #tabbrowser-tabpanels[zen-split-view] > .browserSidebarContainer[pane-accordion][zen-split],
+.browserSidebarContainer[pane-accordion][zen-split] {
+  position: absolute !important;
+  inset: 0 var(--pane-accordion-right) 0 var(--pane-accordion-left) !important;
+  width: auto !important; height: auto !important;
+  min-width: 0 !important; min-height: 0 !important;
+  overflow: hidden !important; transition: none !important;
+  border-radius: 10px !important;
+  border: 0 !important;
+  z-index: var(--pane-accordion-z) !important;
+  box-shadow: -3px 0 12px light-dark(rgb(0 0 0 / .14), rgb(0 0 0 / .38)),
+    3px 0 12px light-dark(rgb(0 0 0 / .14), rgb(0 0 0 / .38));
+}
+.browserSidebarContainer[pane-accordion] > .zen-view-splitter-header-container { display: none !important; }
+.browserSidebarContainer[pane-accordion]::after {
+  content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  box-sizing: border-box; border-radius: inherit;
+  border-left: var(--pane-accordion-line-left, 0px) solid var(--pane-accordion-border-color);
+  border-right: var(--pane-accordion-line-right, 0px) solid var(--pane-accordion-border-color);
+}
+.pane-accordion-shortcuts { display: grid; gap: 8px; padding: 10px 14px; font-size: 11px; }
+.pane-accordion-bar { display: contents; }
+.browserSidebarContainer[pane-accordion]:not([pane-accordion-active]) > :not(.pane-accordion-bar) { pointer-events: none !important; }
+.pane-accordion-handle {
+  appearance: none !important; position: absolute; inset: 0; z-index: 4;
+  box-sizing: border-box !important; display: block;
+  width: 100% !important; height: 100% !important; min-width: 0 !important;
+  margin: 0 !important; padding: 12px 6px !important;
+  writing-mode: vertical-rl; text-orientation: mixed;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  border: 1px solid var(--pane-line) !important; border-radius: 10px !important;
+  background: transparent !important;
+  font: 11px system-ui !important;
+  cursor: pointer;
+  color: transparent !important;
+}
+.browserSidebarContainer[pane-accordion]:not([pane-accordion-active]) .pane-accordion-handle {
+  width: var(--pane-accordion-strip) !important; border-color: transparent !important;
+}
+.browserSidebarContainer[pane-accordion-edge="right"]:not([pane-accordion-active]) .pane-accordion-handle { left: auto; }
+.browserSidebarContainer[pane-accordion]:not([pane-accordion-active]) .pane-accordion-handle:hover {
+  box-shadow: inset 0 0 16px light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .08));
+}
+.pane-accordion-edge-hint {
+  position: fixed; z-index: 2147483647; display: flex; align-items: center; gap: 8px;
+  box-sizing: border-box; max-width: min(300px, calc(100vw - 16px)); padding: 8px 11px;
+  pointer-events: none; border-radius: 10px; font: 12px system-ui;
+  color: light-dark(#24252a, #f5f5f7);
+  background: light-dark(rgb(250 250 253 / .94), rgb(34 35 41 / .94));
+  backdrop-filter: blur(12px); box-shadow: 0 4px 18px rgb(0 0 0 / .22);
+}
+.pane-accordion-hint-icon { display: flex; flex: 0 0 16px; width: 16px; height: 16px; }
+.pane-accordion-hint-icon img, .pane-accordion-hint-icon .pane-svg { width: 16px; height: 16px; object-fit: contain; }
+.pane-accordion-hint-title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pane-accordion-controls { display: none; }
+.browserSidebarContainer[pane-accordion-active] > .pane-accordion-bar {
+  position: absolute; display: flex; align-items: center; gap: 6px;
+  inset: 0 0 auto; z-index: 5; height: 12px; overflow: hidden;
+}
+.browserSidebarContainer[pane-accordion-active] > .pane-accordion-bar:is(:hover, :focus-within) {
+  height: 32px; background: light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark));
+  backdrop-filter: blur(var(--pane-blur));
+  border-bottom: 1px solid var(--pane-line);
+}
+.browserSidebarContainer[pane-accordion-active] .pane-accordion-handle {
+  position: static; flex: 1; width: auto !important; height: 28px !important;
+  min-height: 0 !important; padding: 4px 10px !important; border: 0 !important;
+  writing-mode: horizontal-tb; text-align: left; opacity: 0;
+  color: light-dark(#1f2024,#f5f5f7) !important;
+}
+.browserSidebarContainer[pane-accordion-active] .pane-accordion-controls { display: flex; gap: 3px; padding-right: 6px; opacity: 0; }
+.browserSidebarContainer[pane-accordion-active] > .pane-accordion-bar:is(:hover, :focus-within) > * { opacity: 1; }
+.pane-accordion-controls button {
+  appearance: none !important; display: grid; place-items: center;
+  width: 25px !important; height: 25px !important; min-width: 0 !important;
+  padding: 0 !important; margin: 0 !important; border: 0 !important; border-radius: 6px !important;
+  background: transparent !important; color: light-dark(#1f2024,#f5f5f7) !important;
+}
+.pane-accordion-controls button:hover { background: var(--pane-hover) !important; }
+.pane-accordion-controls button:disabled { opacity: .35; }
+.pane-accordion-handle:focus-visible { outline: 2px solid var(--pane-accent); outline-offset: -2px; }
 
 #pane-overlay {
   position: fixed;

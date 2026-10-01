@@ -59,6 +59,79 @@
   },
   {
     "type": "separator",
+    "label": "Accordion"
+  },
+  {
+    "property": "mod.pane.accordion-previous",
+    "label": "Previous accordion tab",
+    "type": "string",
+    "defaultValue": "Auto"
+  },
+  {
+    "property": "mod.pane.accordion-next",
+    "label": "Next accordion tab",
+    "type": "string",
+    "defaultValue": "Auto"
+  },
+  {
+    "type": "text",
+    "label": "Auto uses Option+Shift+Left/Right on Mac and Alt+Shift+Left/Right on Windows or Linux. Enter Disabled to turn either shortcut off. Shortcuts only act in the active accordion.",
+    "size": "12px"
+  },
+  {
+    "property": "mod.pane.accordion-border-width",
+    "label": "Accordion edge thickness",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 0,
+    "placeholder": false,
+    "options": [
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "1 px",
+        "value": 1
+      },
+      {
+        "label": "2 px",
+        "value": 2
+      },
+      {
+        "label": "3 px",
+        "value": 3
+      },
+      {
+        "label": "4 px",
+        "value": 4
+      },
+      {
+        "label": "5 px",
+        "value": 5
+      },
+      {
+        "label": "6 px",
+        "value": 6
+      },
+      {
+        "label": "7 px",
+        "value": 7
+      },
+      {
+        "label": "8 px",
+        "value": 8
+      }
+    ]
+  },
+  {
+    "property": "mod.pane.accordion-border-color",
+    "label": "Accordion edge color",
+    "type": "string",
+    "defaultValue": "rgba(255, 255, 255, 1)"
+  },
+  {
+    "type": "separator",
     "label": "Style preset"
   },
   {

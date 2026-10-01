@@ -1,7 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import { numericSettings, colorSettings, numericValue, glassPresets } from './appearance.mjs';
+import { numericSettings, colorSettings, numericValue, glassPresets } from './appearance.mjs?pane=0.10.0-dev-accordion4';
+import { accordionShortcuts, accordionBindings, shortcutLabel, parseBinding } from './keybindings.mjs?pane=0.10.0-dev-accordion4';
 
 const INSTANCE = '__paneSettings';
 window[INSTANCE]?.destroy();
@@ -84,6 +85,26 @@ function numberControl(setting, box) {
     range.value = value;
     if (document.activeElement !== number) { number.value = value; number.removeAttribute('aria-invalid'); error.textContent = ''; }
   };
+}
+function shortcutControl(setting, box) {
+  const id = `pane-control-${setting.key}`;
+  const input = element('input', { id, type:'text', spellcheck:'false' });
+  const error = element('span', { id:`${id}-error`, class:'pane-control-error', 'aria-live':'polite' });
+  const note = element('span', { class:'pane-control-note' });
+  input.setAttribute('aria-describedby', `${error.id} ${id}-note`);
+  note.id = `${id}-note`;
+  const sync = () => {
+    const record = accordionBindings(prefs).find(record => record.key === setting.key);
+    if (document.activeElement !== input) input.value = prefs.getStringPref(prefix + setting.key, 'Auto');
+    input.setAttribute('aria-invalid', String(Boolean(record.error)));
+    error.textContent = record.error;
+    note.textContent = `Auto: ${shortcutLabel(parseBinding(setting.defaultBinding))}. Enter Disabled to turn it off.`;
+  };
+  input.addEventListener('input', () => { prefs.setStringPref(prefix + setting.key, input.value.trim()); refresh(); });
+  const line = element('div', { class:'pane-control-line' });
+  line.append(input, resetButton(setting));
+  box.append(element('label', { for:id }, setting.label), line, note, error);
+  return sync;
 }
 function colorControl(setting, box) {
   const id = `pane-control-${setting.key}`;
@@ -187,12 +208,12 @@ function refresh() {
 }
 function scan() {
   frame = 0;
-  for (const setting of [...numericSettings, ...colorSettings]) {
+  for (const setting of [...numericSettings, ...colorSettings, ...accordionShortcuts]) {
     const row = document.getElementById((prefix + setting.key).replaceAll('.','-'));
     if (!row || rows.has(row)) continue;
     const original = [...row.childNodes];
     const box = element('div', { class:'pane-control' });
-    const sync = setting.min !== undefined ? numberControl(setting, box) : colorControl(setting, box);
+    const sync = setting.defaultBinding ? shortcutControl(setting, box) : setting.min !== undefined ? numberControl(setting, box) : colorControl(setting, box);
     row.replaceChildren(box);
     rows.set(row, { original, sync });
     sync();

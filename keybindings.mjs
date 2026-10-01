@@ -65,3 +65,35 @@ export function pickerBinding(prefs, platform = currentPlatform()) {
   }
   return selection === 1 ? parseBinding('Alt+Shift+P') : defaultPickerBinding(platform);
 }
+
+export const accordionShortcuts = [
+  { key: 'accordion-previous', label: 'Previous accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Left' },
+  { key: 'accordion-next', label: 'Next accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Right' },
+];
+
+export function shortcutLabel(binding, platform = currentPlatform()) {
+  if (!binding) return 'Disabled';
+  return binding.label.replace('Alt', /Mac/i.test(platform) ? 'Option' : 'Alt')
+    .replace('ArrowLeft', '←').replace('ArrowRight', '→');
+}
+
+// Conflicting navigation bindings are inactive until the user changes them.
+export function accordionBindings(prefs, platform = currentPlatform()) {
+  const records = accordionShortcuts.map(setting => {
+    const value = prefs?.getStringPref?.(`mod.pane.${setting.key}`, 'Auto') ?? 'Auto';
+    const disabled = !value.trim() || /^disabled$/i.test(value.trim());
+    const binding = disabled ? null : parseBinding(/^auto$/i.test(value.trim()) ? setting.defaultBinding : value);
+    return { ...setting, binding, error: !disabled && !binding ? 'Use a shortcut such as Alt+Shift+Left, Auto, or Disabled.' : '' };
+  });
+  const reserved = [{ label: 'the picker', binding: pickerBinding(prefs ?? {}, platform) }];
+  if (prefs?.getBoolPref?.('mod.pane.diagnostics-shortcut', true) !== false) {
+    reserved.push({ label: 'diagnostics', binding: diagnosticsBinding(prefs ?? {}, platform) });
+  }
+  for (const record of records) {
+    const conflict = [...reserved, ...records.filter(other => other !== record)]
+      .find(other => record.binding && other.binding?.label === record.binding.label);
+    if (conflict) record.error = `Already used by ${conflict.label}. Choose another shortcut.`;
+  }
+  for (const record of records) if (record.error) record.binding = null;
+  return records;
+}

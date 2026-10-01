@@ -13,4 +13,8 @@ prefs.getBoolPref=()=>false;
 assert.equal(numericValue('item-spacing',prefs),8);
 prefs.getIntPref=()=>537;
 assert.equal(numericValue('picker-width',prefs),537,'intermediate values are not rounded to presets');
+const edge = numericSettings.find(setting=>setting.key==='accordion-border-width');
+assert.equal(boundedNumber(0,edge),0,'accordion separation can be disabled');
+assert.equal(boundedNumber(100,edge),8,'edge thickness is bounded');
+assert.equal(boundedNumber('bad',edge),0,'invalid edge thickness falls back to shadow-only');
 console.log('Appearance value tests passed.');
