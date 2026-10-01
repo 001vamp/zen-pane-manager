@@ -44,3 +44,10 @@ assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+D','mod.
 assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Hyper+R'}))[1].error);
 assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+F8'}))[1].binding.label,'Ctrl+F8');
 console.log('Keybinding tests passed, including accordion customization and conflicts.');
+
+const { bindingFromEvent } = await import('../keybindings.mjs');
+assert.equal(bindingFromEvent({key:'®',code:'KeyR',altKey:true}).label, 'Alt+R');
+assert.equal(bindingFromEvent({key:'ArrowLeft',altKey:true,shiftKey:true}).label, 'Alt+Shift+ArrowLeft');
+assert.equal(bindingFromEvent({key:'+',ctrlKey:true}).label, 'Ctrl+Plus');
+assert.equal(bindingFromEvent({key:'Shift',shiftKey:true}), null);
+assert.equal(bindingFromEvent({key:'r',repeat:true}), null);

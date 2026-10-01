@@ -14,6 +14,8 @@
   --pane-fill: light-dark(rgb(255 255 255 / 0.66), rgb(255 255 255 / 0.075));
   --pane-hover: light-dark(rgb(20 20 28 / 0.075), rgb(255 255 255 / 0.105));
   --pane-accordion-border-width: 0px;
+  --pane-accordion-active-border-width: 0px;
+  --pane-accordion-active-border-color: white;
   --pane-accordion-border-color: rgba(255, 255, 255, 1);
 }
 
@@ -33,10 +35,15 @@
 }
 .browserSidebarContainer[pane-accordion] > .zen-view-splitter-header-container { display: none !important; }
 .browserSidebarContainer[pane-accordion]::after {
-  content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none;
-  box-sizing: border-box; border-radius: inherit;
+  content: ""; position: absolute; inset: 10px 0; z-index: 6; pointer-events: none;
+  box-sizing: border-box; border-radius: 0;
   border-left: var(--pane-accordion-line-left, 0px) solid var(--pane-accordion-border-color);
   border-right: var(--pane-accordion-line-right, 0px) solid var(--pane-accordion-border-color);
+}
+.browserSidebarContainer[pane-accordion-active]::after {
+  inset: 0;
+  border: var(--pane-accordion-active-border-width) solid var(--pane-accordion-active-border-color);
+  border-radius: inherit;
 }
 .pane-accordion-shortcuts { display: grid; gap: 8px; padding: 10px 14px; font-size: 11px; }
 .pane-accordion-bar { display: contents; }
@@ -833,30 +840,98 @@
 .pane-essential-link:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
 .pane-essential-link:focus-visible { outline: 2px solid AccentColor; outline-offset: -2px; }
 
-/* Feature announcements stay readable without covering the active page. */
+/* Feature announcements use explicit control styles to override native chrome buttons. */
 #pane-update-notice {
   position: fixed;
   z-index: 2147483647;
   right: 20px;
   bottom: 20px;
-  width: min(320px, calc(100vw - 64px));
-  padding: 16px;
-  border: 1px solid rgb(255 255 255 / .16);
-  border-radius: 16px;
-  background: rgb(28 28 34 / .96);
+  box-sizing: border-box;
+  width: min(390px, calc(100vw - 40px));
+  padding: 18px;
+  border: 1px solid rgb(255 255 255 / .12);
+  border-radius: 20px;
+  background: rgb(28 28 34 / .97);
   color: #f7f7fa;
-  box-shadow: 0 12px 36px rgb(0 0 0 / .3);
+  box-shadow: 0 16px 48px rgb(0 0 0 / .25);
   font: 13px system-ui;
 }
-#pane-update-notice strong { display: block; font-size: 14px; }
-#pane-update-notice p { margin: 8px 0 12px; line-height: 1.5; color: #d0d0da; }
+#pane-update-notice strong { display: block; font-size: 13px; font-weight: 600; }
+#pane-update-notice > strong { padding: 2px 36px 6px 2px; font-size: 16px; letter-spacing: -.2px; }
+#pane-update-notice p { margin: 6px 0 0; line-height: 1.55; color: #c3c3ce; }
 #pane-update-notice button {
-  display: block; margin: 12px 0 0 auto; padding: 6px 12px;
-  border: 1px solid rgb(255 255 255 / .25); border-radius: 8px;
-  color: inherit; background: rgb(255 255 255 / .1); font: inherit; cursor: pointer;
+  appearance: none !important;
+  -moz-appearance: none !important;
+  box-sizing: border-box;
+  display: block;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 14px 0 0 auto;
+  padding: 8px 16px !important;
+  border: 1px solid rgb(255 255 255 / .14) !important;
+  border-radius: 10px !important;
+  color: inherit !important;
+  background: rgb(255 255 255 / .1) !important;
+  font: 600 13px system-ui;
+  cursor: pointer;
 }
+#pane-update-notice button:hover { background: rgb(255 255 255 / .17) !important; }
 #pane-update-notice button:focus-visible { outline: 2px solid #b9a4ff; outline-offset: 3px; }
-.pane-update-preview { display: flex; height: 72px; overflow: hidden; border-radius: 8px; background: #15151d; }
-.pane-update-preview span { padding: 8px; width: 18px; writing-mode: vertical-rl; background: #56506e; box-shadow: 4px 0 8px #0006; }
+#pane-update-notice .pane-update-close {
+  position: absolute; right: 14px; top: 14px; margin: 0;
+  display: grid; place-items: center; width: 28px; height: 28px;
+  padding: 6px !important; border: 0 !important;
+  border-radius: 50% !important; background: transparent !important;
+  color: #bdbdc8 !important;
+}
+#pane-update-notice .pane-update-close:hover { background: #ffffff12 !important; }
+#pane-update-notice .pane-update-close svg { display: block; width: 16px; height: 16px; }
+.pane-update-cards {
+  max-height: min(400px, calc(100vh - 170px));
+  overflow-y: auto; overscroll-behavior: contain;
+  margin-top: 10px; padding-right: 6px;
+  scrollbar-width: thin; scrollbar-color: #ffffff30 transparent;
+}
+.pane-update-cards article {
+  padding: 13px 14px; border: 1px solid #ffffff0a;
+  border-radius: 12px; margin: 0 0 8px; background: #ffffff04;
+}
+.pane-update-cards article:last-child { margin-bottom: 0; }
+.pane-update-preview { display: flex; height: 68px; margin-top: 12px; overflow: hidden; border-radius: 9px; background: #15151d; }
+.pane-update-preview span { box-sizing: border-box; padding: 8px; width: 28px; writing-mode: vertical-rl; background: #56506e; box-shadow: 4px 0 8px #0006; }
 .pane-update-preview span:nth-child(2) { background: #71658d; }
 .pane-update-preview span:last-child { flex: 1; writing-mode: horizontal-tb; background: #262532; padding: 12px; }
+
+/* Experimental scrolling keeps each native page at a useful, stable width. */
+#tabbrowser-tabpanels:has(> .browserSidebarContainer[pane-scrolling]) { overflow:hidden !important; }
+.browserSidebarContainer[pane-scrolling][zen-split] {
+  position:absolute !important; inset:0 auto 0 var(--pane-scrolling-x) !important;
+  width:var(--pane-scrolling-width) !important; height:100% !important;
+  min-width:0 !important; min-height:0 !important; overflow:hidden !important;
+  border:0 !important; border-radius:10px !important; transition:none !important;
+  box-shadow:0 3px 18px #0003;
+}
+.browserSidebarContainer[pane-scrolling] > .zen-view-splitter-header-container { display:none !important; }
+.pane-scrolling-header {
+  position:absolute; top:0; left:0; right:0; z-index:8;
+  display:flex; align-items:center; gap:3px; height:32px; padding:0 6px 0 10px;
+  color:light-dark(#24242a,#f6f6f8); background:var(--pane-glass-background, light-dark(#f4f4f7ed,#25252ded));
+}
+.pane-scrolling-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:11px system-ui; }
+.pane-scrolling-control { appearance:none !important; min-width:0 !important; width:24px; height:24px; padding:4px !important; margin:0 !important; border:0 !important; border-radius:6px !important; background:transparent !important; color:inherit !important; cursor:pointer; display:grid; place-items:center; }
+.pane-scrolling-control:hover { background:#8883 !important; }
+.pane-scrolling-control:focus-visible { outline:2px solid var(--pane-accent); }
+.pane-scrolling-control svg { width:16px; height:16px; }
+
+.pane-scrolling-resize { position:absolute; top:32px; bottom:0; right:0; width:8px; z-index:10; cursor:ew-resize; touch-action:none; }
+.pane-scrolling-resize:hover, .pane-scrolling-resize:focus-visible { background:var(--pane-accent); opacity:.5; }
+
+/* Shields keep modified gestures out of remote webpage processes. */
+.browserSidebarContainer[pane-scrolling-hidden] { visibility:hidden !important; pointer-events:none !important; }
+.pane-scrolling-shield { display:none; position:absolute; inset:32px 0 0; z-index:7; background:transparent; }
+.browserSidebarContainer[pane-scrolling-overview] > .pane-scrolling-shield { display:block; }
+.browserSidebarContainer[pane-scrolling]:not([pane-scrolling-overview]) > .pane-scrolling-resize { display:none; }
+
+.browserSidebarContainer[pane-scrolling-overview] > .pane-scrolling-header { box-shadow:0 1px 0 #8883; }
+.pane-scrolling-resize { border-radius:3px; }
+.pane-scrolling-resize:focus-visible { outline:2px solid var(--pane-accent); outline-offset:-2px; }

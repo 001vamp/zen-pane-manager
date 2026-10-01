@@ -116,3 +116,11 @@ See [Contributing](CONTRIBUTING.md), the [roadmap](ROADMAP.md), and the [changel
 The images above use sample tabs on a white HTML sheet, with Pane’s [actual stylesheet](chrome.css) and icons. The [screenshot sheet](docs/pane-readme-showcase.html) is included in the repo.
 
 Licensed under [MPL-2.0](LICENSE). Third-party notices are in [LICENSE-NOTES.md](LICENSE-NOTES.md). Pane is a community project, independent of Zen Browser and Sine.
+
+### Experimental scrolling
+
+In an existing split, open the layout menu and choose **Scrolling (experimental)**. Your active page stays full width. Hold **Option+Shift** on Mac or **Alt+Shift** on Windows/Linux to reveal the columns, then use the wheel or two-finger trackpad scrolling. Release to expand the centered tab.
+
+While the columns are visible, drag a right edge to resize a tab. Double-click the edge or use its header reset button to restore the default width. You can change the modifier and default width in Pane settings.
+
+This is an early feature. Scrolling layouts and custom widths reset after restarting Zen. Please report problems with your OS, Zen version, and steps to reproduce.

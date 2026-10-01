@@ -50,4 +50,4 @@
 - [ ] Verify a replacement preserves user-adjusted divider sizes.
 - [ ] Test the same flows on Windows before publishing a release.
 
-For feature updates, update `UPDATE_NOTICE` in `pane.uc.mjs` with a new ID and short summary. IDs are remembered across windows and restarts. Routine fixes should keep the existing ID. Set `mod.pane.update-notices` to false in about:config to disable notices.
+For feature updates, append a card with a unique ID to `UPDATE_NOTICES` in `pane.uc.mjs`. Keep old cards and their IDs in chronological order so users can see missed features. Routine fixes do not need a card. Change `QUICK_START_ID` only when everyone should see an updated guide. Delivery and acknowledgement are stored separately: “Got it” marks cards read; closing leaves them available in Pane settings. Set `mod.pane.update-notices` to false in about:config to disable automatic notices.

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 export const numericSettings = [
+  { key: 'accordion-active-border-width', label: 'Active accordion tab border', min: 0, max: 8, value: 0, unit: 'px' },
   { key: 'picker-width', label: 'Picker width', min: 320, max: 1000, value: 520, unit: 'px' },
   { key: 'recent-count', label: 'Tabs in compact view', min: 1, max: 12, value: 4, unit: 'tabs' },
   { key: 'item-spacing', label: 'Tab spacing', min: 0, max: 24, value: 8, unit: 'px' },
@@ -14,6 +15,7 @@ export const colorSettings = [
   { key: 'tint-light', label: 'Light-mode glass tint', value: 'rgba(247, 248, 251, 0.78)', minAlpha: 0, custom: true },
   { key: 'tint-dark', label: 'Dark-mode glass tint', value: 'rgba(24, 25, 30, 0.78)', minAlpha: 0, custom: true },
   { key: 'accordion-border-color', label: 'Accordion edge color', value: 'rgba(255, 255, 255, 1)', minAlpha: 0 },
+  { key: 'accordion-active-border-color', label: 'Active accordion border color', value: 'rgba(255, 255, 255, 1)', minAlpha: 0 },
 ];
 export function boundedNumber(value, setting) {
   const number = typeof value === 'string' && !value.trim() ? NaN : Number(value);

@@ -1,6 +1,6 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-accordion6";
-import { numericValue, glassPresets } from "./appearance.mjs?pane=0.10.0-dev-accordion4";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-scrolling3";
+import { numericValue, glassPresets } from "./appearance.mjs?pane=0.10.0-dev-borders1";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev-windows2";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -141,45 +141,78 @@ function showToast(message, kind = "info") {
   toastTimer = setTimeout(() => (toast.hidden = true), 2600);
 }
 
-// Change this ID only for a user-facing feature announcement, not every build.
-const UPDATE_NOTICE = {
-  id: "accordion-motion-2026-10",
-  title: "New in Pane: accordion tabs",
-  message: "Keep one page expanded and switch through the others from their edges. This update adds smoother switching and keyboard navigation.",
-};
+// Keep feature announcements oldest first. Preserve IDs so missed cards can be found.
+const UPDATE_NOTICES = [
+  { id: "accordion-motion-2026-10", title: "Accordion tabs", message: "Keep one page expanded and switch through the others from their edges, with smoother motion and keyboard navigation." },
+  { id: "quick-start-2026-10", title: "A quick start for everyone", message: "The guide below covers splitting, floating, accordion, and putting tabs back." },
+];
+const QUICK_START_ID = "quick-start-2026-10";
 
-function showUpdateNotice() {
-  if (Services.prefs.getStringPref("mod.pane.last-update-notice", "") === UPDATE_NOTICE.id ||
-      !Services.prefs.getBoolPref("mod.pane.update-notices", true)) return;
-  // Wait for a focused window so a background window cannot consume the notice.
-  if (!document.hasFocus()) {
-    updateNoticeTimer = setTimeout(showUpdateNotice, 3000);
+function missedUpdates(lastRead) {
+  const index = UPDATE_NOTICES.findIndex(update => update.id === lastRead);
+  return UPDATE_NOTICES.slice(index + 1).toReversed();
+}
+
+function showUpdateNotice(manual = false) {
+  const prefs = Services.prefs;
+  const latest = UPDATE_NOTICES.at(-1).id;
+  const unread = missedUpdates(prefs.getStringPref("mod.pane.last-read-update", ""));
+  const guideNeeded = prefs.getStringPref("mod.pane.quick-start-seen", "") !== QUICK_START_ID;
+  if (!manual && (!prefs.getBoolPref("mod.pane.update-notices", true) ||
+      (!unread.length && !guideNeeded) ||
+      prefs.getStringPref("mod.pane.last-update-notice", "") === latest)) return;
+  if (!manual && !document.hasFocus()) {
+    updateNoticeTimer = setTimeout(() => showUpdateNotice(), 3000);
     return;
   }
-  updateNotice = document.createElement("div");
+  updateNotice?.remove();
+  updateNotice = document.createElement("section");
   updateNotice.id = "pane-update-notice";
-  updateNotice.setAttribute("role", "status");
-  updateNotice.setAttribute("aria-live", "polite");
+  updateNotice.setAttribute("role", "region");
+  updateNotice.setAttribute("aria-label", "Pane quick start and updates");
   const heading = document.createElement("strong");
-  heading.textContent = UPDATE_NOTICE.title;
-  const message = document.createElement("p");
-  message.textContent = UPDATE_NOTICE.message;
-  // A self-contained layout reference needs no network request or extra assets.
-  const preview = document.createElement("div");
-  preview.className = "pane-update-preview";
-  preview.setAttribute("aria-hidden", "true");
-  for (const label of ["Notes", "Design", "Your page"]) {
-    const pane = document.createElement("span");
-    pane.textContent = label;
-    preview.appendChild(pane);
+  heading.textContent = guideNeeded || manual ? "Welcome to Pane" : "What’s new in Pane";
+  const close = document.createElement("button");
+  close.className = "pane-update-close";
+  close.type = "button";
+  close.setAttribute("aria-label", "Close quick start and updates");
+  setPaneIcon(close, "close");
+  close.addEventListener("click", () => { updateNotice?.remove(); updateNotice = null; });
+  updateNotice.append(heading, close);
+  const body = document.createElement("div");
+  body.className = "pane-update-cards";
+  const card = (title, text) => {
+    const section = document.createElement("article");
+    const label = document.createElement("strong"); label.textContent = title;
+    const message = document.createElement("p"); message.textContent = text;
+    section.append(label, message); body.appendChild(section);
+    return section;
+  };
+  if (guideNeeded || manual) {
+    const binding = pickerBinding(prefs)?.label;
+    card("1. Open Pane", binding ? `Press ${binding}, or use the swap button at the top of a split pane.` : "Use the swap button at the top of a split pane. You can enable a shortcut in Sine’s Pane settings.");
+    card("2. Split or replace", "Pick an open tab and choose a layout. Replace swaps a page without changing your split.");
+    card("3. Float a tab", "Choose Floating. Drag the title bar to move it, or an edge to resize. Its menu lets you put it back into a split.");
+    const accordion = card("4. Try accordion", "Choose Horizontal accordion in a split’s layout menu. Click a page edge to switch, or focus it and use Left/Right. Shortcuts are customizable in Pane settings.");
+    const preview = document.createElement("div"); preview.className = "pane-update-preview";
+    preview.setAttribute("aria-hidden", "true");
+    for (const text of ["Notes", "Design", "Your page"]) {
+      const pane = document.createElement("span"); pane.textContent = text; preview.appendChild(pane);
+    }
+    accordion.appendChild(preview);
+    card("5. Put tabs back", "Return to a normal tab removes one pane. Unsplit separates the whole group. Pages stay open. Use Restore tiled layout to leave accordion.");
   }
-  const dismiss = document.createElement("button");
-  dismiss.type = "button";
-  dismiss.textContent = "Got it";
-  dismiss.addEventListener("click", () => { updateNotice?.remove(); updateNotice = null; });
-  updateNotice.append(heading, message, preview, dismiss);
+  for (const update of manual ? UPDATE_NOTICES.toReversed() : unread) card(update.title, update.message);
+  const done = document.createElement("button"); done.type = "button"; done.textContent = "Got it";
+  done.addEventListener("click", () => {
+    prefs.setStringPref("mod.pane.last-read-update", latest);
+    prefs.setStringPref("mod.pane.quick-start-seen", QUICK_START_ID);
+    updateNotice?.remove(); updateNotice = null;
+  });
+  updateNotice.append(body, done);
   root.appendChild(updateNotice);
-  Services.prefs.setStringPref("mod.pane.last-update-notice", UPDATE_NOTICE.id);
+  // Delivery and acknowledgement are separate: closing does not mark cards read.
+  prefs.setStringPref("mod.pane.last-update-notice", latest);
 }
 
 function closePicker(restoreFocus = true) {
@@ -588,6 +621,9 @@ function applyAppearance() {
   dialog.style.setProperty("--pane-accordion-border-width", `${numericValue("accordion-border-width", Services.prefs)}px`);
   const edgeColor = stringPref("mod.pane.accordion-border-color", "rgba(255, 255, 255, 1)");
   dialog.style.setProperty("--pane-accordion-border-color", CSS.supports("color", edgeColor) ? edgeColor : "white");
+  dialog.style.setProperty("--pane-accordion-active-border-width", `${numericValue("accordion-active-border-width", Services.prefs)}px`);
+  const activeColor = stringPref("mod.pane.accordion-active-border-color", "rgba(255, 255, 255, 1)");
+  dialog.style.setProperty("--pane-accordion-active-border-color", CSS.supports("color", activeColor) ? activeColor : "white");
   overlay.dataset.position = ["top", "upper", "center"][position];
   overlay.toggleAttribute("dim", boolPref(PREF.dim, false));
   dialog.toggleAttribute("hide-help", !boolPref(PREF.help, true));
@@ -965,7 +1001,7 @@ function initialize() {
     applyAppearance();
     root.setAttribute("pane-ready", "true");
     updateNoticeTimer = setTimeout(showUpdateNotice, 3000);
-    window[INSTANCE_KEY] = { destroy, openPicker, multiwindow, version: "0.10.0-dev" };
+    window[INSTANCE_KEY] = { destroy, openPicker, multiwindow, showUpdates: () => showUpdateNotice(true), version: "0.10.0-dev" };
 
     // Sine 2.3+ uses this callback for clean live disable/reload. Without it,
     // Sine intentionally keeps an already imported module running.

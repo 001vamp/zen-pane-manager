@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><title>Pane scrolling prototype</title>
+<link rel="stylesheet" href="../chrome.css">
+<style>
+  :root { color-scheme:light; --pane-accent:#6554c0; }
+  body { margin:0; padding:48px; background:white; font:13px system-ui; }
+  #tabbrowser-tabpanels { position:relative; width:800px; height:440px; }
+  .browserSidebarContainer { box-sizing:border-box; border:1px solid #e5e5eb; background:white; }
+  .sample { height:100%; padding:36px 52px; box-sizing:border-box; background:#fafafd; }
+  .sample-nav { position:absolute; inset:0 auto 0 0; width:32px; background:#e6e3f1; display:flex; flex-direction:column; align-items:center; padding-top:48px; gap:24px; color:#776699; }
+  .sample h2 { font-size:28px; }
+  .sample p { color:#747581; }
+  .sample:focus { outline:none; }
+  input { padding:9px; border:1px solid #d8d8e1; border-radius:6px; }
+  #controls { display:flex; gap:12px; margin-top:22px; }
+</style>
+<div id="tabbrowser-tabpanels" zen-split-view></div>
+<div id="controls"><button id="start">Scrolling</button><button id="restore">Restore tiles</button><button id="arrange">Layout menu</button></div>
+<p id="navigation"></p>
+<p>Hold Option/Alt + Shift and use the wheel or two-finger trackpad scroll. Header arrows bring the next tab into view. Pages remain the same width.</p>
+<script type="module">
+// The real controller and CSS run against a small native-layout adapter here.
+// This previews presentation and navigation; it does not emulate Zen's APIs.
+import { createMultiwindow } from '../multiwindow.mjs';
+import { accordionBindings, shortcutLabel } from '../keybindings.mjs';
+const panel = document.querySelector('#tabbrowser-tabpanels');
+const titles = ['Project notes','Design references','Pane roadmap'];
+const tabs = titles.map(label => {
+  const tab = document.createElement('span'); tab.label=label; document.body.append(tab);
+  const container=document.createElement('div'); container.className='browserSidebarContainer'; container.setAttribute('zen-split','');
+  const page=document.createElement('div'); page.className='sample'; page.tabIndex=0;
+  page.innerHTML=`<div class="sample-nav"><span>☰</span><span>⌂</span><span>＋</span></div><small>OPEN TAB</small><h2>${label}</h2><p>The original page stays here as you switch tabs.</p><input placeholder="Try typing a note">`;
+  tab.linkedBrowser=page; container.append(page); panel.append(container); return tab;
+});
+const data={tabs,gridType:'vsep',layoutTree:{children:tabs.map(tab=>({tab}))}};
+const tabContainer=new EventTarget(); let selected=tabs[0];
+window.gBrowser={tabContainer,get selectedTab(){return selected},set selectedTab(tab){selected=tab;tabContainer.dispatchEvent(new Event('TabSelect'))}};
+window.gZenViewSplitter={_data:[data],currentView:0,tabBrowserPanel:panel,removeSplitters(){},activateSplitView(){},applyGridLayout(){
+  tabs.forEach((tab,i)=>{const c=tab.linkedBrowser.parentElement;c.style.position='absolute';c.style.inset=`0 ${100-(i+1)*100/3}% 0 ${i*100/3}%`;});
+}};
+const values=new Map();
+const prefs={getStringPref:(key,fallback)=>values.get(key) ?? fallback,getIntPref:(key,fallback)=>values.get(key) ?? fallback,getBoolPref:(key,fallback)=>fallback};
+const controller=createMultiwindow(window,{notify(){},chooseTab(){},prefs,appearance(){},origins:{destroy(){}}});
+window.accordionPreview={controller,tabs,data};
+document.querySelector('#navigation').textContent=accordionBindings(prefs).map(record=>`${shortcutLabel(record.binding)}: ${record.label}`).join(' · ');
+document.querySelector('#start').onclick=()=>controller.arrange(selected,'scrolling');
+document.querySelector('#restore').onclick=()=>controller.arrange(selected,'tiles');
+document.querySelector('#arrange').onclick=()=>controller.openMenu(selected,document.querySelector('#arrange'));
+controller.arrange(tabs[0],'scrolling');
+</script>
+</html>

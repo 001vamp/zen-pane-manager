@@ -1,13 +1,14 @@
 [
   {
     "type": "text",
-    "label": "⇄ Pane",
+    "label": "\u21c4 Pane",
     "margin": "20px 0 20px 0",
     "size": "20px"
   },
   {
     "type": "separator",
-    "label": "How you open it"
+    "label": "Open Pane",
+    "id": "mod.pane.section-0"
   },
   {
     "property": "mod.pane.shortcut",
@@ -17,26 +18,44 @@
     "defaultValue": 0,
     "placeholder": false,
     "options": [
-      { "label": "Recommended for this computer", "value": 0 },
-      { "label": "Alt + Shift + P", "value": 1 },
-      { "label": "Disabled", "value": 2 },
-      { "label": "Custom", "value": 3 }
+      {
+        "label": "Recommended for this computer",
+        "value": 0
+      },
+      {
+        "label": "Alt + Shift + P",
+        "value": 1
+      },
+      {
+        "label": "Disabled",
+        "value": 2
+      },
+      {
+        "label": "Custom",
+        "value": 3
+      }
     ]
   },
   {
     "property": "mod.pane.custom-shortcut",
     "label": "Custom picker shortcut",
     "type": "string",
-    "defaultValue": "Alt+Shift+P"
+    "defaultValue": "Alt+Shift+P",
+    "conditions": {
+      "if": {
+        "property": "mod.pane.shortcut",
+        "value": 3
+      }
+    }
   },
   {
     "type": "text",
-    "label": "Recommended uses Control+Option+R on Mac and Alt+Shift+P on Windows or Linux. Choose Custom to enter another combination. Use Plus for the + key.",
+    "label": "Choose Custom to enter your own shortcut. Use Plus for the + key.",
     "size": "12px"
   },
   {
     "property": "mod.pane.pane-button",
-    "label": "Show the ⇄ button on each split pane",
+    "label": "Show the \u21c4 button on each split pane",
     "type": "checkbox",
     "defaultValue": true
   },
@@ -50,16 +69,23 @@
     "property": "mod.pane.diagnostics-keybinding",
     "label": "Diagnostic report shortcut",
     "type": "string",
-    "defaultValue": "Auto"
+    "defaultValue": "Auto",
+    "conditions": {
+      "if": {
+        "property": "mod.pane.diagnostics-shortcut",
+        "value": true
+      }
+    }
   },
   {
     "type": "text",
-    "label": "Auto uses Control+Option+D on Mac and Alt+Shift+D on Windows or Linux. If both actions use the same shortcut, the picker takes priority.",
+    "label": "Auto uses the recommended shortcut for this computer.",
     "size": "12px"
   },
   {
     "type": "separator",
-    "label": "Accordion"
+    "label": "Accordion",
+    "id": "mod.pane.section-1"
   },
   {
     "property": "mod.pane.accordion-previous",
@@ -75,7 +101,7 @@
   },
   {
     "type": "text",
-    "label": "Auto uses Option+Shift+Left/Right on Mac and Alt+Shift+Left/Right on Windows or Linux. Enter Disabled to turn either shortcut off. Shortcuts only act in the active accordion.",
+    "label": "These shortcuts work only in the active accordion.",
     "size": "12px"
   },
   {
@@ -128,11 +154,107 @@
     "property": "mod.pane.accordion-border-color",
     "label": "Accordion edge color",
     "type": "string",
-    "defaultValue": "rgba(255, 255, 255, 1)"
+    "defaultValue": "rgba(255, 255, 255, 1)",
+    "conditions": {
+      "not": {
+        "property": "mod.pane.accordion-border-width",
+        "value": 0
+      }
+    }
+  },
+  {
+    "property": "mod.pane.accordion-active-border-width",
+    "label": "Active accordion tab border",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "1 px",
+        "value": 1
+      },
+      {
+        "label": "2 px",
+        "value": 2
+      },
+      {
+        "label": "3 px",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "property": "mod.pane.accordion-active-border-color",
+    "label": "Active accordion border color",
+    "type": "string",
+    "defaultValue": "rgba(255, 255, 255, 1)",
+    "conditions": {
+      "not": {
+        "property": "mod.pane.accordion-active-border-width",
+        "value": 0
+      }
+    }
+  },
+  {
+    "id": "mod.pane.section-scrolling",
+    "type": "separator",
+    "label": "Scrolling (experimental)"
+  },
+  {
+    "property": "mod.pane.scrolling-modifier",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 0,
+    "label": "Hold while scrolling",
+    "options": [
+      {
+        "label": "Option / Alt + Shift",
+        "value": 0
+      },
+      {
+        "label": "Option / Alt",
+        "value": 1
+      },
+      {
+        "label": "Disabled",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "property": "mod.pane.scrolling-width",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 65,
+    "label": "Scrolling tab width",
+    "options": [
+      {
+        "label": "Half the view",
+        "value": 50
+      },
+      {
+        "label": "Two thirds",
+        "value": 65
+      },
+      {
+        "label": "Full view",
+        "value": 100
+      }
+    ]
+  },
+  {
+    "type": "text",
+    "size": "12px",
+    "label": "Choose Scrolling in a split layout menu. Hold the modifier to reveal columns, then scroll with the wheel or two fingers. Release to open the centered tab at full width. Drag a column edge to resize; double-click to reset. Experimental: layouts and column widths are not restored after restarting."
   },
   {
     "type": "separator",
-    "label": "Style preset"
+    "label": "Glass style",
+    "id": "mod.pane.section-2"
   },
   {
     "property": "mod.pane.style-preset",
@@ -142,11 +264,26 @@
     "defaultValue": 0,
     "placeholder": false,
     "options": [
-      { "label": "System glass — recommended", "value": 0 },
-      { "label": "Clear glass", "value": 1 },
-      { "label": "Frosted glass", "value": 2 },
-      { "label": "Tinted glass", "value": 3 },
-      { "label": "Custom", "value": 4 }
+      {
+        "label": "System glass \u2014 recommended",
+        "value": 0
+      },
+      {
+        "label": "Clear glass",
+        "value": 1
+      },
+      {
+        "label": "Frosted glass",
+        "value": 2
+      },
+      {
+        "label": "Tinted glass",
+        "value": 3
+      },
+      {
+        "label": "Custom",
+        "value": 4
+      }
     ]
   },
   {
@@ -157,7 +294,8 @@
   },
   {
     "type": "separator",
-    "label": "Basic appearance"
+    "label": "Appearance",
+    "id": "mod.pane.section-3"
   },
   {
     "property": "mod.pane.accent-color",
@@ -173,10 +311,22 @@
     "defaultValue": 520,
     "placeholder": false,
     "options": [
-      { "label": "Compact", "value": 420 },
-      { "label": "Standard — recommended", "value": 520 },
-      { "label": "Wide", "value": 640 },
-      { "label": "Extra wide", "value": 760 }
+      {
+        "label": "Compact",
+        "value": 420
+      },
+      {
+        "label": "Standard \u2014 recommended",
+        "value": 520
+      },
+      {
+        "label": "Wide",
+        "value": 640
+      },
+      {
+        "label": "Extra wide",
+        "value": 760
+      }
     ]
   },
   {
@@ -187,9 +337,18 @@
     "defaultValue": 0,
     "placeholder": false,
     "options": [
-      { "label": "Top", "value": 0 },
-      { "label": "Upper middle", "value": 1 },
-      { "label": "Centered", "value": 2 }
+      {
+        "label": "Top",
+        "value": 0
+      },
+      {
+        "label": "Upper middle",
+        "value": 1
+      },
+      {
+        "label": "Centered",
+        "value": 2
+      }
     ]
   },
   {
@@ -211,7 +370,8 @@
   },
   {
     "type": "separator",
-    "label": "Tab behavior"
+    "label": "Tab behavior",
+    "id": "mod.pane.section-4"
   },
   {
     "property": "mod.pane.recent-count",
@@ -221,10 +381,22 @@
     "defaultValue": 4,
     "placeholder": false,
     "options": [
-      { "label": "2 tabs", "value": 2 },
-      { "label": "4 tabs — recommended", "value": 4 },
-      { "label": "6 tabs", "value": 6 },
-      { "label": "8 tabs", "value": 8 }
+      {
+        "label": "2 tabs",
+        "value": 2
+      },
+      {
+        "label": "4 tabs \u2014 recommended",
+        "value": 4
+      },
+      {
+        "label": "6 tabs",
+        "value": 6
+      },
+      {
+        "label": "8 tabs",
+        "value": 8
+      }
     ]
   },
   {
@@ -247,11 +419,12 @@
   },
   {
     "type": "separator",
-    "label": "Advanced customization"
+    "label": "Custom glass",
+    "id": "mod.pane.section-5"
   },
   {
     "type": "text",
-    "label": "Tint, blur, and corner controls below apply only when Glass style is set to Custom.",
+    "label": "Select Custom glass to edit these controls.",
     "margin": "6px 0 12px 0",
     "size": "12px"
   },
@@ -259,13 +432,25 @@
     "property": "mod.pane.tint-light",
     "label": "Light-mode glass tint (CSS color)",
     "type": "string",
-    "defaultValue": "rgba(247, 248, 251, 0.78)"
+    "defaultValue": "rgba(247, 248, 251, 0.78)",
+    "conditions": {
+      "if": {
+        "property": "mod.pane.style-preset",
+        "value": 4
+      }
+    }
   },
   {
     "property": "mod.pane.tint-dark",
     "label": "Dark-mode glass tint (CSS color)",
     "type": "string",
-    "defaultValue": "rgba(24, 25, 30, 0.78)"
+    "defaultValue": "rgba(24, 25, 30, 0.78)",
+    "conditions": {
+      "if": {
+        "property": "mod.pane.style-preset",
+        "value": 4
+      }
+    }
   },
   {
     "property": "mod.pane.glass-blur",
@@ -275,12 +460,33 @@
     "defaultValue": 38,
     "placeholder": false,
     "options": [
-      { "label": "Off", "value": 0 },
-      { "label": "Subtle", "value": 18 },
-      { "label": "Balanced", "value": 28 },
-      { "label": "Strong", "value": 38 },
-      { "label": "Maximum", "value": 52 }
-    ]
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "Subtle",
+        "value": 18
+      },
+      {
+        "label": "Balanced",
+        "value": 28
+      },
+      {
+        "label": "Strong",
+        "value": 38
+      },
+      {
+        "label": "Maximum",
+        "value": 52
+      }
+    ],
+    "conditions": {
+      "if": {
+        "property": "mod.pane.style-preset",
+        "value": 4
+      }
+    }
   },
   {
     "property": "mod.pane.corner-radius",
@@ -290,12 +496,33 @@
     "defaultValue": 24,
     "placeholder": false,
     "options": [
-      { "label": "Subtle", "value": 14 },
-      { "label": "Soft", "value": 18 },
-      { "label": "Glass", "value": 24 },
-      { "label": "Rounded", "value": 30 },
-      { "label": "Very round", "value": 36 }
-    ]
+      {
+        "label": "Subtle",
+        "value": 14
+      },
+      {
+        "label": "Soft",
+        "value": 18
+      },
+      {
+        "label": "Glass",
+        "value": 24
+      },
+      {
+        "label": "Rounded",
+        "value": 30
+      },
+      {
+        "label": "Very round",
+        "value": 36
+      }
+    ],
+    "conditions": {
+      "if": {
+        "property": "mod.pane.style-preset",
+        "value": 4
+      }
+    }
   },
   {
     "property": "mod.pane.grid-columns",
@@ -305,10 +532,22 @@
     "defaultValue": 0,
     "placeholder": false,
     "options": [
-      { "label": "Auto — recommended", "value": 0 },
-      { "label": "1 column", "value": 1 },
-      { "label": "2 columns", "value": 2 },
-      { "label": "3 columns", "value": 3 }
+      {
+        "label": "Auto \u2014 recommended",
+        "value": 0
+      },
+      {
+        "label": "1 column",
+        "value": 1
+      },
+      {
+        "label": "2 columns",
+        "value": 2
+      },
+      {
+        "label": "3 columns",
+        "value": 3
+      }
     ]
   },
   {

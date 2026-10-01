@@ -1,15 +1,17 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import { numericSettings, colorSettings, numericValue, glassPresets } from './appearance.mjs?pane=0.10.0-dev-accordion4';
-import { accordionShortcuts, accordionBindings, shortcutLabel, parseBinding } from './keybindings.mjs?pane=0.10.0-dev-accordion4';
+import { numericSettings, colorSettings, numericValue, glassPresets } from './appearance.mjs?pane=0.10.0-dev-borders1';
+import { accordionShortcuts, accordionBindings, shortcutLabel, parseBinding, bindingFromEvent } from './keybindings.mjs?pane=0.10.0-dev-recorder1';
 
 const INSTANCE = '__paneSettings';
 window[INSTANCE]?.destroy();
 const prefs = Services.prefs;
 const prefix = 'mod.pane.';
 const rows = new Map();
+const sections = new Map();
 let preview, previewHost, frame = 0;
+const extraPreviews = new Map();
 const element = (tag, attrs = {}, text) => {
   const node = document.createElementNS('http://www.w3.org/1999/xhtml', tag);
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
@@ -17,22 +19,46 @@ const element = (tag, attrs = {}, text) => {
   return node;
 };
 const style = element('style', {}, `
-.pane-control { display:grid; gap:8px; width:100%; min-width:0; padding:10px 0; font:inherit; }
+.pane-control { display:grid; gap:6px; width:100%; min-width:0; padding:8px 0; font:inherit; }
 .pane-control label { font-weight:600; }
 .pane-control-line { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .pane-control input { box-sizing:border-box; font:inherit; min-width:0; }
 .pane-control input[type=range] { flex:1; min-width:100px; accent-color:AccentColor; }
 .pane-control input[type=number] { width:80px; }
 .pane-control input[type=text] { flex:1; width:200px; }
+.pane-control-error:empty { display:none; }
 .pane-control input[type=color] { width:48px; height:36px; padding:2px; cursor:pointer; }
 .pane-control input:focus-visible,.pane-control button:focus-visible { outline:2px solid AccentColor; outline-offset:2px; }
 .pane-control input[aria-invalid=true] { outline:2px solid #d94848; }
 .pane-control-error { color:light-dark(#a51c30,#ff9ca9); font-size:12px; }
 .pane-control-note { font-size:12px; opacity:.8; }
 #pane-settings-preview { display:block; width:100%; box-sizing:border-box; padding:16px; margin:12px 0; border:1px solid color-mix(in srgb,currentColor 18%,transparent); border-radius:16px; }
+.pane-settings-section { display:block; margin:10px 0; border:1px solid color-mix(in srgb,currentColor 12%,transparent); border-radius:12px; overflow:hidden; }
+.pane-settings-section > summary { cursor:pointer; padding:14px 16px; font-weight:600; font-size:15px; }
+.pane-settings-section > summary:focus-visible { outline:2px solid AccentColor; outline-offset:-3px; }
+.pane-settings-section[open] > summary { border-bottom:1px solid color-mix(in srgb,currentColor 8%,transparent); }
+.pane-settings-section-body { display:block; padding:8px 16px 14px; }
+.pane-settings-section-body > [hidden] { display:none !important; }
+.pane-settings-section-body .sineItemPreferenceLabel { font-size:13px; }
+.pane-settings-section-body .pane-control-note { line-height:1.5; }
+.pane-control button { appearance:none; border:1px solid color-mix(in srgb,currentColor 16%,transparent); border-radius:8px; padding:5px 9px; min-width:0; font:12px system-ui; cursor:pointer; }
+.pane-control-line input[type=text] { max-width:420px; }
 .pane-preview-stage { padding:22px; margin-block:12px; background:linear-gradient(125deg,#7b64ad,#649cae 50%,#c391a0); border-radius:12px; overflow:hidden; }
 .pane-preview-card { box-sizing:border-box; max-width:100%; margin:auto; border:1px solid #ffffff44; box-shadow:0 8px 20px #0003; }
-.pane-preview-sample { border:2px solid; border-radius:8px; margin-top:10px; }
+.pane-preview-sample { border:1px solid; border-radius:8px; min-width:0; overflow:hidden; }
+.pane-preview-sample strong,.pane-preview-sample small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+.pane-preview-sample small { opacity:.65; margin-top:3px; }
+.pane-preview-tabs { display:grid; gap:6px; margin-top:10px; }
+.pane-preview-footer { margin-top:10px; font-size:10px; opacity:.7; }
+.pane-preview-footer[hidden] { display:none !important; }
+.pane-settings-mini-preview { display:block; padding:12px; margin:8px 0 12px; border:1px solid color-mix(in srgb,currentColor 10%,transparent); border-radius:12px; }
+.pane-settings-mini-preview > strong { display:block; font-size:12px; margin-bottom:10px; opacity:.8; }
+.pane-settings-mini-preview .pane-preview-card { padding:14px; }
+.pane-preview-stack { display:flex; height:100px; overflow:hidden; border-radius:10px; background:#20212a; margin-bottom:8px; }
+.pane-preview-edge { box-sizing:border-box; width:36px; padding:10px; writing-mode:vertical-rl; color:#eee; background:#555068; box-shadow:5px 0 12px #0005; z-index:1; }
+.pane-preview-edge:nth-child(2) { background:#686078; }
+.pane-preview-expanded { flex:1; padding:18px; color:#eee; background:#292934; font-size:12px; }
+.pane-settings-mini-preview > small { font-size:11px; opacity:.7; }
 `);
 document.documentElement.append(style);
 
@@ -93,16 +119,35 @@ function shortcutControl(setting, box) {
   const note = element('span', { class:'pane-control-note' });
   input.setAttribute('aria-describedby', `${error.id} ${id}-note`);
   note.id = `${id}-note`;
+  let recording = false;
+  const recordButton = element('button', { type:'button', 'aria-label':`Record ${setting.label}` }, 'Record shortcut');
   const sync = () => {
     const record = accordionBindings(prefs).find(record => record.key === setting.key);
     if (document.activeElement !== input) input.value = prefs.getStringPref(prefix + setting.key, 'Auto');
     input.setAttribute('aria-invalid', String(Boolean(record.error)));
     error.textContent = record.error;
-    note.textContent = `Auto: ${shortcutLabel(parseBinding(setting.defaultBinding))}. Enter Disabled to turn it off.`;
+    note.textContent = recording ? 'Press your shortcut. Escape cancels.' : `Default: ${shortcutLabel(parseBinding(setting.defaultBinding))}. You can also type a combination.`;
   };
   input.addEventListener('input', () => { prefs.setStringPref(prefix + setting.key, input.value.trim()); refresh(); });
   const line = element('div', { class:'pane-control-line' });
-  line.append(input, resetButton(setting));
+  recordButton.addEventListener('click', () => { recording = !recording; recordButton.textContent = recording ? 'Listening…' : 'Record shortcut'; sync(); });
+  recordButton.addEventListener('blur', () => { recording = false; recordButton.textContent = 'Record shortcut'; sync(); });
+  recordButton.addEventListener('keydown', event => {
+    if (!recording) return;
+    if (event.key === 'Tab') return;
+    event.preventDefault(); event.stopPropagation();
+    if (event.key === 'Escape') { recording = false; recordButton.textContent = 'Record shortcut'; sync(); return; }
+    const binding = bindingFromEvent(event);
+    if (!binding) return;
+    recording = false; recordButton.textContent = 'Record shortcut';
+    prefs.setStringPref(prefix + setting.key, binding.label);
+    input.value = binding.label;
+    refresh();
+  });
+  const disable = element('button', { type:'button', 'aria-label':`Disable ${setting.label}` }, 'Disable');
+  disable.addEventListener('click', () => { prefs.setStringPref(prefix + setting.key, 'Disabled'); input.value = 'Disabled'; refresh(); });
+  const reset = resetButton(setting); reset.textContent = 'Use default';
+  line.append(input, recordButton, reset, disable);
   box.append(element('label', { for:id }, setting.label), line, note, error);
   return sync;
 }
@@ -179,7 +224,7 @@ function buildPreview(host) {
   top.append(mode);
   const stage = element('div', { class:'pane-preview-stage' });
   const card = element('div', { class:'pane-preview-card' });
-  card.append(element('strong', {}, 'Replace this pane'), element('div', { class:'pane-preview-sample' }, 'Example tab'));
+  card.append(element('strong', {}, 'Replace this pane'), element('div', { class:'pane-preview-tabs' }), element('div', { class:'pane-preview-footer' }, '↑ ↓ Navigate · Enter Replace · Esc Cancel'));
   stage.append(card);
   mode.addEventListener('change', refresh);
   preview.append(top, stage, element('div', { class:'pane-control-note' }, 'Changes save automatically. Editing tint, blur, or corners selects Custom glass. The preview fits this panel; the picker uses your saved width.'));
@@ -202,12 +247,104 @@ function refresh() {
   card.style.padding = '16px';
   card.style.borderRadius = `${appearance.radius}px`;
   card.style.backdropFilter = `blur(${appearance.blur}px)`;
-  const sample = card.querySelector('.pane-preview-sample');
-  sample.style.borderColor = readColor(colorSettings[0]);
-  sample.style.padding = `${numericValue('item-spacing',prefs)}px 9px`;
+  renderPickerPreview(card);
+  for (const [host, record] of extraPreviews) {
+    if (!host.isConnected) { record.node.remove(); extraPreviews.delete(host); continue; }
+    if (record.kind === 'accordion') {
+      const width = numericValue('accordion-border-width', prefs);
+      for (const pane of record.node.querySelectorAll('.pane-preview-edge')) {
+        pane.style.borderRight = 'none';
+        pane.style.backgroundImage = `linear-gradient(${readColor(colorSettings[3])}, ${readColor(colorSettings[3])})`;
+        pane.style.backgroundSize = `${width}px calc(100% - 20px)`;
+        pane.style.backgroundPosition = 'right center';
+        pane.style.backgroundRepeat = 'no-repeat';
+      }
+      const active = record.node.querySelector('.pane-preview-expanded');
+      active.style.boxShadow = `inset 0 0 0 ${numericValue('accordion-active-border-width', prefs)}px ${readColor(colorSettings[4])}`;
+      active.style.borderRadius = '10px';
+    } else {
+      record.card.style.background = card.style.background;
+      record.card.style.color = card.style.color;
+      record.card.style.borderRadius = card.style.borderRadius;
+      renderPickerPreview(record.card);
+    }
+  }
 }
+function renderPickerPreview(card) {
+  const count = numericValue('recent-count', prefs);
+  const columns = prefs.getIntPref(prefix + 'grid-columns', 0) || 2;
+  const list = card.querySelector('.pane-preview-tabs');
+  list.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+  const urls = prefs.getBoolPref(prefix + 'show-urls', true);
+  const signature = `${count}:${urls}`;
+  if (list.dataset.signature !== signature) {
+    list.dataset.signature = signature;
+    list.replaceChildren();
+    for (let i = 0; i < count; i++) {
+      const tab = element('div', { class:'pane-preview-sample' });
+      tab.append(element('strong', {}, ['Project notes', 'Design ideas', 'Pane roadmap', 'Documentation'][i % 4]));
+      if (urls) tab.append(element('small', {}, ['notes.example', 'design.example', 'github.com', 'docs.example'][i % 4]));
+      list.appendChild(tab);
+    }
+  }
+  for (const tab of list.children) {
+    tab.style.padding = `${numericValue('item-spacing', prefs)}px 9px`;
+    tab.style.borderColor = readColor(colorSettings[0]);
+  }
+  card.querySelector('.pane-preview-footer').hidden = !prefs.getBoolPref(prefix + 'show-help', true);
+}
+function buildExtraPreviews() {
+  let added = false;
+  for (const [key, kind] of [['accordion-border-width', 'accordion'], ['recent-count', 'tabs'], ['tint-light', 'glass']]) {
+    const host = document.getElementById(`mod-pane-${key}`);
+    if (!host || extraPreviews.has(host)) continue;
+    const node = element('section', { class:'pane-settings-mini-preview', 'aria-label':`${kind} live preview` });
+    node.append(element('strong', {}, kind === 'accordion' ? 'Accordion edges' : 'Live preview'));
+    let card;
+    if (kind === 'accordion') {
+      const stack = element('div', { class:'pane-preview-stack' });
+      stack.append(element('div', { class:'pane-preview-edge' }, 'Notes'), element('div', { class:'pane-preview-edge' }, 'Design'), element('div', { class:'pane-preview-expanded' }, 'Your active page'));
+      node.append(stack, element('small', {}, 'Edges use shadows when thickness is 0.'));
+    } else {
+      card = element('div', { class:'pane-preview-card' });
+      card.append(element('strong', {}, 'Replace this pane'), element('div', { class:'pane-preview-tabs' }), element('div', { class:'pane-preview-footer' }, '↑ ↓ Navigate · Enter Replace · Esc Cancel'));
+      node.append(card);
+    }
+    host.before(node);
+    extraPreviews.set(host, { node, card, kind });
+    added = true;
+  }
+  return added;
+}
+
+function organizeSections() {
+  for (const [marker, record] of sections) if (!record.group.isConnected) sections.delete(marker);
+  const names = [['0', 'Open Pane'], ['1', 'Accordion'], ['scrolling', 'Scrolling (experimental)'], ['2', 'Glass style'], ['3', 'Appearance'], ['4', 'Tab behavior'], ['5', 'Custom glass']];
+  for (let index = 0; index < names.length; index++) {
+    const marker = document.getElementById(`mod-pane-section-${names[index][0]}`);
+    if (!marker || sections.has(marker)) continue;
+    const nodes = [marker];
+    let next = marker.nextElementSibling;
+    while (next && !next.id.startsWith('mod-pane-section-')) {
+      nodes.push(next); next = next.nextElementSibling;
+    }
+    const group = element('details', { class:'pane-settings-section' });
+    if (index === 0) group.open = true;
+    const summary = element('summary', {}, names[index][1]);
+    const content = element('div', { class:'pane-settings-section-body' });
+    marker.before(group);
+    group.append(summary, content);
+    // Preserve native preference nodes and their event listeners.
+    for (const node of nodes.slice(1)) content.appendChild(node);
+    marker.hidden = true;
+    content.prepend(marker);
+    sections.set(marker, { group, nodes });
+  }
+}
+
 function scan() {
   frame = 0;
+  organizeSections();
   for (const setting of [...numericSettings, ...colorSettings, ...accordionShortcuts]) {
     const row = document.getElementById((prefix + setting.key).replaceAll('.','-'));
     if (!row || rows.has(row)) continue;
@@ -218,8 +355,10 @@ function scan() {
     rows.set(row, { original, sync });
     sync();
   }
+  const addedPreview = buildExtraPreviews();
   const host = document.getElementById('mod-pane-accent-color');
   if (host && (!preview?.isConnected || previewHost !== host)) { preview?.remove(); buildPreview(host); refresh(); }
+  else if (addedPreview) refresh();
 }
 function schedule() { if (!frame) frame = window.requestAnimationFrame(scan); }
 const observer = new MutationObserver(schedule);
@@ -235,7 +374,13 @@ function destroy() {
   prefs.removeObserver(prefix, preferenceObserver);
   scheme.removeEventListener('change', refresh);
   for (const [row, record] of rows) if (row.isConnected) row.replaceChildren(...record.original);
-  rows.clear(); preview?.remove(); style.remove();
+  rows.clear(); preview?.remove();
+  for (const [marker, {group, nodes}] of sections) {
+    if (group.isConnected) { for (const node of nodes) group.before(node); group.remove(); marker.hidden = false; }
+  }
+  sections.clear();
+  for (const record of extraPreviews.values()) record.node.remove();
+  extraPreviews.clear(); style.remove();
   if (window[INSTANCE]?.destroy === destroy) delete window[INSTANCE];
 }
 window[INSTANCE] = { destroy };

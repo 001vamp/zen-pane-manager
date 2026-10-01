@@ -226,4 +226,76 @@ assert.equal(doc.querySelectorAll('.pane-accordion-handle').length,0,'unloading 
 assert.equal(lastLayout,data.layoutTree,'unloading accordion restores the unchanged native tree');
 assert.equal((win.listeners.get('keydown') ?? []).length,0,'unload removes accordion shortcuts');
 assert.ok(tabs.every(tab=>!container(tab).hasAttribute('--pane-accordion-line-left')),'unload removes separator geometry');
+// Recreate the controller against restored native tabs, as a browser restart does.
+const savedLayouts = new Map();
+win.SessionStore = {
+  getCustomTabValue: tab => savedLayouts.get(tab) ?? '',
+  setCustomTabValue: (tab, key, value) => savedLayouts.set(tab, value),
+  deleteCustomTabValue: tab => savedLayouts.delete(tab),
+};
+const options = {notify(){},chooseTab(){},appearance(){},origins:{begin(){},end(){},destroy(){}}};
+const beforeRestart = createMultiwindow(win, options);
+beforeRestart.arrange(tabs[0], 'accordion');
+assert.equal(savedLayouts.size, 2, 'accordion is saved on its member tabs');
+const preservedTree = data.layoutTree;
+beforeRestart.destroy();
+assert.equal(savedLayouts.size, 2, 'unload preserves restart metadata');
+view._sessionRestoring = true;
+const afterRestart = createMultiwindow(win, options); flush();
+assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'wait for native session restore');
+view._sessionRestoring = false;
+win.emit('SSWindowStateReady'); flush();
+assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 2, 'restore accordion after restart');
+assert.equal(data.layoutTree, preservedTree, 'restoration keeps the native layout tree');
+afterRestart.arrange(tabs[0], 'tiles');
+assert.equal(savedLayouts.size, 0, 'explicit return to tiles clears saved accordion');
+afterRestart.destroy();
+const finalRestart = createMultiwindow(win, options); flush();
+assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'tiles stay tiled after next restart');
+finalRestart.destroy();
+// First scrolling prototype: stable native pages, modifier-gated wheel and cleanup.
+const scrolling = createMultiwindow(win, {...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}});
+scrolling.arrange(tabs[0], 'scrolling');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+const firstWidth = container(tabs[0]).getAttribute('--pane-scrolling-width');
+assert.equal(firstWidth, '780px');
+let consumed = false;
+const wheel = {target:tabs[0].linkedBrowser, deltaY:100, deltaX:0, deltaMode:0, preventDefault(){consumed=true;}};
+win.emit('wheel', wheel);
+assert.equal(consumed, false, 'ordinary page wheel is untouched');
+win.emit('wheel', {...wheel, altKey:true, shiftKey:true});
+assert.equal(consumed, true, 'modifier wheel pans');
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-x'), '-100px');
+scrolling.scrollStep(data, 1);
+assert.equal(win.gBrowser.selectedTab, tabs[1]);
+assert.equal(container(tabs[1]).getAttribute('--pane-scrolling-x'), '420px', 'focus brings full column into view');
+scrolling.add(tabs[1],tabs[2],'grid');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'), firstWidth, 'new columns do not shrink existing pages');
+assert.equal(container(tabs[2]).hasAttribute('pane-scrolling'), true);
+consumed = false;
+win.emit('wheel', {...wheel, altKey:true, shiftKey:true, deltaY:10000});
+assert.equal(container(tabs[2]).getAttribute('--pane-scrolling-x'), '420px', 'last column reaches the right edge');
+assert.equal(consumed, true);
+consumed = false;
+win.emit('wheel', {...wheel, altKey:true, shiftKey:true, deltaY:100});
+assert.equal(consumed, true, 'gesture stays intercepted at right boundary');
+assert.equal(container(tabs[2]).getAttribute('--pane-scrolling-x'), '420px');
+consumed = false;
+win.emit('wheel', {...wheel, deltaY:100});
+assert.equal(consumed, false, 'releasing modifier restores webpage scrolling');
+win.emit('keyup', {type:'keyup',altKey:false,shiftKey:false});
+assert.equal(container(tabs[2]).getAttribute('--pane-scrolling-width'), '1200px', 'release returns focused page to full width');
+assert.equal(win.gBrowser.selectedTab, tabs[2], 'release activates column nearest view center');
+scrolling.arrange(tabs[2], 'accordion');
+assert.equal(container(tabs[2]).hasAttribute('pane-scrolling'), false, 'accordion clears scrolling styles');
+scrolling.arrange(tabs[0], 'scrolling');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+scrolling.arrange(tabs[0], 'tiles');
+assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0);
+scrolling.arrange(tabs[0], 'scrolling');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+scrolling.destroy();
+assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0, 'unload cleans scrolling headers');
+assert.equal((win.listeners.get('wheel') ?? []).length, 0, 'unload removes wheel interception');
 console.log('Multiple floats and accordion: navigation, state preservation, limits, rollback and cleanup passed.');

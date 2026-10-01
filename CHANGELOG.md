@@ -4,6 +4,15 @@ All notable changes to Pane are documented here.
 
 ## 0.10.0-dev (unreleased)
 
+- Experimental scrolling layout: pages stay full width until you hold the modifier to reveal columns. Scroll with the wheel or two fingers, then release to expand the centered tab. Resize each column by its edge and reset its width with a double-click. Modified gestures are shielded from webpages. Scrolling layouts and widths reset after restarting.
+
+- Inset accordion separators away from rounded corners and add separate active-tab border thickness, color, opacity, and preview.
+
+- Restore accordion layouts after reopening Zen, while preserving the underlying split and divider sizes.
+
+- Group settings into collapsible sections, shorten descriptions, and show custom controls only when they apply.
+
+- Quick start for everyone updating, missed-feature cards, and a guide that can be reopened from Pane appearance settings.
 - A dismissible feature notice shows once when a new announcement ships, with a small layout reference.
 
 - Horizontal accordion for existing splits, with live page edges and restoration of the original tiled layout.

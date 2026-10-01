@@ -21,6 +21,16 @@ export function parseBinding(value) {
   return binding;
 }
 
+export function bindingFromEvent(event) {
+  if (event.repeat || event.isComposing || ['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'].includes(event.key)) return null;
+  let key = event.key;
+  if (/^Key[A-Z]$/.test(event.code ?? '')) key = event.code.slice(3);
+  else if (/^Digit[0-9]$/.test(event.code ?? '')) key = event.code.slice(5);
+  if (key === '+') key = 'Plus';
+  if (key === ' ') key = 'Space';
+  return parseBinding([event.ctrlKey && 'Ctrl', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Command', key].filter(Boolean).join('+'));
+}
+
 export function matchesBinding(event, binding) {
   if (!binding || event.repeat || event.isComposing) return false;
   // Real macOS Option events report AltGraph, unlike WebDriver's synthetic Alt.
