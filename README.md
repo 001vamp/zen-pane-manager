@@ -46,7 +46,7 @@ Choose **Unsplit** on a split card to separate the whole group. Every page stays
 
 The toolbar appears briefly when you switch panes. Move your pointer to the **top center of the pane** to bring it back. It hides when you move away and stays visible while you use its controls with the keyboard.
 
-Use it to open the picker, go back or forward, rearrange the pane, or remove it from the split. The **three-dot menu** lets you change layouts or add another tab.
+Use it to open the picker, go back or forward, rearrange the pane, or remove it from the split. The **three-dot menu** lets you change layouts or add another tab. Press **Option+Shift+L** on Mac or **Alt+Shift+L** on Windows/Linux to open the selected split’s layout menu. The shortcut is customizable. Choose **Always visible** in settings if you prefer to keep toolbars open; floating headers also have a per-pane pin.
 
 ![Pane’s layout menu with split right, split below, grid, floating, and normal tab options](docs/pane-current-arrange.png)
 
@@ -64,9 +64,9 @@ The close button returns the tab to the sidebar. It does not close the page. Use
 
 In an existing split, open the layout menu and choose **Horizontal accordion**. One tab comes forward while narrow live edges of the other pages remain visible. Hover an edge for a small favicon and title hint, then click to switch tabs. Use **Option+Shift+Left/Right** on Mac or **Alt+Shift+Left/Right** on Windows or Linux to switch from the page. Navigation wraps at either end. When an edge has keyboard focus, plain **Left/Right**, **Home**, and **End** also work.
 
-In Pane’s settings, change either accordion shortcut or enter **Disabled** to turn it off. Duplicate shortcuts within Pane are flagged and inactive until corrected. Accordion uses soft shadows to separate tabs. Optional edge lines are off by default; adjust their thickness, color, and opacity in the appearance controls.
+In Pane’s settings, use **Change shortcut** to record either layout navigation shortcut, or **Disable** to turn it off. Duplicate shortcuts within Pane are flagged and inactive until corrected. Accordion uses soft shadows to separate tabs. Optional edge lines are off by default; adjust their thickness, color, and opacity in the appearance controls.
 
-Hover the top edge of the active page to reveal its title and controls. Use the arrows to switch tabs, the three-dot button to arrange them, or the grid button to **Restore tiled layout** with your previous divider sizes. Dock any floating tabs before entering accordion. This prototype is temporary and returns to tiles when Pane is disabled or Zen restarts.
+Hover the top edge of the active page to reveal its title and controls. Use the arrows to switch tabs, the three-dot button to arrange them, or the grid button to **Restore tiled layout** with your previous divider sizes. Dock any floating tabs before entering accordion. Accordion is restored when Zen restores the split after a restart. Disabling Pane removes its presentation and restores tracked tabs to their original placement.
 
 ### Pinned tabs, folders, and Essentials
 
@@ -78,9 +78,11 @@ The picker shows tabs and split destinations from the active workspace. When rep
 
 ## Settings
 
-Click the **gear in the picker** to open Pane’s appearance settings. You can change colors, opacity, blur, size, spacing, and how many recent tabs appear. Sliders also accept typed values. Changes save immediately, and each control has a reset button.
+Click the **gear in the picker** for the complete settings page. Pane’s gear in **Settings → Sine Mods** exposes the same controls, with a button to open the complete page.
 
-For shortcuts and tab behavior, open **Settings → Sine Mods → Pane’s gear**. To choose your own keybind, set **Keyboard shortcut** to **Custom** and enter a combination such as `Command+Shift+P`, `Ctrl+Space`, or `F8`. Shortcuts reserved by Zen or your operating system may not reach Pane.
+Change appearance, toolbar visibility, shortcuts, scrolling widths, and tab behavior. Appearance controls have live previews and precise values. Changes save immediately. **Reset this section** resets only that section.
+
+For a shortcut, click **Change shortcut**, press your keys, and release. **Escape** cancels; **Use default** and **Disable** are available. A plain letter or number gets a warning before saving. Pane detects its own shortcut conflicts, but shortcuts reserved by Zen or your operating system may not reach it.
 
 ## If nothing happens
 
@@ -107,7 +109,7 @@ See [COMPATIBILITY.md](COMPATIBILITY.md) for more detail.
 
 ## About
 
-Pane runs locally, with no telemetry or accounts. Tab previews are captured in memory and are not saved or uploaded. Pane stores only tab placement details in Zen's local session data so it can restore special tabs after a restart. Sleeping tabs stay asleep until opened. See [Privacy](PRIVACY.md) and [Security](SECURITY.md).
+Pane runs locally, with no telemetry or accounts. Tab previews are captured in memory and are not saved or uploaded. Pane stores tab placement and layout details locally so it can restore special tabs and presentations after a restart. Sleeping tabs stay asleep until opened. See [Privacy](PRIVACY.md) and [Security](SECURITY.md).
 
 Try Pane with your own tabs, layouts, and mods. If something breaks, try to reproduce it and [open an issue](https://github.com/001vamp/zen-pane-manager/issues/new?template=bug_report.yml) with the steps and a diagnostic report. Testing, debugging, and fixes are welcome.
 
@@ -119,8 +121,8 @@ Licensed under [MPL-2.0](LICENSE). Third-party notices are in [LICENSE-NOTES.md]
 
 ### Experimental scrolling
 
-In an existing split, open the layout menu and choose **Scrolling (experimental)**. Your active page stays full width. Hold **Option+Shift** on Mac or **Alt+Shift** on Windows/Linux to reveal the columns, then use the wheel or two-finger trackpad scrolling. Release to expand the centered tab.
+In an existing split, open the layout menu and choose **Scrolling (experimental)**. Your active page stays full width. Hold **Option+Shift** on Mac or **Alt+Shift** on Windows/Linux to reveal the columns, then use the wheel or two-finger trackpad scrolling. Release to expand the centered tab. **Escape** cancels and returns to the starting tab. Opening the layout menu cancels the gesture without committing another selection.
 
-While the columns are visible, drag a right edge to resize a tab. Double-click the edge or use its header reset button to restore the default width. You can change the modifier and default width in Pane settings.
+While the columns are visible, drag a right edge to resize a tab. Double-click the edge or use its header reset button to restore the default width. You can change the modifier and default width in Pane settings. Individual width overrides survive changes to the default. **Reset all column widths** in the layout menu clears those overrides.
 
-This is an early feature. Scrolling layouts and custom widths reset after restarting Zen. Please report problems with your OS, Zen version, and steps to reproduce.
+This is an early feature. Scrolling layouts and custom column widths are restored when Zen restores the split. Please report problems with your OS, Zen version, and steps to reproduce.

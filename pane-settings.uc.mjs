@@ -1,13 +1,15 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import { numericSettings, colorSettings, numericValue, glassPresets } from './appearance.mjs?pane=0.10.0-dev-borders1';
-import { accordionShortcuts, accordionBindings, shortcutLabel, parseBinding, bindingFromEvent } from './keybindings.mjs?pane=0.10.0-dev-recorder1';
+import { numericSettings, colorSettings, numericValue, glassPresets, settingsSections } from './appearance.mjs?pane=0.10.0-dev-phases123';
+import { shortcutSettings, accordionBindings, pickerBinding, diagnosticsBinding, scrollingModifiers, shortcutLabel, parseBinding, bindingFromEvent } from './keybindings.mjs?pane=0.10.0-dev-phases123';
 
 const INSTANCE = '__paneSettings';
 window[INSTANCE]?.destroy();
 const prefs = Services.prefs;
 const prefix = 'mod.pane.';
+let stopRecording = null;
+const hiddenRows=new Map();
 const rows = new Map();
 const sections = new Map();
 let preview, previewHost, frame = 0;
@@ -114,41 +116,95 @@ function numberControl(setting, box) {
 }
 function shortcutControl(setting, box) {
   const id = `pane-control-${setting.key}`;
-  const input = element('input', { id, type:'text', spellcheck:'false' });
-  const error = element('span', { id:`${id}-error`, class:'pane-control-error', 'aria-live':'polite' });
-  const note = element('span', { class:'pane-control-note' });
-  input.setAttribute('aria-describedby', `${error.id} ${id}-note`);
-  note.id = `${id}-note`;
-  let recording = false;
-  const recordButton = element('button', { type:'button', 'aria-label':`Record ${setting.label}` }, 'Record shortcut');
+  const display = element('input', {id, type:'text', readonly:'true', 'aria-label':setting.label});
+  const note = element('span', {class:'pane-control-note', 'aria-live':'polite'});
+  const change = element('button', {type:'button'}, 'Change shortcut');
+  const reset = element('button', {type:'button'}, 'Use default');
+  const disable = element('button', {type:'button'}, 'Disable');
+  let recording = false, held = '', warnedBinding='';
   const sync = () => {
-    const record = accordionBindings(prefs).find(record => record.key === setting.key);
-    if (document.activeElement !== input) input.value = prefs.getStringPref(prefix + setting.key, 'Auto');
-    input.setAttribute('aria-invalid', String(Boolean(record.error)));
-    error.textContent = record.error;
-    note.textContent = recording ? 'Press your shortcut. Escape cancels.' : `Default: ${shortcutLabel(parseBinding(setting.defaultBinding))}. You can also type a combination.`;
+    const record=accordionBindings(prefs).find(r=>r.key===setting.key);
+    const binding = setting.picker ? pickerBinding(prefs) : setting.hold ? scrollingModifiers(prefs)
+      : setting.key === 'diagnostics-keybinding' ? diagnosticsBinding(prefs)
+      : accordionBindings(prefs).find(r=>r.key===setting.key)?.binding;
+    display.setAttribute('aria-invalid',String(Boolean(record?.error)));
+    display.value = setting.hold && binding ? shortcutLabel(binding).replace('+Space','') : shortcutLabel(binding);
+    change.textContent = recording ? 'Cancel' : 'Change shortcut';
+    change.toggleAttribute('data-pane-recording', recording);
+    note.textContent = recording ? (setting.hold ? 'Hold your modifier keys, then release to save. Escape cancels.' : 'Press your shortcut. Escape cancels.') : record?.error || 'Click Change shortcut, then press the keys you want. Zen and system conflicts cannot be detected reliably.';
+    display.toggleAttribute('data-recording',recording);
   };
-  input.addEventListener('input', () => { prefs.setStringPref(prefix + setting.key, input.value.trim()); refresh(); });
-  const line = element('div', { class:'pane-control-line' });
-  recordButton.addEventListener('click', () => { recording = !recording; recordButton.textContent = recording ? 'Listening…' : 'Record shortcut'; sync(); });
-  recordButton.addEventListener('blur', () => { recording = false; recordButton.textContent = 'Record shortcut'; sync(); });
-  recordButton.addEventListener('keydown', event => {
-    if (!recording) return;
-    if (event.key === 'Tab') return;
-    event.preventDefault(); event.stopPropagation();
-    if (event.key === 'Escape') { recording = false; recordButton.textContent = 'Record shortcut'; sync(); return; }
-    const binding = bindingFromEvent(event);
-    if (!binding) return;
-    recording = false; recordButton.textContent = 'Record shortcut';
-    prefs.setStringPref(prefix + setting.key, binding.label);
-    input.value = binding.label;
-    refresh();
+  const stop = () => {
+    recording=false; held=''; warnedBinding='';
+    window.removeEventListener('keydown', captureDown, true);
+    window.removeEventListener('keyup', captureUp, true);
+    window.removeEventListener('blur', stop);
+    document.removeEventListener('pointerdown', outsideRecorder, true);
+    if (stopRecording===stop) {stopRecording=null; document.documentElement.removeAttribute('data-pane-recording');}
+    sync();
+  };
+  const outsideRecorder = event => {if (!box.contains(event.target)) stop();};
+  const save = value => {
+    if (!setting.hold) {
+      const binding = parseBinding(value);
+      const candidates = [
+        {key:'shortcut', label:'Open Pane', binding:pickerBinding(prefs)},
+        {key:'diagnostics-keybinding', label:'Diagnostic report', binding:diagnosticsBinding(prefs)},
+        ...accordionBindings(prefs),
+      ];
+      const conflict = candidates.find(other=>other.key !== setting.key && other.binding?.label === binding?.label);
+      if (conflict) { note.textContent = `Already used by ${conflict.label}. Press another combination.`; return; }
+    }
+    if (setting.picker) { prefs.setStringPref(prefix+'custom-shortcut',value); prefs.setIntPref(prefix+'shortcut',3); }
+    else if (setting.hold) {prefs.setStringPref(prefix+'scrolling-custom-modifier',value); prefs.setIntPref(prefix+'scrolling-modifier',3);}
+    else prefs.setStringPref(prefix+setting.key,value);
+    stop(); refresh();
+  };
+  change.addEventListener('click',()=>{
+    if (recording) return stop();
+    stopRecording?.();
+    recording=true; held=''; stopRecording=stop;
+    document.documentElement.setAttribute('data-pane-recording','true');
+    window.addEventListener('keydown',captureDown,true);
+    window.addEventListener('keyup',captureUp,true);
+    window.addEventListener('blur',stop);
+    document.addEventListener('pointerdown',outsideRecorder,true);
+    sync();
   });
-  const disable = element('button', { type:'button', 'aria-label':`Disable ${setting.label}` }, 'Disable');
-  disable.addEventListener('click', () => { prefs.setStringPref(prefix + setting.key, 'Disabled'); input.value = 'Disabled'; refresh(); });
-  const reset = resetButton(setting); reset.textContent = 'Use default';
-  line.append(input, recordButton, reset, disable);
-  box.append(element('label', { for:id }, setting.label), line, note, error);
+  const captureDown = event=>{
+    if (!box.isConnected) return stop();
+    if (!recording) return;
+    if (event.key==='Tab') return stop();
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (event.key==='Escape') return stop();
+    if (setting.hold) {
+      if (!event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {note.textContent='Hold Control, Option/Alt, Shift or Command.'; return;}
+      held = [event.ctrlKey&&'Ctrl',event.altKey&&'Alt',event.shiftKey&&'Shift',event.metaKey&&'Command'].filter(Boolean).join('+');
+      display.value=held; return;
+    }
+    const binding=bindingFromEvent(event);
+    if (binding && /^[a-z0-9]$/i.test(binding.key) && !binding.ctrlKey && !binding.altKey && !binding.shiftKey && !binding.metaKey && warnedBinding!==binding.label) {
+      warnedBinding=binding.label;note.textContent='This shortcut may intercept typing. Press it again to use it, or choose a modifier/function key.'; return;
+    }
+    if (binding) save(binding.label);
+  };
+  const captureUp = event=>{
+    if (!recording || !setting.hold || !held) return;
+    event.preventDefault(); event.stopImmediatePropagation(); save(held);
+  };
+  reset.addEventListener('click',()=>{
+    if (setting.picker || setting.hold) prefs.setIntPref(prefix+setting.key,0);
+    else prefs.clearUserPref(prefix+setting.key);
+    stop(); refresh();
+  });
+  disable.addEventListener('click',()=>{
+    if (setting.picker || setting.hold) prefs.setIntPref(prefix+setting.key,2);
+    else prefs.setStringPref(prefix+setting.key,'Disabled');
+    stop(); refresh();
+  });
+  const line=element('div',{class:'pane-control-line'});
+  line.append(display,change,reset,disable);
+  box.append(element('label',{for:id},setting.label),line,note);
   return sync;
 }
 function colorControl(setting, box) {
@@ -212,7 +268,7 @@ function buildPreview(host) {
   const reset = element('button', { type:'button' }, 'Reset appearance');
   reset.addEventListener('click', () => {
     for (const setting of [...numericSettings, ...colorSettings]) {
-      if (setting.key !== 'recent-count') prefs.clearUserPref(prefix + setting.key);
+      if (!['recent-count', 'scrolling-width'].includes(setting.key)) prefs.clearUserPref(prefix + setting.key);
     }
     prefs.setIntPref(prefix + 'style-preset', 0);
     prefs.clearUserPref(prefix + 'compact-picker');
@@ -231,6 +287,7 @@ function buildPreview(host) {
   host.before(preview);
 }
 function refresh() {
+  for (const row of hiddenRows.keys()) if (row.isConnected) row.hidden=true;
   for (const [row, record] of rows) {
     if (!row.isConnected) { rows.delete(row); continue; }
     record.sync();
@@ -319,7 +376,7 @@ function buildExtraPreviews() {
 
 function organizeSections() {
   for (const [marker, record] of sections) if (!record.group.isConnected) sections.delete(marker);
-  const names = [['0', 'Open Pane'], ['1', 'Accordion'], ['scrolling', 'Scrolling (experimental)'], ['2', 'Glass style'], ['3', 'Appearance'], ['4', 'Tab behavior'], ['5', 'Custom glass']];
+  const names = settingsSections;
   for (let index = 0; index < names.length; index++) {
     const marker = document.getElementById(`mod-pane-section-${names[index][0]}`);
     if (!marker || sections.has(marker)) continue;
@@ -334,6 +391,14 @@ function organizeSections() {
     const content = element('div', { class:'pane-settings-section-body' });
     marker.before(group);
     group.append(summary, content);
+    const reset=element('button',{type:'button',class:'pane-section-reset'},'Reset this section');
+    reset.addEventListener('click',()=>{
+      stopRecording?.();
+      const owned=[...content.querySelectorAll('[id]')].map(node=>node.id).filter(id=>id.startsWith('mod-pane-') && !id.startsWith('mod-pane-section-'));
+      for (const id of owned) {const key=prefix+id.slice('mod-pane-'.length);if (prefs.prefHasUserValue(key)) prefs.clearUserPref(key);}
+      refresh();
+    });
+    content.append(reset);
     // Preserve native preference nodes and their event listeners.
     for (const node of nodes.slice(1)) content.appendChild(node);
     marker.hidden = true;
@@ -345,7 +410,17 @@ function organizeSections() {
 function scan() {
   frame = 0;
   organizeSections();
-  for (const setting of [...numericSettings, ...colorSettings, ...accordionShortcuts]) {
+  const openSection=document.getElementById('mod-pane-section-0');
+  if (openSection && !document.getElementById('pane-complete-settings') && !location.href.includes('/settings.html')) {
+    const complete=element('button',{id:'pane-complete-settings',type:'button'},'Open complete Pane settings');
+    complete.addEventListener('click',()=>Services.wm.getMostRecentWindow('navigator:browser')?.openTrustedLinkIn('chrome://sine/content/zen-pane-manager/settings.html','tab'));
+    openSection.after(complete);
+  }
+  for (const key of ['custom-shortcut','scrolling-custom-modifier']) {
+    const row = document.getElementById('mod-pane-'+key);
+    if (row) {if (!hiddenRows.has(row)) hiddenRows.set(row,row.hidden);row.hidden = true;}
+  }
+  for (const setting of [...numericSettings, ...colorSettings, ...shortcutSettings]) {
     const row = document.getElementById((prefix + setting.key).replaceAll('.','-'));
     if (!row || rows.has(row)) continue;
     const original = [...row.childNodes];
@@ -368,6 +443,11 @@ prefs.addObserver(prefix, preferenceObserver);
 const scheme = window.matchMedia('(prefers-color-scheme: dark)');
 scheme.addEventListener('change', refresh);
 function destroy() {
+  stopRecording?.();
+  document.getElementById('pane-complete-settings')?.remove();
+  document.querySelectorAll('.pane-section-reset').forEach(node=>node.remove());
+  for (const [row,hidden] of hiddenRows) row.hidden=hidden;
+  hiddenRows.clear();
   window.removeEventListener("unload", destroy);
   observer.disconnect();
   if (frame) window.cancelAnimationFrame(frame);

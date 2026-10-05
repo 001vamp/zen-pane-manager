@@ -11,6 +11,23 @@
     "id": "mod.pane.section-0"
   },
   {
+    "property": "mod.pane.toolbar-visibility",
+    "label": "Toolbar visibility",
+    "type": "dropdown",
+    "value": "number",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Auto-hide",
+        "value": 0
+      },
+      {
+        "label": "Always visible",
+        "value": 1
+      }
+    ]
+  },
+  {
     "property": "mod.pane.shortcut",
     "label": "Keyboard shortcut",
     "type": "dropdown",
@@ -50,7 +67,7 @@
   },
   {
     "type": "text",
-    "label": "Choose Custom to enter your own shortcut. Use Plus for the + key.",
+    "label": "Click Change shortcut and press your preferred keys.",
     "size": "12px"
   },
   {
@@ -88,20 +105,26 @@
     "id": "mod.pane.section-1"
   },
   {
+    "property": "mod.pane.layout-menu",
+    "label": "Open split layout menu",
+    "type": "string",
+    "defaultValue": "Auto"
+  },
+  {
     "property": "mod.pane.accordion-previous",
-    "label": "Previous accordion tab",
+    "label": "Previous tab in layout",
     "type": "string",
     "defaultValue": "Auto"
   },
   {
     "property": "mod.pane.accordion-next",
-    "label": "Next accordion tab",
+    "label": "Next tab in layout",
     "type": "string",
     "defaultValue": "Auto"
   },
   {
     "type": "text",
-    "label": "These shortcuts work only in the active accordion.",
+    "label": "These shortcuts navigate the active accordion or scrolling layout.",
     "size": "12px"
   },
   {
@@ -222,6 +245,10 @@
       {
         "label": "Disabled",
         "value": 2
+      },
+      {
+        "label": "Custom",
+        "value": 3
       }
     ]
   },
@@ -249,7 +276,7 @@
   {
     "type": "text",
     "size": "12px",
-    "label": "Choose Scrolling in a split layout menu. Hold the modifier to reveal columns, then scroll with the wheel or two fingers. Release to open the centered tab at full width. Drag a column edge to resize; double-click to reset. Experimental: layouts and column widths are not restored after restarting."
+    "label": "Choose Scrolling in a split layout menu. Hold the modifier to reveal columns, then scroll with the wheel or two fingers. Release to open the centered tab at full width. Drag a column edge to resize; double-click to reset. Experimental: the layout and column widths are saved with the split."
   },
   {
     "type": "separator",
@@ -348,6 +375,115 @@
       {
         "label": "Centered",
         "value": 2
+      }
+    ]
+  },
+  {
+    "property": "mod.pane.item-spacing",
+    "label": "Tab spacing",
+    "type": "dropdown",
+    "defaultValue": 8,
+    "value": "number",
+    "options": [
+      {
+        "label": "0 px",
+        "value": 0
+      },
+      {
+        "label": "1 px",
+        "value": 1
+      },
+      {
+        "label": "2 px",
+        "value": 2
+      },
+      {
+        "label": "3 px",
+        "value": 3
+      },
+      {
+        "label": "4 px",
+        "value": 4
+      },
+      {
+        "label": "5 px",
+        "value": 5
+      },
+      {
+        "label": "6 px",
+        "value": 6
+      },
+      {
+        "label": "7 px",
+        "value": 7
+      },
+      {
+        "label": "8 px",
+        "value": 8
+      },
+      {
+        "label": "9 px",
+        "value": 9
+      },
+      {
+        "label": "10 px",
+        "value": 10
+      },
+      {
+        "label": "11 px",
+        "value": 11
+      },
+      {
+        "label": "12 px",
+        "value": 12
+      },
+      {
+        "label": "13 px",
+        "value": 13
+      },
+      {
+        "label": "14 px",
+        "value": 14
+      },
+      {
+        "label": "15 px",
+        "value": 15
+      },
+      {
+        "label": "16 px",
+        "value": 16
+      },
+      {
+        "label": "17 px",
+        "value": 17
+      },
+      {
+        "label": "18 px",
+        "value": 18
+      },
+      {
+        "label": "19 px",
+        "value": 19
+      },
+      {
+        "label": "20 px",
+        "value": 20
+      },
+      {
+        "label": "21 px",
+        "value": 21
+      },
+      {
+        "label": "22 px",
+        "value": 22
+      },
+      {
+        "label": "23 px",
+        "value": 23
+      },
+      {
+        "label": "24 px",
+        "value": 24
       }
     ]
   },
@@ -555,5 +691,17 @@
     "label": "Show keyboard hints in the footer",
     "type": "checkbox",
     "defaultValue": true
+  },
+  {
+    "property": "mod.pane.scrolling-custom-modifier",
+    "label": "Custom scrolling modifier",
+    "type": "string",
+    "defaultValue": "Alt+Shift",
+    "conditions": {
+      "if": {
+        "property": "mod.pane.scrolling-modifier",
+        "value": 3
+      }
+    }
   }
 ]

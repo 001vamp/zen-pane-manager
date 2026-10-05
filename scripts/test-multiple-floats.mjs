@@ -19,7 +19,8 @@ class Node {
   prepend(...nodes) { for (const n of nodes) n.parent = this; this.children.unshift(...nodes); }
   replaceChildren(...nodes) { this.children = []; this.append(...nodes); }
   remove() { this.parent.children = this.parent.children.filter(n => n !== this); this.isConnected = false; }
-  matches(s) { return s.startsWith('.') ? this.className.split(' ').includes(s.slice(1)) : this.name === s; }
+  getBoundingClientRect() {return {left:0,top:0,right:1200,bottom:900,width:1200,height:900};}
+  matches(s) { if (s.startsWith('[data-mode]')) return (this.hasAttribute('data-mode') || this.dataset.mode !== undefined) && (!s.includes('aria-pressed') || this.getAttribute('aria-pressed')==='true'); return s.startsWith('.') ? this.className.split(' ').includes(s.slice(1)) : this.name === s; }
   querySelectorAll(s) { return this.children.flatMap(n => [...(s.split(',').some(x => n.matches(x)) ? [n] : []), ...n.querySelectorAll(s)]); }
   querySelector(s) { return this.querySelectorAll(s)[0] ?? null; }
   contains(node) { return this === node || this.children.some(child => child.contains(node)); }
@@ -33,8 +34,9 @@ class Node {
   focus() { this.ownerDocument.activeElement = this; }
   animate(keyframes,options) { const animation = {keyframes,options,cancel(){this.cancelled=true;}}; this.animations.push(animation); return animation; }
 }
-const doc = new Node(null); doc.ownerDocument = doc;
+const doc = new Node(null); doc.ownerDocument = doc; doc.documentElement=doc;
 doc.createElementNS = (ns,tag) => new Node(doc,tag);
+doc.createTextNode = text => {const node=new Node(doc,'#text');node.textContent=text;return node;};
 const tabs = Array.from({length:5}, (_,i) => {
   const tab = new Node(doc,'tab'); tab.label = `Tab ${i}`;
   const container = new Node(doc); container.className = 'browserSidebarContainer'; doc.append(container);
@@ -202,6 +204,12 @@ win.gBrowser.selectedTab = tabs[0];
 controller.arrange(tabs[2],'normal');
 assert.equal(win.gBrowser.selectedTab,tabs[0],'detaching in accordion keeps the remaining pane selected');
 assert.equal(container(tabs[2]).hasAttribute('pane-accordion'),false,'detaching cleans up accordion styles');
+assert.equal(container(tabs[0]).hasAttribute('pane-accordion'),true,'remaining accordion stays accordion');
+const removeBeforeFailure=view.removeTabFromGroup;
+view.removeTabFromGroup=()=>{throw new Error('detach failed');};
+assert.throws(()=>controller.arrange(tabs[0],'normal'),/detach failed/);
+assert.equal(container(tabs[0]).hasAttribute('pane-accordion'),true,'failed detach restores presentation');
+view.removeTabFromGroup=removeBeforeFailure;
 controller.arrange(tabs[0],'accordion');
 controller.arrange(tabs[0],'float');
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length,0,'floating returns the group to tiles');
@@ -228,17 +236,18 @@ assert.equal((win.listeners.get('keydown') ?? []).length,0,'unload removes accor
 assert.ok(tabs.every(tab=>!container(tab).hasAttribute('--pane-accordion-line-left')),'unload removes separator geometry');
 // Recreate the controller against restored native tabs, as a browser restart does.
 const savedLayouts = new Map();
+const savedScrollings = new Map();
 win.SessionStore = {
-  getCustomTabValue: tab => savedLayouts.get(tab) ?? '',
-  setCustomTabValue: (tab, key, value) => savedLayouts.set(tab, value),
-  deleteCustomTabValue: tab => savedLayouts.delete(tab),
+  getCustomTabValue: (tab,key) => (key==='pane-scrolling-v1'?savedScrollings:savedLayouts).get(tab) ?? '',
+  setCustomTabValue: (tab, key, value) => (key==='pane-scrolling-v1'?savedScrollings:savedLayouts).set(tab, value),
+  deleteCustomTabValue: (tab,key) => (key==='pane-scrolling-v1'?savedScrollings:savedLayouts).delete(tab),
 };
 const options = {notify(){},chooseTab(){},appearance(){},origins:{begin(){},end(){},destroy(){}}};
 const beforeRestart = createMultiwindow(win, options);
 beforeRestart.arrange(tabs[0], 'accordion');
 assert.equal(savedLayouts.size, 2, 'accordion is saved on its member tabs');
 const preservedTree = data.layoutTree;
-beforeRestart.destroy();
+options.origins.shuttingDown=true; beforeRestart.destroy(); options.origins.shuttingDown=false;
 assert.equal(savedLayouts.size, 2, 'unload preserves restart metadata');
 view._sessionRestoring = true;
 const afterRestart = createMultiwindow(win, options); flush();
@@ -255,20 +264,25 @@ assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'tiles st
 finalRestart.destroy();
 // First scrolling prototype: stable native pages, modifier-gated wheel and cleanup.
 const scrolling = createMultiwindow(win, {...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}});
+win.emit('keydown',{key:'l',altKey:true,shiftKey:true});
+assert.ok(doc.querySelector('.pane-layout-menu'),'layout shortcut opens menu in a tiled split');
+scrolling.closeMenu();
+win.emit('keydown',{key:'l',altKey:true,shiftKey:true,target:{ownerDocument:{documentElement:{hasAttribute:()=>true}}}});
+assert.equal(doc.querySelector('.pane-layout-menu'),null,'shortcut recording does not open a layout menu');
 scrolling.arrange(tabs[0], 'scrolling');
 win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
 const firstWidth = container(tabs[0]).getAttribute('--pane-scrolling-width');
 assert.equal(firstWidth, '780px');
 let consumed = false;
 const wheel = {target:tabs[0].linkedBrowser, deltaY:100, deltaX:0, deltaMode:0, preventDefault(){consumed=true;}};
-win.emit('wheel', wheel);
-assert.equal(consumed, false, 'ordinary page wheel is untouched');
+win.emit('wheel', {...wheel,deltaY:0});
+assert.equal(consumed, true, 'held gesture is reserved even without wheel modifier flags');
 win.emit('wheel', {...wheel, altKey:true, shiftKey:true});
 assert.equal(consumed, true, 'modifier wheel pans');
 assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-x'), '-100px');
 scrolling.scrollStep(data, 1);
-assert.equal(win.gBrowser.selectedTab, tabs[1]);
-assert.equal(container(tabs[1]).getAttribute('--pane-scrolling-x'), '420px', 'focus brings full column into view');
+assert.equal(win.gBrowser.selectedTab, tabs[0], 'overview step preserves the native selected tab');
+assert.equal(container(tabs[1]).getAttribute('--pane-scrolling-x'), '420px', 'overview step respects the last-column boundary');
 scrolling.add(tabs[1],tabs[2],'grid');
 win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
 assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'), firstWidth, 'new columns do not shrink existing pages');
@@ -277,16 +291,81 @@ consumed = false;
 win.emit('wheel', {...wheel, altKey:true, shiftKey:true, deltaY:10000});
 assert.equal(container(tabs[2]).getAttribute('--pane-scrolling-x'), '420px', 'last column reaches the right edge');
 assert.equal(consumed, true);
+assert.equal(container(tabs[2]).hasAttribute('pane-scrolling-landing'), true, 'highlight identifies release target');
+assert.equal(container(tabs[0]).hasAttribute('pane-scrolling-landing'), false);
 consumed = false;
 win.emit('wheel', {...wheel, altKey:true, shiftKey:true, deltaY:100});
 assert.equal(consumed, true, 'gesture stays intercepted at right boundary');
 assert.equal(container(tabs[2]).getAttribute('--pane-scrolling-x'), '420px');
 consumed = false;
 win.emit('wheel', {...wheel, deltaY:100});
-assert.equal(consumed, false, 'releasing modifier restores webpage scrolling');
+assert.equal(consumed, true, 'wheel flags cannot release a gesture while the key remains held');
+const selectedDuringOverview=win.gBrowser.selectedTab;
+scrolling.scrollStep(data,-1);
+assert.equal(win.gBrowser.selectedTab,selectedDuringOverview,'overview navigation does not steal native focus');
+scrolling.scrollStep(data,1);
+win.emit('blur',{type:'blur',target:tabs[2].linkedBrowser});
+assert.equal(container(tabs[2]).hasAttribute('pane-scrolling-overview'),true,'child focus changes do not close the overview');
 win.emit('keyup', {type:'keyup',altKey:false,shiftKey:false});
+assert.equal(doc.activeElement,tabs[2].linkedBrowser,'release focuses the landing page');
+consumed=false;
+win.emit('wheel',wheel);
+assert.equal(consumed,false,'page scrolling resumes after actual key release');
 assert.equal(container(tabs[2]).getAttribute('--pane-scrolling-width'), '1200px', 'release returns focused page to full width');
 assert.equal(win.gBrowser.selectedTab, tabs[2], 'release activates column nearest view center');
+assert.equal(doc.querySelectorAll('.pane-scrolling-handoff').length,1,'native handoff is covered before a new frame');
+flush(); flush();
+assert.equal(doc.querySelectorAll('.pane-scrolling-handoff').length,1,'animation frames alone do not reveal the page');
+tabs[2].linkedBrowser.isRemoteBrowser=true;
+tabs[2].linkedBrowser.hasLayers=false;
+win.emit('MozAfterPaint',{transactionId:1});
+assert.equal(doc.querySelectorAll('.pane-scrolling-handoff').length,1,'unready destination layers keep the cover');
+const slowTimer=[...timers.entries()].at(-1);
+timers.delete(slowTimer[0]); slowTimer[1]();
+assert.equal(doc.querySelectorAll('.pane-scrolling-handoff').length,1,'timeout cannot reveal unready layers');
+assert.ok(doc.querySelector('.pane-scrolling-wait'),'slow destination offers tiled recovery');
+tabs[2].linkedBrowser.hasLayers=true;
+win.gBrowser._switcher={visibleTab:tabs[1]};
+win.emit('MozAfterPaint',{transactionId:2});
+assert.equal(doc.querySelectorAll('.pane-scrolling-handoff').length,1,'outgoing native surface stays covered');
+win.gBrowser._switcher.visibleTab=tabs[2];
+win.emit('MozAfterPaint',{transactionId:3});
+delete win.gBrowser._switcher;
+assert.equal((win.listeners.get('MozAfterPaint')??[]).length,0,'paint listener cleans up after reveal');
+assert.equal(doc.querySelectorAll('.pane-scrolling-handoff').length,0,'completed paint releases the cover');
+win.emit('keydown',{type:'keydown',altKey:true,shiftKey:true});
+win.emit('wheel',{...wheel,deltaY:-10000});
+win.emit('keydown',{type:'keydown',key:'Escape',altKey:true,shiftKey:true});
+assert.equal(win.gBrowser.selectedTab,tabs[2],'Escape restores the starting tab');
+assert.equal(container(tabs[2]).hasAttribute('pane-scrolling-overview'),false,'Escape closes overview');
+win.emit('keydown',{type:'keydown',key:'ArrowLeft',altKey:true,shiftKey:true});
+assert.equal(container(tabs[2]).hasAttribute('pane-scrolling-overview'),false,'cancelled gesture cannot reopen while held');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
+assert.equal(win.gBrowser.selectedTab,tabs[2],'release after Escape does not commit');
+// The menu shortcut cancels a held overview without committing its landing tab.
+win.emit('keydown',{type:'keydown',altKey:true,shiftKey:true});
+win.emit('wheel',{...wheel,deltaY:-10000});
+win.emit('keydown',{type:'keydown',key:'l',altKey:true,shiftKey:true});
+assert.ok(doc.querySelector('.pane-layout-menu'),'menu opens during overview');
+assert.equal(container(tabs[2]).hasAttribute('pane-scrolling-overview'),false,'menu suspends overview');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
+assert.equal(win.gBrowser.selectedTab,tabs[2],'releasing menu shortcut preserves selection');
+scrolling.closeMenu();
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
+// Custom widths survive re-entering scrolling and a failed layout change.
+container(tabs[0]).querySelector('.pane-scrolling-resize').emit('keydown',{key:'ArrowRight'});
+scrolling.arrange(tabs[2],'scrolling');
+win.emit('keydown',{type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'),'800px','re-entering scrolling preserves individual widths');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
+const calculateBeforeFailure=view.calculateLayoutTree;
+view.calculateLayoutTree=()=>{throw new Error('layout failure');};
+assert.throws(()=>scrolling.arrange(tabs[0],'below'),/layout failure/);
+view.calculateLayoutTree=calculateBeforeFailure;
+assert.equal(win.gBrowser.selectedTab,tabs[2],'failed layout restores starting selection');
+win.emit('keydown',{type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'),'800px','failed layout restores custom widths');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
 scrolling.arrange(tabs[2], 'accordion');
 assert.equal(container(tabs[2]).hasAttribute('pane-scrolling'), false, 'accordion clears scrolling styles');
 scrolling.arrange(tabs[0], 'scrolling');
@@ -295,7 +374,41 @@ scrolling.arrange(tabs[0], 'tiles');
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0);
 scrolling.arrange(tabs[0], 'scrolling');
 win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
-scrolling.destroy();
+scrolling.arrange(tabs[2],'normal');
+assert.equal(container(tabs[0]).hasAttribute('pane-scrolling'),true,'remaining scrolling split keeps its presentation');
+scrolling.add(tabs[0],tabs[2],'grid');
+options.origins.shuttingDown=true; scrolling.destroy(); options.origins.shuttingDown=false;
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0, 'unload cleans scrolling headers');
 assert.equal((win.listeners.get('wheel') ?? []).length, 0, 'unload removes wheel interception');
 console.log('Multiple floats and accordion: navigation, state preservation, limits, rollback and cleanup passed.');
+
+assert.equal(savedScrollings.size,3,'scrolling metadata survives unload');
+const restoredScrolling=createMultiwindow(win,{...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}}); flush();
+assert.equal(doc.querySelectorAll('.pane-scrolling-header').length,3,'scrolling returns automatically after restart');
+restoredScrolling.arrange(tabs[0],'tiles');
+assert.equal(savedScrollings.size,0,'explicit tiles clears scrolling persistence');
+restoredScrolling.destroy();
+assert.equal(savedScrollings.size,0,'disabling clears scrolling recovery metadata');
+
+const snapshotPrototype=createMultiwindow(win,{...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}});
+snapshotPrototype.arrange(tabs[0],'snapshot');
+const snapshotWidth=container(tabs[0]).getAttribute('--pane-scrolling-width');
+win.emit('keydown',{type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'),snapshotWidth,'snapshot overview never resizes live page');
+assert.equal(doc.querySelectorAll('.pane-snapshot-card').length,3,'one snapshot card per native tab');
+assert.equal(doc.querySelectorAll('.pane-snapshot-overview').length,1,'overview is separate from webpage containers');
+const removedPreviewTab=data.tabs.pop();
+snapshotPrototype.sync(); flush();
+assert.equal(doc.querySelectorAll('.pane-snapshot-card').length,2,'removed tabs leave no stale snapshot cards');
+view.tabBrowserPanel.getBoundingClientRect=()=>({left:20,top:30,width:1000,height:700});
+snapshotPrototype.sync(); flush();
+assert.equal(doc.querySelector('.pane-snapshot-overview').getAttribute('width'),'1000px','snapshot bounds follow window resize');
+const otherGroup={tabs:[tabs[4]],gridType:'vsep',layoutTree:tree([tabs[4]])};
+view._data.push(otherGroup); view.currentView=1; win.gBrowser.selectedTab=tabs[4];
+snapshotPrototype.sync(); flush();
+assert.equal(doc.querySelectorAll('.pane-snapshot-overview').length,0,'leaving a split removes its overview');
+assert.equal(container(tabs[0]).hasAttribute('pane-scrolling-overview'),false,'background split does not retain gesture state');
+view.currentView=0; win.gBrowser.selectedTab=data.tabs[0];
+data.tabs.push(removedPreviewTab);
+snapshotPrototype.destroy();
+assert.equal(doc.querySelectorAll('.pane-snapshot-overview').length,0,'unload removes snapshot overlay');

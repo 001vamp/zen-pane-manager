@@ -5,3 +5,13 @@ node_modules/
 .idea/
 .vscode/
 *.zip
+
+# Local development, QA, and promotional scratch work
+local-work/
+output/
+.playwright-cli/
+.cursor/
+.dex/
+pane-reddit-update/
+docs/promo-assets/
+docs/pane-promo*.html

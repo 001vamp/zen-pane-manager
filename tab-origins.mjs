@@ -127,7 +127,7 @@ export function createTabOrigins(win) {
   browser.tabContainer.addEventListener('SSTabRestored', recover);
   win.Services.obs.addObserver(shutdownObserver, 'quit-application-granted');
   recover();
-  return { begin, end, reconcile,
+  return { begin, end, reconcile, get shuttingDown() {return shuttingDown || win.closed;},
     destroy() {
       win.clearTimeout(timer);
       for (const name of events) browser.tabContainer.removeEventListener(name, schedule);

@@ -1,7 +1,7 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-scrolling3";
-import { numericValue, glassPresets } from "./appearance.mjs?pane=0.10.0-dev-borders1";
-import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev-windows2";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-phases123";
+import { numericValue, glassPresets } from "./appearance.mjs?pane=0.10.0-dev-phases123";
+import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev-phases123";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -593,6 +593,7 @@ function buildPicker() {
 }
 
 function applyAppearance() {
+  document.documentElement.toggleAttribute('pane-toolbar-always',intPref('mod.pane.toolbar-visibility',0)===1);
   if (!dialog || !overlay) return;
   const preset = choice(intPref(PREF.preset, 0), [0, 1, 2, 3, 4], 0);
   const custom = {
@@ -717,13 +718,16 @@ function replacePane(incoming) {
     showToast("Zen’s split layout is not ready yet", "warning"); return;
   }
   diagnosticLog("replacement started", { paneCount: data.tabs.length });
-  let changed = false;
-  multiwindow.origins.begin([...data.tabs, incoming]);
+  let changed = false, prepared = false, rollbackFailed = false;
+  const previousSelection=gBrowser.selectedTab;
+  const savedPresentation=multiwindow.capturePresentation(data);
+  const presentation={...savedPresentation,floating:savedPresentation.floating.map(record=>({...record})),scrolling:savedPresentation.scrolling && {...savedPresentation.scrolling,widths:new Map(savedPresentation.scrolling.widths)}};
   try {
+    multiwindow.origins.begin([...data.tabs, incoming]); prepared=true;
+    changed=true;
     if (incoming.group !== splitGroup) gBrowser.moveTabToExistingGroup(incoming, splitGroup);
     data.tabs[index] = incoming;
     leaf.tab = incoming;
-    changed = true;
     view._tabToSplitNode?.delete(outgoing);
     view._tabToSplitNode?.set(incoming, leaf);
     view.resetTabState(outgoing, false);
@@ -732,6 +736,14 @@ function replacePane(incoming) {
     view.activateSplitView(data, true);
     dispatch("ZenSplitViewTabsSplit", splitGroup);
     gBrowser.selectedTab = incoming;
+    presentation.selected=incoming;
+    for (const record of presentation.floating) if (record.tab===outgoing) record.tab=incoming;
+    if (presentation.accordion===outgoing) presentation.accordion=incoming;
+    if (presentation.scrolling?.widths.has(outgoing)) {
+      presentation.scrolling.widths.set(incoming,presentation.scrolling.widths.get(outgoing));
+      presentation.scrolling.widths.delete(outgoing);
+    }
+    multiwindow.restorePresentation(data,presentation,incoming);
     if (!boolPref(PREF.keep, true)) gBrowser.removeTab(outgoing, { animate: true });
     diagnosticLog("replacement completed", { keptOutgoingTab: boolPref(PREF.keep, true) });
     showToast(`Now showing ${tabTitle(incoming)}`, "success");
@@ -752,11 +764,13 @@ function replacePane(incoming) {
         view.activateSplitView(data, true);
         dispatch("ZenTabRemovedFromSplit", incoming);
         dispatch("ZenSplitViewTabsSplit", splitGroup);
-        gBrowser.selectedTab = outgoing;
-      } catch (rollbackError) { console.error(TAG, "rollback failed", rollbackError); }
+        gBrowser.selectedTab = previousSelection;
+        multiwindow.restorePresentation(data,savedPresentation,previousSelection);
+      } catch (rollbackError) { rollbackFailed=true; console.error(TAG, "rollback failed", rollbackError); }
     }
-    showToast("The pane was not changed", "error");
-  } finally { multiwindow.origins.end(); }
+    if (changed && outgoing.closing) rollbackFailed=true;
+    showToast(rollbackFailed ? "Pane could not fully restore the split. Check your tabs and copy a diagnostic report." : "The swap failed. Your original split was restored.", "error");
+  } finally { if (prepared) multiwindow.origins.end(); }
 }
 
 const toolbarReveals = new Map();
@@ -769,6 +783,10 @@ function syncToolbarReveals() {
   const switched = selected !== lastToolbarTab;
   lastToolbarTab = selected;
   for (const header of document.querySelectorAll(".zen-view-splitter-header-container,.pane-float-header")) {
+    for (let i=0; i<dialog.style.length; i++) {
+      const property=dialog.style[i];
+      if (property.startsWith('--pane-')) header.style.setProperty(property,dialog.style.getPropertyValue(property));
+    }
     let state = toolbarReveals.get(header);
     const fresh = !state;
     if (!state) {
@@ -780,7 +798,7 @@ function syncToolbarReveals() {
       }, options);
       header.addEventListener("pointerleave", () => {
         clearTimeout(state.timer);
-        state.timer = setTimeout(() => header.removeAttribute("data-pane-reveal"), 450);
+        state.timer = setTimeout(() => header.removeAttribute("data-pane-reveal"), 650);
       }, options);
     }
     const container = header.closest(".browserSidebarContainer");
@@ -920,6 +938,7 @@ const prefObserver = {
   observe(subject, topic, name) {
     if (name === PREF.button) ensurePaneButtons();
     applyAppearance();
+    syncToolbarReveals();
     multiwindow?.sync();
     if (!overlay.hidden) {
       const data = activeData();
@@ -940,6 +959,7 @@ function destroy() {
   gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
   for (const [header, state] of toolbarReveals) {
     clearTimeout(state.timer); state.abort.abort(); header.removeAttribute("data-pane-reveal");
+    for (const property of [...header.style]) if (property.startsWith("--pane-")) header.style.removeProperty(property);
   }
   toolbarReveals.clear();
   renderGeneration++;
@@ -961,6 +981,7 @@ function destroy() {
   document.getElementById("pane-toast")?.remove();
   document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
   root.removeAttribute("pane-ready");
+  root.removeAttribute("pane-toolbar-always");
   if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
 }
 

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 export const numericSettings = [
+  { key:'scrolling-width',label:'Default scrolling column width',min:30,max:100,value:65,unit:'%' },
   { key: 'accordion-active-border-width', label: 'Active accordion tab border', min: 0, max: 8, value: 0, unit: 'px' },
   { key: 'picker-width', label: 'Picker width', min: 320, max: 1000, value: 520, unit: 'px' },
   { key: 'recent-count', label: 'Tabs in compact view', min: 1, max: 12, value: 4, unit: 'tabs' },
@@ -32,3 +33,13 @@ export const glassPresets = [
   { light: 'rgba(247, 248, 251, 0.9)', dark: 'rgba(24, 25, 30, 0.9)', blur: 52, radius: 24 },
   { light: 'rgba(224, 232, 255, 0.8)', dark: 'rgba(40, 34, 62, 0.84)', blur: 38, radius: 30 },
 ];
+
+export function conditionMatches(prefs, condition, definitions) {
+  const definition=definitions.find(item=>item.property===condition.property);
+  const fallback=definition?.defaultValue ?? condition.value;
+  const type=typeof condition.value;
+  const getter=type==='boolean'?'getBoolPref':type==='number'?'getIntPref':'getStringPref';
+  return prefs[getter](condition.property,fallback)===condition.value;
+}
+
+export const settingsSections = [['0','Open Pane'],['1','Layout navigation & accordion'],['scrolling','Scrolling (experimental)'],['2','Glass style'],['3','Appearance'],['4','Tab behavior'],['5','Custom glass']];

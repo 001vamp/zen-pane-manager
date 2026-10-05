@@ -1,32 +1,91 @@
 # Pane roadmap
 
-Pane exists to make Zen split views feel flexible without making their layout fragile. This roadmap is a direction, not a promise or a closed specification. Better ideas are welcome.
+Reviewed October 2, 2026 against the current working tree on `custom-keybindings`.
 
-## Now
+Pane should let people rearrange their tabs without losing their pages, sidebar placement, layout, or focus. The next release should make that promise consistent before adding more layouts.
 
-- Gather compatibility results across current Zen and Sine releases.
-- Polish keyboard navigation, focus behavior, contrast, and screen-reader semantics.
-- Test horizontal, vertical, grid, and nested split layouts more broadly.
-- Find and document tab-state edge cases such as discarded, container, audio, and unloaded tabs.
+This is a prioritized plan, not a release schedule. See [the review](docs/pane-product-review.md) for the evidence and remaining verification gaps.
 
-## Next
+## Current position
 
-- Explore a history action for quickly undoing the most recent pane replacement.
-- Improve target-pane context and previews without reading unnecessary page data.
-- Make pane replacement useful with larger tab collections and multiple workspaces.
-- Add automated tests where Zen's privileged browser APIs can be represented safely.
+Pane supports replacing panes, right/below/grid splits, existing-split destinations, multiple floating tabs, horizontal accordion, experimental scrolling, appearance previews, recorded shortcuts, diagnostics, and update guides.
 
-## Later and experimental
+The automated suite passes. Recent reliability changes are uncommitted. Fixture tests establish controller behavior; they do not establish native rendering, trackpad behavior, or Windows compatibility for the latest changes. Scrolling and snapshot scrolling remain experimental. Floating geometry and pins are not restored after restart.
 
-- Named split layouts or lightweight pane workflows.
-- More replacement actions built around the same preserve-the-layout principle.
-- Compatibility adapters if Zen's internal split API changes substantially.
+## Implementation checkpoint — October 2
 
-## Ways to help
+Phases 1–3 now have local implementation work: detach/replacement presentation preservation, failure-injection tests and accurate rollback messages, shutdown/disable metadata handling, unload cleanup, named navigation actions, shared section labels, section resets, recorded-shortcut warnings, complete tab-spacing controls, and updated privacy/release documentation.
 
-- Report one reproducible problem with exact versions and layout details.
-- Test a case that is not yet represented in `COMPATIBILITY.md`.
-- Improve accessibility, documentation, or contributor tooling.
-- Open a feature request describing the workflow problem before proposing a large UI.
+`npm test` and diff checks pass. Native macOS settings loading, plain-key warning, Escape cancellation, shortcut recording, and default restoration were verified. The latest fixes are uncommitted and installed locally. The full native gesture/restart matrix, Windows verification, clean-install/archive review, and screenshot refresh remain release gates. These phases are not yet certified for a stable release.
 
-The non-negotiables are local-only behavior, no telemetry, preserved divider geometry, keyboard accessibility, and a rollback path for mutations.
+## 1. Finish the reliability release
+
+**Outcome:** everyday operations preserve the user's state and have an honest recovery path.
+
+- Preserve accordion/scrolling presentation when one pane leaves a group that still has at least two tabs. Today `detach()` clears that presentation for the whole group.
+- Audit replacement, add, dock, detach, and unsplit as transactions. Capture tab placement, selection, native tree/divider sizes, and presentation before mutation. Report incomplete rollback honestly rather than claiming nothing changed.
+- Finish disable/reload cleanup: remove the global toolbar attribute, custom inline toolbar properties, and settings helper nodes. Distinguish disabling Pane from browser shutdown when retaining session metadata.
+- Verify the recent menu/overview arbitration, Escape cancellation, width preservation, and slow-page recovery fixes in native Zen.
+- Exercise tab closure and workspace changes during a gesture or paint wait; no stranded cover, captured scrolling, or unexpected focus change.
+
+**Release gate:** exact steps and results recorded for macOS and Windows, with Zen/Sine versions. Cover mouse and trackpad, two/four panes, heavy pages, restart, and two disable/enable cycles. Keep scrolling experimental until its rendering and input cases pass.
+
+## 2. Make settings and navigation predictable
+
+**Outcome:** every setting is understandable and reachable from either entry point.
+
+- Use one settings schema for types, defaults, conditions, sections, resets, and shortcut actions. The complete page and Sine panel should expose the same controls.
+- Replace navigation-by-array-index with named actions; give layout actions their own names instead of treating the layout menu as an accordion shortcut.
+- Add section resets with clear scope. Appearance reset must not change navigation or column widths.
+- Warn when recording an unmodified letter/number. Explain that OS/browser conflicts cannot be detected reliably; keep Disabled and Use default available.
+- Make keyboard behavior explicit: accordion wraps, scrolling currently stops at the ends. Keep intentional differences documented.
+- Audit keyboard-only use, focus restoration, accessible names, live error messages, reduced motion, and narrow settings windows. Include the slow-page recovery control and snapshot preview.
+
+**Done when:** every shortcut can be recorded, cancelled, disabled, and reset; changing a preference updates both settings entry points; no hidden raw control reappears after a preference change.
+
+## 3. Bring the release story up to date
+
+**Outcome:** installation instructions, screenshots, privacy statements, and release checks describe the shipped behavior.
+
+- Update README instructions for recorded shortcuts, the complete settings page, the layout-menu shortcut, toolbar visibility, Escape, and accordion session recovery.
+- Explain exactly what is stored locally: tab placement, layout/group identifiers, active tabs, widths, and notice acknowledgement. Explain in-memory page captures separately from diagnostics and external transmission.
+- Refresh compatibility claims with exact tested versions; distinguish owner everyday-use reports from completed release scenarios.
+- Correct the release checklist's obsolete Ctrl+Alt+D instruction and add accordion/scrolling restart and input checks.
+- Separate product assets from local backups, QA outputs, promo experiments, and machine-specific agent files. Review the release archive before publishing; do not discard local work.
+- Prepare current sample-based screenshots and concise release notes after behavior is verified.
+
+**Release gate:** a clean Sine installation works from the intended repository/ref; the archive contains the required files and no private or machine-specific artifacts. Commit, push, tagging, and publication require owner approval.
+
+## 4. Add dependable floating persistence
+
+**Outcome:** floating tabs reopen where users expect them.
+
+- Persist per-tab geometry and header pins with a versioned session format.
+- Fit restored panels inside a smaller window, validate saved values, and skip closed/missing tabs.
+- Preserve the original browser instance and tab origin; never restore by cloning the URL.
+- Define shutdown, disable, and re-enable behavior before implementation. Keep one native background pane and respect Zen's tab limit.
+
+**Done when:** multiple floats restore across restart, smaller windows, missing tabs, and mixed pinned/Essential/folder groups without losing forms, history, or placement.
+
+## 5. Consolidate the implementation
+
+**Outcome:** future fixes affect one place and are easier to test.
+
+- After lifecycle behavior is covered, separate native Zen API access, layout/session state, input gestures, and toolbar rendering from the large controllers.
+- Share toolbar appearance/visibility and shortcut conflict rules across layouts.
+- Keep tests at behavior boundaries: transactions, session migrations, gesture cancellation, focus, and cleanup. Add coverage for the settings DOM and replacement rollback where current fixtures leave gaps.
+- Keep a small documented native smoke test. Extend existing tools only to cover a concrete release risk.
+
+Avoid a broad rewrite. Move one responsibility at a time while preserving behavior.
+
+## Later, after these gates
+
+- Undo the last layout/replacement action, subject to tab availability and explicit handling of closed outgoing tabs.
+- Named layouts and versioned settings export/import.
+- Vertical accordion, only if it solves a workflow the existing layouts cannot.
+- Choose whether snapshot scrolling earns a permanent place; avoid maintaining two scrolling modes indefinitely without a clear benefit.
+- Compatibility adapters when supported Zen versions actually diverge.
+
+## Boundaries
+
+Keep page state and divider geometry, local-only operation, keyboard access, explicit recovery, and truthful verification. Pane works inside Zen; OS-level windows, cross-workspace tab moves, and bypassing Zen's split limit are outside this roadmap.

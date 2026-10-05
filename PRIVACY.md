@@ -1,16 +1,19 @@
 # Privacy
 
-Pane works entirely on the user's computer.
+Pane runs locally inside Zen Browser. It has no accounts or telemetry and does not upload browsing data.
 
-It does not:
+## Data used while running
 
-- Make network requests
-- Collect telemetry or analytics
-- Create an account or identifier
-- Read page contents
-- Store browsing history
-- Send tab titles, URLs, or other browser data anywhere
+The picker reads eligible open tabs’ titles, addresses, favicons, workspace identifiers, and recent-use ordering. It captures local page previews in memory. Experimental snapshot scrolling also captures visible pages to show its overview. These previews may contain visible page content; Pane does not upload them or deliberately write them to disk.
 
-To build its local picker, Pane temporarily reads the titles, website addresses, favicons, workspace identifiers, and recent-use ordering of eligible open tabs. That information remains inside the running Zen Browser window and is discarded when the picker closes.
+Settings load bundled files from Sine’s local chrome URI. This is separate from contacting an external service. Normal webpage requests and Sine’s installation/update requests are handled by Zen and Sine.
 
-Preferences are stored locally through Firefox/Zen's preference service.
+## Data saved locally
+
+Zen’s preference service stores settings and update-guide delivery/acknowledgement state. SessionStore stores original tab placement (including existing Zen pinned-tab attributes), layout/group identifiers, the active tab, scrolling mode, and individual column widths. Local group identifiers associate tabs in a restored layout; they are not analytics identifiers.
+
+Floating geometry and header pins are currently temporary. Disabling Pane clears its presentation metadata and restores tracked tabs; browser shutdown retains metadata needed for session recovery. Zen manages its own tab/session storage independently.
+
+## Diagnostics
+
+Reports include versions, feature availability, loading status, and sanitized errors. They exclude tab titles, URLs, searches, browsing history, file paths, and stacks. Pane does not send reports automatically. Sharing a copied report is the user’s choice.

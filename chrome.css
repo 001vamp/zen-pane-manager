@@ -754,8 +754,8 @@
 /* Reveal split controls at the top edge, not whenever the page is hovered. */
 :root .browserSidebarContainer:not([pane-floating]) > .zen-view-splitter-header-container {
   top: 0 !important;
-  width: min(360px, 100%);
-  height: 14px;
+  width: min(360px, calc(100% - 24px));
+  height: 18px;
   overflow: hidden;
   opacity: 1 !important;
   pointer-events: auto !important;
@@ -765,7 +765,19 @@
   position: relative !important;
   width: max-content;
   max-width: 100%;
-  margin-inline: auto;
+  margin: 8px auto 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 5px 7px !important;
+  min-height: 44px !important;
+  box-sizing: border-box;
+  color: light-dark(#24242a,#f6f6f8) !important;
+  background: light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark)) !important;
+  border: 1px solid var(--pane-line) !important;
+  border-radius: calc(var(--pane-radius) * .55) !important;
+  backdrop-filter: blur(var(--pane-blur)) saturate(1.35);
+  box-shadow: 0 5px 18px #0003 !important;
   transform: none !important;
   opacity: 0;
   transition: opacity 120ms ease;
@@ -913,13 +925,31 @@
 }
 .browserSidebarContainer[pane-scrolling] > .zen-view-splitter-header-container { display:none !important; }
 .pane-scrolling-header {
-  position:absolute; top:0; left:0; right:0; z-index:8;
-  display:flex; align-items:center; gap:3px; height:32px; padding:0 6px 0 10px;
-  color:light-dark(#24242a,#f6f6f8); background:var(--pane-glass-background, light-dark(#f4f4f7ed,#25252ded));
+  position:absolute; top:8px; left:50%; right:auto; z-index:10;
+  width:min(520px,calc(100% - 24px)); box-sizing:border-box;
+  display:flex; align-items:center; gap:4px; height:44px; padding:5px 7px 5px 14px;
+  border:1px solid var(--pane-line); border-radius:calc(var(--pane-radius) * .55);
+  color:light-dark(#24242a,#f6f6f8); background:light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark));
+  box-shadow:0 5px 18px #0003; backdrop-filter:blur(var(--pane-blur)) saturate(1.35);
+  transform:translateX(-50%);
 }
-.pane-scrolling-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:11px system-ui; }
-.pane-scrolling-control { appearance:none !important; min-width:0 !important; width:24px; height:24px; padding:4px !important; margin:0 !important; border:0 !important; border-radius:6px !important; background:transparent !important; color:inherit !important; cursor:pointer; display:grid; place-items:center; }
-.pane-scrolling-control:hover { background:#8883 !important; }
+/* A forgiving reveal area and delayed dismissal keep controls reachable. */
+.pane-scrolling-reveal { position:absolute; top:0; left:50%; transform:translateX(-50%); width:min(560px,100%); height:18px; z-index:9; }
+.browserSidebarContainer[pane-scrolling]:not([pane-scrolling-overview]) > .pane-scrolling-header {
+  transform:translate(-50%,-12px); opacity:0; pointer-events:none;
+  transition:transform 160ms ease-out, opacity 120ms ease-out;
+}
+.browserSidebarContainer[pane-scrolling] > .pane-scrolling-header[data-visible],
+.browserSidebarContainer[pane-scrolling] > .pane-scrolling-header:focus-within {
+  transform:translateX(-50%); opacity:1; pointer-events:auto;
+}
+.browserSidebarContainer[pane-scrolling-overview] > .pane-scrolling-reveal { pointer-events:none; }
+@media (prefers-reduced-motion:reduce) {
+  .browserSidebarContainer[pane-scrolling] > .pane-scrolling-header { transition:none !important; }
+}
+.pane-scrolling-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:500 12px system-ui; }
+.pane-scrolling-control { appearance:none !important; min-width:0 !important; flex-shrink:0; width:32px; height:32px; padding:7px !important; margin:0 !important; border:0 !important; border-radius:calc(var(--pane-radius) * .33) !important; background:transparent !important; color:inherit !important; cursor:pointer; display:grid; place-items:center; }
+.pane-scrolling-control:hover { background:var(--pane-hover) !important; }
 .pane-scrolling-control:focus-visible { outline:2px solid var(--pane-accent); }
 .pane-scrolling-control svg { width:16px; height:16px; }
 
@@ -928,10 +958,63 @@
 
 /* Shields keep modified gestures out of remote webpage processes. */
 .browserSidebarContainer[pane-scrolling-hidden] { visibility:hidden !important; pointer-events:none !important; }
-.pane-scrolling-shield { display:none; position:absolute; inset:32px 0 0; z-index:7; background:transparent; }
+.pane-scrolling-shield { display:none; position:absolute; inset:0; z-index:7; background:transparent; }
 .browserSidebarContainer[pane-scrolling-overview] > .pane-scrolling-shield { display:block; }
 .browserSidebarContainer[pane-scrolling]:not([pane-scrolling-overview]) > .pane-scrolling-resize { display:none; }
 
-.browserSidebarContainer[pane-scrolling-overview] > .pane-scrolling-header { box-shadow:0 1px 0 #8883; }
+
 .pane-scrolling-resize { border-radius:3px; }
 .pane-scrolling-resize:focus-visible { outline:2px solid var(--pane-accent); outline-offset:-2px; }
+
+.browserSidebarContainer[pane-scrolling-overview][pane-scrolling-landing] {
+  box-shadow:inset 0 0 0 2px var(--pane-accent), 0 4px 22px #0005;
+}
+.browserSidebarContainer[pane-scrolling-landing] > .pane-scrolling-header {
+  border-color:color-mix(in srgb,var(--pane-accent) 65%,var(--pane-line));
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--pane-accent) 22%,transparent),0 5px 18px #0003;
+}
+.pane-scrolling-landing-label { display:none; font:10px system-ui; white-space:nowrap; padding:3px 6px; border-radius:5px; background:var(--pane-fill); }
+.browserSidebarContainer[pane-scrolling-landing] .pane-scrolling-landing-label { display:block; }
+
+.pane-scrolling-handoff { position:fixed; z-index:2147483000; background:light-dark(#f4f4f7,#18181c); pointer-events:auto; }
+
+.pane-snapshot-overview { position:fixed; z-index:2147483000; overflow:hidden; background:light-dark(#eeeef3,#19191f); }
+.pane-snapshot-strip { display:flex; gap:10px; height:100%; align-items:center; }
+.pane-snapshot-card { flex:none; height:86%; border-radius:var(--pane-radius); overflow:hidden; background:light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark)); box-shadow:0 8px 28px #0004; }
+.pane-snapshot-card[data-landing] { outline:3px solid var(--pane-accent,#9b7bea); outline-offset:-3px; }
+.pane-snapshot-title { padding:14px; font:13px system-ui; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:light-dark(#222,#fff); }
+.pane-snapshot-image { width:100%; height:calc(100% - 45px); object-fit:contain; }
+
+/* Only the active/landing page owns the scrolling toolbar. */
+.browserSidebarContainer[pane-scrolling]:not([pane-scrolling-toolbar-active]) > .pane-scrolling-header,
+.browserSidebarContainer[pane-scrolling]:not([pane-scrolling-toolbar-active]) > .pane-scrolling-reveal {
+  display:none !important;
+}
+
+/* Shared control sizing for native tiled Pane toolbars. */
+:root .zen-view-splitter-header > :is(button,toolbarbutton) {
+  appearance:none !important; box-sizing:border-box !important;
+  min-width:32px !important; width:32px !important;
+  min-height:32px !important; height:32px !important;
+  padding:7px !important; margin:0 !important;
+  display:grid !important; place-items:center !important;
+  border:0 !important; border-radius:calc(var(--pane-radius) * .33) !important;
+  background:transparent !important; color:inherit !important;
+}
+:root .zen-view-splitter-header > :is(button,toolbarbutton):hover { background:var(--pane-hover) !important; }
+:root .zen-view-splitter-header > :is(button,toolbarbutton):focus-visible { outline:2px solid var(--pane-accent) !important; outline-offset:-2px; }
+:root .zen-view-splitter-header > :is(button,toolbarbutton)[disabled] { opacity:.4 !important; }
+
+:root[pane-toolbar-always] .browserSidebarContainer:not([pane-floating]) > .zen-view-splitter-header-container { height:auto; padding-bottom:8px; overflow:visible; }
+:root[pane-toolbar-always] .zen-view-splitter-header { opacity:1 !important; }
+:root[pane-toolbar-always] .browserSidebarContainer[pane-scrolling-toolbar-active] > .pane-scrolling-header { transform:translateX(-50%) !important; opacity:1 !important; pointer-events:auto !important; }
+:root[pane-toolbar-always] .browserSidebarContainer[pane-floating] > .pane-float-header { transform:translateY(0); opacity:1; }
+:root[pane-toolbar-always] .browserSidebarContainer[pane-floating] > .pane-float-header > * { pointer-events:auto; }
+
+.pane-scrolling-wait {
+  position: absolute; inset: auto 20px 20px; display: flex; gap: 16px;
+  align-items: center; justify-content: center; padding: 16px;
+  border-radius: 12px; background: var(--pane-bg, #24242b);
+  color: var(--pane-text, white); pointer-events: auto;
+}
+.pane-scrolling-wait button { padding: 8px 12px; cursor: pointer; }

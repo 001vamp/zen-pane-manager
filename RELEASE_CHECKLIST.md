@@ -28,7 +28,7 @@
 - [ ] Test with unofficial JavaScript disabled, then enabled, and verify the documented recovery flow.
 - [ ] Test alongside Advanced Tab Groups with both possible enable orders.
 - [ ] Verify `[Pane diagnostics] diagnostics bootstrap loaded` and `[Pane] vX.Y.Z ready` appear in the Browser Console.
-- [ ] Verify Ctrl+Alt+D copies a report before and after the main runtime loads.
+- [ ] Verify Control+Option+D on Mac or Alt+Shift+D on Windows/Linux copies a report before and after the main runtime loads.
 - [ ] Confirm the report contains no tab titles, URLs, searches, history, file paths, or stacks.
 
 ## Marketplace
@@ -51,3 +51,19 @@
 - [ ] Test the same flows on Windows before publishing a release.
 
 For feature updates, append a card with a unique ID to `UPDATE_NOTICES` in `pane.uc.mjs`. Keep old cards and their IDs in chronological order so users can see missed features. Routine fixes do not need a card. Change `QUICK_START_ID` only when everyone should see an updated guide. Delivery and acknowledgement are stored separately: “Got it” marks cards read; closing leaves them available in Pane settings. Set `mod.pane.update-notices` to false in about:config to disable automatic notices.
+
+## Reliability and settings gates
+
+- [ ] Record exact Zen/Sine versions and results for the latest build on macOS and Windows.
+- [ ] Remove one of three accordion/scrolling panes; verify the remaining presentation and selected tab.
+- [ ] Replace a pane with forms/history/audio state; verify divider geometry and floating geometry/pin transfer.
+- [ ] Inject failures before/after membership changes; verify recovery and honest incomplete-rollback messaging.
+- [ ] Wheel and trackpad: boundaries, momentum, Escape, layout-menu shortcut, focus loss, and modifier release.
+- [ ] Slow-page cover stays up until the target is ready; tiled recovery remains usable.
+- [ ] Restart restores accordion/scrolling, widths, and tab origins. Disable/enable twice leaves no stale UI or metadata.
+- [ ] Both settings entry points expose the same controls; recorded shortcuts, conflict messages, warning confirmation, and section resets work.
+- [ ] Keyboard-only, reduced motion, light/dark personalization, and narrow windows remain usable.
+- [ ] Keep scrolling and snapshot scrolling experimental until their native gates pass.
+- [ ] Review release ZIP contents: exclude local-work, output, agent metadata, and unrelated promo experiments; preserve those locally.
+
+Unchecked items are work remaining, not evidence of compatibility. Publication requires owner approval.

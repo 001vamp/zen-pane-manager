@@ -37,7 +37,7 @@ for (const platform of ['MacIntel','Win32','Linux x86_64']) {
 assert.equal(shortcutLabel(accordionBindings(prefs({}))[0].binding,'MacIntel'),'Option+Shift+←');
 for (const disabled of ['Disabled','disabled','']) assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':disabled}))[1].binding,null);
 const duplicate = accordionBindings(prefs({'mod.pane.accordion-previous':'Alt+Shift+Right'}));
-assert.ok(duplicate.every(record=>record.error && !record.binding),'both duplicate navigation bindings are disabled');
+assert.ok(duplicate.slice(0,2).every(record=>record.error && !record.binding),'both duplicate navigation bindings are disabled');
 assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+P'}),'Win32')[1].error,/picker/);
 assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+D'}),'Win32')[1].error,/diagnostics/);
 assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+D','mod.pane.diagnostics-shortcut':false}),'Win32')[1].binding);
@@ -51,3 +51,16 @@ assert.equal(bindingFromEvent({key:'ArrowLeft',altKey:true,shiftKey:true}).label
 assert.equal(bindingFromEvent({key:'+',ctrlKey:true}).label, 'Ctrl+Plus');
 assert.equal(bindingFromEvent({key:'Shift',shiftKey:true}), null);
 assert.equal(bindingFromEvent({key:'r',repeat:true}), null);
+
+const {scrollingModifiers} = await import('../keybindings.mjs');
+assert.equal(scrollingModifiers({getIntPref:()=>2}), null);
+const customHold = scrollingModifiers({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift'});
+assert.equal(customHold.ctrlKey, true);
+assert.equal(customHold.shiftKey, true);
+assert.equal(customHold.altKey, false);
+assert.equal(scrollingModifiers({getIntPref:()=>3,getStringPref:()=> 'garbage'}), null);
+
+assert.equal(accordionBindings(prefs({}))[2].binding.label,'Alt+Shift+L');
+assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Disabled'}))[2].binding,null);
+assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+F8'}))[2].binding.label,'Ctrl+F8');
+assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Alt+Shift+Right'}))[2].error,/Already used/);

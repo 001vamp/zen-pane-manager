@@ -18,3 +18,10 @@ assert.equal(boundedNumber(0,edge),0,'accordion separation can be disabled');
 assert.equal(boundedNumber(100,edge),8,'edge thickness is bounded');
 assert.equal(boundedNumber('bad',edge),0,'invalid edge thickness falls back to shadow-only');
 console.log('Appearance value tests passed.');
+
+const {conditionMatches}=await import('../appearance.mjs');
+const definitions=[{property:'enabled',defaultValue:true},{property:'preset',defaultValue:4}];
+const defaults={getBoolPref:(key,fallback)=>fallback,getIntPref:(key,fallback)=>fallback};
+assert.equal(conditionMatches(defaults,{property:'enabled',value:true},definitions),true,'unregistered boolean uses schema default');
+assert.equal(conditionMatches(defaults,{property:'preset',value:4},definitions),true,'unregistered integer uses schema default');
+assert.equal(conditionMatches({...defaults,getBoolPref:()=>false},{property:'enabled',value:true},definitions),false,'user override controls visibility');

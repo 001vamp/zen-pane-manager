@@ -32,7 +32,7 @@ export function bindingFromEvent(event) {
 }
 
 export function matchesBinding(event, binding) {
-  if (!binding || event.repeat || event.isComposing) return false;
+  if (!binding || event.repeat || event.isComposing || (event.target?.closest?.('[data-pane-recording]') || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording'))) return false;
   // Real macOS Option events report AltGraph, unlike WebDriver's synthetic Alt.
   // Keep rejecting Windows/Linux AltGr text entry without rejecting Mac shortcuts.
   const platform = event.view?.navigator?.platform ?? globalThis.navigator?.platform ?? '';
@@ -76,9 +76,11 @@ export function pickerBinding(prefs, platform = currentPlatform()) {
   return selection === 1 ? parseBinding('Alt+Shift+P') : defaultPickerBinding(platform);
 }
 
-export const accordionShortcuts = [
-  { key: 'accordion-previous', label: 'Previous accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Left' },
-  { key: 'accordion-next', label: 'Next accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Right' },
+export const layoutShortcuts = [
+  // Preference keys remain unchanged for existing installations.
+  { key: 'accordion-previous', direction: -1, label: 'Previous tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Left' },
+  { key: 'accordion-next', direction: 1, label: 'Next tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Right' },
+  { key: 'layout-menu', label: 'Open split layout menu', value: 'Auto', defaultBinding: 'Alt+Shift+L' },
 ];
 
 export function shortcutLabel(binding, platform = currentPlatform()) {
@@ -88,8 +90,8 @@ export function shortcutLabel(binding, platform = currentPlatform()) {
 }
 
 // Conflicting navigation bindings are inactive until the user changes them.
-export function accordionBindings(prefs, platform = currentPlatform()) {
-  const records = accordionShortcuts.map(setting => {
+export function layoutBindings(prefs, platform = currentPlatform()) {
+  const records = layoutShortcuts.map(setting => {
     const value = prefs?.getStringPref?.(`mod.pane.${setting.key}`, 'Auto') ?? 'Auto';
     const disabled = !value.trim() || /^disabled$/i.test(value.trim());
     const binding = disabled ? null : parseBinding(/^auto$/i.test(value.trim()) ? setting.defaultBinding : value);
@@ -107,3 +109,21 @@ export function accordionBindings(prefs, platform = currentPlatform()) {
   for (const record of records) if (record.error) record.binding = null;
   return records;
 }
+
+export const shortcutSettings = [
+  {key:'shortcut', label:'Open Pane', value:'Auto', defaultBinding:'Alt+Shift+P', picker:true},
+  {key:'diagnostics-keybinding', label:'Diagnostic report', value:'Auto', defaultBinding:'Alt+Shift+D'},
+  ...layoutShortcuts,
+  {key:'scrolling-modifier', label:'Hold to reveal scrolling tabs', value:'Auto', defaultBinding:'Alt+Shift', hold:true},
+];
+export function scrollingModifiers(prefs) {
+  const choice = prefs?.getIntPref?.('mod.pane.scrolling-modifier',0) ?? 0;
+  if (choice === 2) return null;
+  const value = choice === 3 ? prefs.getStringPref('mod.pane.scrolling-custom-modifier','Alt+Shift') : choice === 1 ? 'Alt' : 'Alt+Shift';
+  const binding = parseBinding(value + '+Space');
+  return binding && ['ctrlKey','altKey','shiftKey','metaKey'].some(k=>binding[k]) ? binding : null;
+}
+
+// Compatibility aliases for existing callers and preference keys.
+export const accordionShortcuts = layoutShortcuts;
+export const accordionBindings = layoutBindings;

@@ -20,6 +20,9 @@
   .sample-preview strong { display: block; margin-bottom: 8px; }
   .sample-preview i { display: block; height: 4px; background: #e5e3ef; border-radius: 3px; margin: 6px 0; }
   .browserSidebarContainer { position: relative; }
+  .split-example { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; width: 850px; height: 500px; border: 1px solid #e7e7ec; border-radius: 18px; overflow: hidden; background: #e7e7ec; }
+  .split-example > .sample-page { padding: 26px; }
+  .split-example > .browserSidebarContainer { position: absolute; top: 180px; left: 275px; }
 </style>
 <main></main>
 <script type="module">
@@ -38,8 +41,20 @@ if (state === 'picker' || state === 'splits') {
 } else if (state === 'arrange') {
   const options = [['right','Split right','Place beside the other tabs'],['below','Split below','Place below the other tabs'],['grid','Grid','Arrange with other split tabs'],['float','Floating','Current layout'],['normal','Return to a normal tab','Show this tab in the main view']];
   root.innerHTML = `<div id="pane-layout-menu" class="pane-layout-menu"><div class="pane-layout-header"><div class="pane-layout-title"><div class="pane-layout-heading">Arrange this tab</div><div class="pane-layout-context">Project notes</div></div>${button('close').replace('<button','<button class="pane-layout-close"')}</div>${options.map(([name,label,desc])=>`<button class="pane-layout-option" aria-pressed="${name==='float'}"><span class="pane-layout-icon">${icon(name)}</span><span class="pane-layout-copy"><span class="pane-layout-label">${label}</span><span class="pane-layout-description">${desc}</span></span>${name==='float'?'<span class="pane-layout-badge">Current</span>':''}</button>`).join('')}<button class="pane-layout-add">${icon('plus')} Add another tab...</button><div class="pane-layout-footer"><span class="pane-layout-hint"><kbd>↑ ↓</kbd> Navigate</span><span class="pane-layout-hint"><kbd>Enter</kbd> Apply</span><span class="pane-layout-hint"><kbd>Esc</kbd> Cancel</span></div></div>`;
-} else if (state === 'floating') {
+} else if (state === 'floating' || state === 'split-floating') {
   root.innerHTML = `<div class="browserSidebarContainer" pane-floating zen-split style="--pane-float-width:520px;--pane-float-height:310px"><div class="pane-float-header" data-pinned><div class="pane-float-copy"><div class="pane-float-title">Project notes</div></div><div class="pane-float-actions">${button('back')}${button('forward')}${button('pin')}${button('more')}${button('close')}</div></div><div class="sample-page"><small>PROJECT NOTES</small><h2>A little room to think.</h2><p>Keep a reference beside your work without leaving the page.</p><div class="note"><strong>Next up</strong><br>Review the layout · Compare references · Save your notes</div></div><button class="pane-float-resize" data-edge="se" aria-label="Resize floating tab">${icon('resize')}</button></div>`;
+}
+if (state === 'split-floating') {
+  const floating = root.firstElementChild;
+  const scene = document.createElement('div');
+  scene.className = 'split-example';
+  scene.innerHTML = `<article class="sample-page"><small>LEFT SPLIT TAB</small><h2>Pane roadmap</h2><p>Keep your project open while checking a reference.</p><div class="note"><strong>Today</strong><br>Review the split layout<br>Compare the design<br>Write down the next steps</div></article><article class="sample-page"><small>RIGHT SPLIT TAB</small><h2>Design references</h2><p>A second page, right beside your work.</p><div class="note"><strong>Things to compare</strong><br>Spacing and contrast<br>Navigation controls<br>Floating tab placement</div></article>`;
+  floating.style.setProperty('--pane-float-width', '460px');
+  floating.style.setProperty('--pane-float-height', '270px');
+  floating.style.setProperty('--pane-float-x', '275px');
+  floating.style.setProperty('--pane-float-y', '180px');
+  scene.append(floating);
+  root.append(scene);
 }
 // Keep the documentation's split example compact, with two recent open tabs.
 if (state === 'splits') {
