@@ -10,7 +10,7 @@ This is a prioritized plan, not a release schedule. See [the review](docs/pane-p
 
 Pane supports replacing panes, right/below/grid splits, existing-split destinations, multiple floating tabs, horizontal accordion, experimental scrolling, appearance previews, recorded shortcuts, diagnostics, and update guides.
 
-The automated suite passes. Recent reliability changes are uncommitted. Fixture tests establish controller behavior; they do not establish native rendering, trackpad behavior, or Windows compatibility for the latest changes. Scrolling and snapshot scrolling remain experimental. Floating geometry and pins are not restored after restart.
+The automated suite passes. The reliability/settings update was committed and pushed as `f59cd52` on `custom-keybindings`. Fixture tests establish controller behavior; they do not establish native rendering, trackpad behavior, or Windows compatibility for the latest changes. Scrolling and snapshot scrolling remain experimental. Floating geometry and pins now have a local session-recovery implementation with fixture coverage; native verification is pending.
 
 ## Implementation checkpoint — October 2
 
@@ -89,3 +89,10 @@ Avoid a broad rewrite. Move one responsibility at a time while preserving behavi
 ## Boundaries
 
 Keep page state and divider geometry, local-only operation, keyboard access, explicit recovery, and truthful verification. Pane works inside Zen; OS-level windows, cross-workspace tab moves, and bypassing Zen's split limit are outside this roadmap.
+
+## October 5 checkpoint
+
+- Committed and pushed the reliability/settings/documentation pass as `f59cd52` to `custom-keybindings`.
+- Verified Option+Shift+L opens the existing split layout menu in native macOS Zen 1.22.3b, and Escape closes it. Controller coverage also checks overview cancellation and recording suppression.
+- Phase 4 has local floating-session implementation: versioned per-tab geometry and pin records, delayed recovery until native session restoration, bounded panels, original page instances, and docking/disable cleanup. The automated suite covers these cases. Native floating restart, protected-tab placement, and Windows verification are still release gates.
+- Phase 5 remains: consolidate one responsibility at a time, beginning with session presentation state. No broad controller rewrite is planned.

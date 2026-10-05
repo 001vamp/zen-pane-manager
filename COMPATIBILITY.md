@@ -14,7 +14,7 @@ Pane does not use native executables, architecture-specific binaries, registry e
 
 Sine must have **Install JavaScript from unofficial sources** enabled because Pane is currently installed from its public GitHub repository rather than Sine's verified store. After a first install, toggle Pane once and fully restart Zen so Sine's browser-chrome loader starts from a clean state.
 
-The ⇄ control exists only inside an active split pane header. If both the control and keyboard shortcut are absent, press **Alt+Shift+D** on Windows or Linux. A copied report proves Pane's independent diagnostic bootstrap loaded; no response means Sine blocked or did not load the privileged scripts. The Browser Console should contain `[Pane] 0.10.0-dev ready` when the main runtime succeeds.
+The ⇄ control exists only inside an active split pane header. If both the control and keyboard shortcut are absent, press **Alt+Shift+D** on Windows or Linux. A copied report proves Pane's independent diagnostic bootstrap loaded; no response means Sine blocked or did not load the privileged scripts. The Browser Console should contain `[Pane] 0.11.0-dev ready` when the main runtime succeeds.
 
 Pane relies on Zen's private `gZenViewSplitter` object. The mod checks for the exact methods it needs before offering a replacement, but a future Zen release may still change their behavior.
 
@@ -57,13 +57,13 @@ Pane 0.10.0-dev was loaded through Sine 2.3.4.1c in a disposable macOS Zen profi
 
 The local installed build was also enabled alongside Advanced Tab Groups and Safari-like Zen. Control+Option+R was verified with real Mac key events. Firefox reports Option as AltGraph on macOS, which Pane now handles separately from Windows/Linux AltGr text entry.
 
-Floating placement is a temporary presentation of a native Zen split. Multiple tabs can float within a split, with one tab left in the background. Zen’s four-tab split limit allows up to three floating tabs per group. Disabling Pane or restarting Zen restores the native split. It is not an OS-level always-on-top window. The maintainer has also tested Pane on Windows in everyday use. The checklist above gives contributors scenarios to reproduce on their own setups; it is not a record of which Windows tests were completed.
+Floating placement is a temporary presentation of a native Zen split. Multiple tabs can float within a split, with one tab left in the background. Zen’s four-tab split limit allows up to three floating tabs per group. Disabling Pane restores the native split; restarting Zen restores saved floating panels after native split recovery. It is not an OS-level always-on-top window. The maintainer has also tested Pane on Windows in everyday use. The checklist above gives contributors scenarios to reproduce on their own setups; it is not a record of which Windows tests were completed.
 
 ## Current reliability changes
 
 The latest working tree has automated regression coverage for layout-menu/scrolling arbitration, Escape cancellation, width preservation, pane removal, and replacement failure recovery. Those checks pass in fixtures. The complete settings page has previously loaded in native macOS Zen; that does not verify all current controls.
 
-The development target above remains the recorded target, not a claim of compatibility with every newer release. Current-build native macOS/Windows results must be recorded before a stable release. Scrolling and snapshot scrolling remain experimental. Accordion and scrolling metadata are retained at browser shutdown; disabling Pane clears that presentation metadata and restores tracked tabs. Floating geometry/pins are not persisted yet.
+The development target above remains the recorded target, not a claim of compatibility with every newer release. Current-build native macOS/Windows results must be recorded before a stable release. Scrolling and snapshot scrolling remain experimental. Accordion and scrolling metadata are retained at browser shutdown; disabling Pane clears that presentation metadata and restores tracked tabs. Floating geometry/pins now have versioned local persistence. Fixture tests cover multiple panels, smaller bounds, pins, docking, invalid data, and disable cleanup; native restart verification remains required.
 
 ### October 2 local verification
 

@@ -1,7 +1,7 @@
-import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.10.0-dev-phases123";
-import { numericValue, glassPresets } from "./appearance.mjs?pane=0.10.0-dev-phases123";
-import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.10.0-dev-phases123";
+import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-dev-icons2";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-dev-phases123";
+import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-dev-phases123";
+import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-dev-phases123";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -1022,7 +1022,7 @@ function initialize() {
     applyAppearance();
     root.setAttribute("pane-ready", "true");
     updateNoticeTimer = setTimeout(showUpdateNotice, 3000);
-    window[INSTANCE_KEY] = { destroy, openPicker, multiwindow, showUpdates: () => showUpdateNotice(true), version: "0.10.0-dev" };
+    window[INSTANCE_KEY] = { destroy, openPicker, multiwindow, showUpdates: () => showUpdateNotice(true), version: "0.11.0-dev" };
 
     // Sine 2.3+ uses this callback for clean live disable/reload. Without it,
     // Sine intentionally keeps an already imported module running.
@@ -1030,7 +1030,7 @@ function initialize() {
 
     const binding = pickerBinding(Services.prefs);
     diagnosticLog("Pane runtime ready", { binding: binding?.label ?? "disabled" });
-    console.log(TAG, `0.10.0-dev ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
+    console.log(TAG, `0.11.0-dev ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
   } catch (error) {
     console.error(TAG, "failed to initialize", error);
     diagnosticLog("Pane initialization failed", { error: error?.name });

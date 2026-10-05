@@ -1,6 +1,6 @@
 import { createTabOrigins } from "./tab-origins.mjs";
-import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.10.0-dev-icons2";
-import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.10.0-dev-phases123";
+import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-dev-icons2";
+import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-dev-phases123";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
@@ -66,7 +66,35 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   const scrollings = new Map();
   const accordionKey = 'pane-accordion-v1';
   const scrollingKey = 'pane-scrolling-v1';
+  const floatingKey = 'pane-floating-v1';
   const session = win.SessionStore;
+  function saveFloat(f) {
+    if (!session || f.tab.closing) return;
+    const value=JSON.stringify({version:1,rect:f.rect,headerPinned:Boolean(f.headerPinned)});
+    if (session.getCustomTabValue(f.tab,floatingKey)!==value) session.setCustomTabValue(f.tab,floatingKey,value);
+  }
+  function recoverFloats() {
+    if (!session || view._sessionRestoring) return;
+    for (const data of view._data) {
+      if (data.tabs.length<2 || accordions.has(data) || scrollings.has(data)) continue;
+      for (const tab of data.tabs) {
+        if (floats.has(tab) || tab.closing || !tab.isConnected) continue;
+        let record;
+        try {record=JSON.parse(session.getCustomTabValue(tab,floatingKey)||'null');} catch {session.deleteCustomTabValue(tab,floatingKey);record=null;}
+        if (!record) continue;
+        const valid=record.version===1 && record.rect && ['x','y','width','height'].every(key=>Number.isFinite(record.rect[key])) && record.rect.width>0 && record.rect.height>0;
+        if (!valid || data.tabs.filter(member=>!floats.has(member)).length<=1) {
+          session.deleteCustomTabValue(tab,floatingKey);continue;
+        }
+        const container=containerFor(tab);
+        if (!container) continue;
+        const f={tab,data,container,rect:{...record.rect},headerPinned:record.headerPinned===true,abort:new win.AbortController()};
+        floats.set(tab,f);
+        bindFloatFocus(f);
+        tab.setAttribute('pane-floating-tab','true');
+      }
+    }
+  }
   function saveAccordion(data, state) {
     if (!session) return;
     state.sessionId ??= win.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -742,7 +770,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     try { saveAccordion(data, accordions.get(data)); applyAccordion(); } catch (error) { clearAccordion(data); throw error; }
     tab.linkedBrowser.focus();
   }
-  function removeFloat(f) {
+  function removeFloat(f, preserveSession = false) {
+    if (!preserveSession && session && !f.tab.closing) session.deleteCustomTabValue(f.tab,floatingKey);
     floats.delete(f.tab);
     f.abort.abort();
     f.container.removeAttribute("pane-floating");
@@ -750,9 +779,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     for (const prop of ["x", "y", "width", "height", "z"]) f.container.style.removeProperty(`--pane-float-${prop}`);
     f.tab.removeAttribute("pane-floating-tab");
   }
-  function clearFloat(restore = true, tab = null) {
+  function clearFloat(restore = true, tab = null, preserveSession = false) {
     const removed = tab ? [floats.get(tab)].filter(Boolean) : [...floats.values()];
-    for (const f of removed) removeFloat(f);
+    for (const f of removed) removeFloat(f,preserveSession);
     if (restore && removed.length) {
       const data = view._data[view.currentView];
       if (data && removed.some(f => f.data === data)) {
@@ -764,10 +793,16 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function raiseFloat(f) {
     f.container.style.setProperty("--pane-float-z", String(++topLayer));
   }
+  function bindFloatFocus(f) {
+    f.container.addEventListener('pointerdown',()=>raiseFloat(f),{capture:true,signal:f.abort.signal});
+    f.container.addEventListener('focusin',()=>raiseFloat(f),{signal:f.abort.signal});
+    raiseFloat(f);
+  }
   function positionFloat(f) {
     const bounds = view.tabBrowserPanel.getBoundingClientRect();
     f.rect = fitRectangle(f.rect, bounds.width, bounds.height);
     for (const [prop, value] of Object.entries(f.rect)) f.container.style.setProperty(`--pane-float-${prop}`, `${value}px`);
+    saveFloat(f);
   }
   function bindPointer(handle, resizing, f) {
     const { signal } = f.abort;
@@ -848,6 +883,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         pin.setAttribute("aria-pressed", String(pinned));
         pin.title = pinned ? "Auto-hide header" : "Keep header visible";
         pin.setAttribute("aria-label", pin.title);
+        saveFloat(f);
       });
       pin.setAttribute("aria-label", "Keep floating header visible");
       header.toggleAttribute("data-pinned", Boolean(f.headerPinned));
@@ -883,6 +919,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (data.tabs.filter(t => !floats.has(t)).length <= 1) {
       throw new Error("Keep one tab in the background before floating another");
     }
+    clearScrolling(data);
     clearAccordion(data);
     const bounds = view.tabBrowserPanel.getBoundingClientRect();
     const offset = [...floats.values()].filter(f => f.data === data).length * 32;
@@ -891,9 +928,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       x: Math.max(0, bounds.width - 500 - offset), y: Math.max(0, bounds.height - 440 - offset),
     } };
     floats.set(tab, f);
-    f.container.addEventListener("pointerdown", () => raiseFloat(f), { capture: true, signal: f.abort.signal });
-    f.container.addEventListener("focusin", () => raiseFloat(f), { signal: f.abort.signal });
-    raiseFloat(f);
+    bindFloatFocus(f);
     tab.setAttribute("pane-floating-tab", "true");
     applyFloat();
   }
@@ -1116,7 +1151,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (hintTab && (hintTab.closing || !hintTab.isConnected || groupFor(hintTab) !== view._data[view.currentView]
       || browser.selectedTab === hintTab)) hideEdgeHint();
     if (frame || disposed) return;
-    frame = win.requestAnimationFrame(() => { frame = 0; recoverScrollings(); recoverAccordions(); applyFloat(); applyAccordion(); applyScrolling(); });
+    frame = win.requestAnimationFrame(() => { frame = 0; recoverScrollings(); recoverAccordions(); recoverFloats(); applyFloat(); applyAccordion(); applyScrolling(); });
   }
   function outside(event) { if (menu && !menu.contains(event.target)) closeMenu(); }
   function tabChanged() { closeMenu(); sync(); }
@@ -1167,7 +1202,10 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       hideEdgeHint();
       for (const data of [...accordions.keys()]) clearAccordion(data, true, Boolean(origins.shuttingDown || win.closed));
       for (const data of [...scrollings.keys()]) clearScrolling(data, true, Boolean(origins.shuttingDown || win.closed));
-      clearFloat(); origins.destroy();
+      clearFloat(true,null,Boolean(origins.shuttingDown || win.closed)); origins.destroy();
+      if (session && !origins.shuttingDown && !win.closed) {
+        for (const tab of browser.tabs) if (!tab.closing) session.deleteCustomTabValue(tab,floatingKey);
+      }
       win.removeEventListener("keydown", onScrollingModifier, true);
       win.removeEventListener("keyup", onScrollingModifier, true);
       win.removeEventListener("blur", onScrollingModifier);

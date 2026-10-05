@@ -12,7 +12,7 @@ Settings load bundled files from Sine’s local chrome URI. This is separate fro
 
 Zen’s preference service stores settings and update-guide delivery/acknowledgement state. SessionStore stores original tab placement (including existing Zen pinned-tab attributes), layout/group identifiers, the active tab, scrolling mode, and individual column widths. Local group identifiers associate tabs in a restored layout; they are not analytics identifiers.
 
-Floating geometry and header pins are currently temporary. Disabling Pane clears its presentation metadata and restores tracked tabs; browser shutdown retains metadata needed for session recovery. Zen manages its own tab/session storage independently.
+Floating geometry and header pins are stored per tab in versioned local SessionStore records. Disabling Pane clears its presentation metadata and restores tracked tabs; browser shutdown retains metadata needed for session recovery. Zen manages its own tab/session storage independently.
 
 ## Diagnostics
 

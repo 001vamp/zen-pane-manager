@@ -2,7 +2,7 @@
   "id": "zen-pane-manager",
   "name": "Pane",
   "description": "Split, float, arrange, and replace open tabs in Zen Browser.",
-  "version": "0.10.0-dev",
+  "version": "0.11.0-dev",
   "author": "jasi",
   "homepage": "https://github.com/001vamp/zen-pane-manager",
   "readme": "https://raw.githubusercontent.com/001vamp/zen-pane-manager/main/README.md",

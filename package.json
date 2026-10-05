@@ -1,6 +1,6 @@
 {
   "name": "zen-pane-manager",
-  "version": "0.10.0-dev",
+  "version": "0.11.0-dev",
   "private": true,
   "description": "Split, float, arrange, and replace open tabs in Zen Browser.",
   "license": "MPL-2.0",

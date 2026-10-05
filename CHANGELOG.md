@@ -2,7 +2,9 @@
 
 All notable changes to Pane are documented here.
 
-## 0.10.0-dev (unreleased)
+## 0.11.0-dev (unreleased)
+
+- Restore floating positions, sizes, and header pins after native session recovery. Fit panels inside smaller windows and clear saved state on docking or disable. Native restart verification is pending.
 
 - Preserve presentation on pane removal/replacement, transfer floating placement during replacement, and report failed rollback accurately. Clean up toolbar/settings state and distinguish shutdown recovery from disabling Pane.
 - Add section resets, plain-key shortcut warnings, shared section labels, and tab spacing in both settings entry points. Update release/privacy documentation.

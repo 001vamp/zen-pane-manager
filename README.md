@@ -102,7 +102,7 @@ Pane has been tested on **macOS and Windows**, including everyday use by the mai
 
 - Zen allows up to four tabs per split, including a floating tab.
 - Float up to three tabs in a split, with at least one tab left in the background. Each floating tab has its own position, size, and header pin. Floating tabs stay inside their Zen window.
-- Floating placement is temporary. Restarting Zen or disabling Pane returns the group to a native split.
+- Floating positions, sizes, and header pins are restored when Zen restores the split after a restart. Panels are fitted inside the current window. Docking a panel or disabling Pane clears its saved floating state.
 - Pane uses Zen’s internal split API, which can change between releases.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for more detail.

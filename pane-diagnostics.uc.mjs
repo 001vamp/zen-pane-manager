@@ -1,11 +1,11 @@
-import { matchesBinding, pickerBinding, diagnosticsBinding } from "./keybindings.mjs?pane=0.10.0-dev-windows2";
+import { matchesBinding, pickerBinding, diagnosticsBinding } from "./keybindings.mjs?pane=0.11.0-dev-windows2";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 // Pane's small, independent diagnostics bootstrap. It intentionally avoids
 // page titles, URLs, search text, file paths, and tab names.
-const VERSION = "0.10.0-dev";
+const VERSION = "0.11.0-dev";
 const TAG = "[Pane diagnostics]";
 const KEY = "__paneDiagnostics";
 const SHORTCUT_PREF = "mod.pane.diagnostics-shortcut";

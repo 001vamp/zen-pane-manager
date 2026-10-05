@@ -58,7 +58,7 @@ const win = new Node(doc); let queued;
 const timers = new Map(); let timerId = 0;
 const motion = new Node(doc); motion.matches = false;
 Object.assign(win, {document:doc, AbortController, gZenViewSplitter:view,
-  gBrowser:{selectedTab:tabs[0],tabContainer:new Node(doc)},
+  gBrowser:{tabs,selectedTab:tabs[0],tabContainer:new Node(doc)},
   requestAnimationFrame:fn => { queued=fn; return 1; }, cancelAnimationFrame(){queued=null;},
   setTimeout:fn => { timers.set(++timerId,fn); return timerId; }, clearTimeout:id => timers.delete(id),
   matchMedia:()=>motion,
@@ -237,10 +237,12 @@ assert.ok(tabs.every(tab=>!container(tab).hasAttribute('--pane-accordion-line-le
 // Recreate the controller against restored native tabs, as a browser restart does.
 const savedLayouts = new Map();
 const savedScrollings = new Map();
+const savedFloats = new Map();
+const sessionValues = key => key==='pane-floating-v1' ? savedFloats : key==='pane-scrolling-v1' ? savedScrollings : savedLayouts;
 win.SessionStore = {
-  getCustomTabValue: (tab,key) => (key==='pane-scrolling-v1'?savedScrollings:savedLayouts).get(tab) ?? '',
-  setCustomTabValue: (tab, key, value) => (key==='pane-scrolling-v1'?savedScrollings:savedLayouts).set(tab, value),
-  deleteCustomTabValue: (tab,key) => (key==='pane-scrolling-v1'?savedScrollings:savedLayouts).delete(tab),
+  getCustomTabValue: (tab,key) => sessionValues(key).get(tab) ?? '',
+  setCustomTabValue: (tab, key, value) => sessionValues(key).set(tab, value),
+  deleteCustomTabValue: (tab,key) => sessionValues(key).delete(tab),
 };
 const options = {notify(){},chooseTab(){},appearance(){},origins:{begin(){},end(){},destroy(){}}};
 const beforeRestart = createMultiwindow(win, options);
@@ -412,3 +414,39 @@ view.currentView=0; win.gBrowser.selectedTab=data.tabs[0];
 data.tabs.push(removedPreviewTab);
 snapshotPrototype.destroy();
 assert.equal(doc.querySelectorAll('.pane-snapshot-overview').length,0,'unload removes snapshot overlay');
+
+// Floats recover original tabs and fit geometry to the restored browser bounds.
+const floatSession=createMultiwindow(win,options); flush();
+floatSession.arrange(data.tabs[0],'scrolling');
+floatSession.arrange(data.tabs[1],'float');
+assert.equal(savedScrollings.size,0,'floating replaces scrolling presentation and clears its restart metadata');
+floatSession.arrange(data.tabs[2],'float');
+const originalPage=data.tabs[1].linkedBrowser;
+const state=floatSession.capturePresentation(data);
+state.floating[0].rect={x:900,y:600,width:600,height:500};
+state.floating[0].headerPinned=true;
+floatSession.restorePresentation(data,state);
+assert.equal(savedFloats.size,2);
+options.origins.shuttingDown=true;floatSession.destroy();options.origins.shuttingDown=false;
+assert.equal(savedFloats.size,2,'shutdown retains floating metadata');
+view.tabBrowserPanel.getBoundingClientRect=()=>({left:0,top:0,width:400,height:300});
+view._sessionRestoring=true;
+const restoredFloats=createMultiwindow(win,options);flush();
+assert.equal(restoredFloats.floatingTabs.length,0,'wait for native session restore before floating');
+view._sessionRestoring=false;win.emit('SSWindowStateReady');flush();
+assert.equal(restoredFloats.floatingTabs.length,2,'multiple floats recover');
+const recovered=restoredFloats.capturePresentation(data).floating;
+assert.deepEqual(recovered[0].rect,{x:0,y:0,width:400,height:300});
+assert.equal(recovered[0].headerPinned,true,'header pin survives restart');
+assert.equal(data.tabs[1].linkedBrowser,originalPage,'restore keeps original page instance');
+restoredFloats.arrange(data.tabs[1],'grid');
+assert.equal(savedFloats.has(data.tabs[1]),false,'docking clears saved geometry');
+restoredFloats.destroy();
+assert.equal(savedFloats.size,0,'disable clears floating session state');
+savedFloats.set(data.tabs[1],JSON.stringify({version:1,rect:{x:0,y:0,width:-2,height:10}}));
+savedFloats.set(data.tabs[2],JSON.stringify({version:99,rect:{x:0,y:0,width:300,height:200}}));
+const invalidFloats=createMultiwindow(win,options);flush();
+assert.equal(invalidFloats.floatingTabs.length,0,'invalid and future schema records do not restore');
+assert.equal(savedFloats.size,0,'invalid floating metadata is discarded');
+invalidFloats.destroy();
+console.log('Floating sessions: multiple panels, pins, smaller bounds, original pages, docking and disable passed.');
