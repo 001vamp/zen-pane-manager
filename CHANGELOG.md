@@ -2,21 +2,19 @@
 
 All notable changes to Pane are documented here.
 
-## 0.11.0-dev (unreleased)
+## 0.11.0 — 2026-10-05
 
-- Restore floating positions, sizes, and header pins after native session recovery. Fit panels inside smaller windows and clear saved state on docking or disable. Native restart verification is pending.
+- Open the selected split's layout menu with Option+Shift+L on Mac or Alt+Shift+L on Windows/Linux. Record a different shortcut in settings.
+- Keep layout presentation and focus when replacing or removing panes. Failed swaps now report whether recovery succeeded.
+- Cancel scrolling overview with Escape or by opening the layout menu. Preserve custom column widths through layout changes.
+- Add section resets, shortcut recording warnings, and the same controls in both settings entry points.
+- Make toolbar visibility consistent, with Auto-hide or Always visible and a per-panel floating pin.
+- **Experimental:** restore floating positions, sizes, and header pins after restart, fitting panels inside smaller windows. Docking or disabling Pane clears the saved state.
+- **Experimental features included:** scrolling and snapshot scrolling are available from the layout menu. They are optional; existing tiled splits remain available. Native Windows and floating restart verification for this release is still pending. Report bugs with your Zen/Sine versions and reproduction steps.
 
-- Preserve presentation on pane removal/replacement, transfer floating placement during replacement, and report failed rollback accurately. Clean up toolbar/settings state and distinguish shutdown recovery from disabling Pane.
-- Add section resets, plain-key shortcut warnings, shared section labels, and tab spacing in both settings entry points. Update release/privacy documentation.
+## 0.10.0-dev — previous development updates
 
-- Layout menus cancel scrolling gestures without changing the selected tab. Slow page transitions stay covered with a tiled-layout recovery option. Settings use schema defaults and explain shortcut conflicts.
-
-- Open the current split’s layout menu with Option+Shift+L on Mac or Alt+Shift+L on Windows/Linux. Change or disable it in Pane settings.
-
-- Escape cancels scrolling overview and restores the starting tab. Column widths survive layout recovery.
-- Shared layout navigation shortcuts, complete settings controls, and a global Auto-hide / Always visible toolbar option. Floating pins keep their per-pane override.
-
-- Experimental scrolling layout: pages stay full width until you hold the modifier to reveal columns. Scroll with the wheel or two fingers, then release to expand the centered tab. Resize each column by its edge and reset its width with a double-click. Modified gestures are shielded from webpages. Scrolling layouts and widths are saved with the split.
+- Experimental scrolling layout: pages stay full width until you hold the modifier to reveal columns. Scroll with the wheel or two fingers, then release to expand the centered tab. Resize each column by its edge and reset its width with a double-click. Modified gestures are shielded from webpages. Scrolling layouts and widths reset after restarting.
 
 - Inset accordion separators away from rounded corners and add separate active-tab border thickness, color, opacity, and preview.
 

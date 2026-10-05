@@ -14,7 +14,7 @@ Pane does not use native executables, architecture-specific binaries, registry e
 
 Sine must have **Install JavaScript from unofficial sources** enabled because Pane is currently installed from its public GitHub repository rather than Sine's verified store. After a first install, toggle Pane once and fully restart Zen so Sine's browser-chrome loader starts from a clean state.
 
-The ⇄ control exists only inside an active split pane header. If both the control and keyboard shortcut are absent, press **Alt+Shift+D** on Windows or Linux. A copied report proves Pane's independent diagnostic bootstrap loaded; no response means Sine blocked or did not load the privileged scripts. The Browser Console should contain `[Pane] 0.11.0-dev ready` when the main runtime succeeds.
+The ⇄ control exists only inside an active split pane header. If both the control and keyboard shortcut are absent, press **Alt+Shift+D** on Windows or Linux. A copied report proves Pane's independent diagnostic bootstrap loaded; no response means Sine blocked or did not load the privileged scripts. The Browser Console should contain `[Pane] 0.11.0 ready` when the main runtime succeeds.
 
 Pane relies on Zen's private `gZenViewSplitter` object. The mod checks for the exact methods it needs before offering a replacement, but a future Zen release may still change their behavior.
 

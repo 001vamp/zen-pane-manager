@@ -19,15 +19,15 @@ const context = vm.createContext({
   setTimeout: fn => { queued = fn; return 1; },
 });
 vm.runInContext(code, context);
-assert.equal(context.missedUpdates("").length, 2);
-assert.equal(context.missedUpdates("accordion-motion-2026-10").length, 1);
-assert.equal(context.missedUpdates("quick-start-2026-10").length, 0);
-assert.equal(context.missedUpdates("unknown-release").length, 2);
+assert.equal(context.missedUpdates("").length, 3);
+assert.equal(context.missedUpdates("accordion-motion-2026-10").length, 2);
+assert.equal(context.missedUpdates("quick-start-2026-10").length, 1);
+assert.equal(context.missedUpdates("unknown-release").length, 3);
 context.showUpdateNotice();
 assert.equal(attached, 0); assert.equal(values.size, 0);
 focused = true; queued();
 assert.equal(attached, 1);
-assert.equal(visible.children[2].children.length, 7, "guide and both missed cards");
+assert.equal(visible.children[2].children.length, 8, "guide and all missed cards");
 assert.equal(values.has("mod.pane.last-read-update"), false);
 visible.children[1].click();
 assert.equal(visible.removed, true);
@@ -44,6 +44,15 @@ context.showUpdateNotice(); assert.equal(attached, 3);
 values.clear(); values.set("mod.pane.update-notices", false);
 context.showUpdateNotice(); assert.equal(attached, 3);
 context.showUpdateNotice(true); assert.equal(attached, 4, "opt-out still permits manual guide");
+// Existing main users who acknowledged the old guide still receive this release card.
+values.clear();
+values.set('mod.pane.last-read-update','quick-start-2026-10');
+values.set('mod.pane.last-update-notice','quick-start-2026-10');
+values.set('mod.pane.quick-start-seen','quick-start-2026-10');
+context.showUpdateNotice();
+assert.equal(attached,5,'0.11.0 reaches users who already acknowledged the previous main update');
+assert.equal(context.missedUpdates('quick-start-2026-10')[0].id,'pane-0.11.0');
+assert.match(context.missedUpdates('quick-start-2026-10')[0].message,/experimental and optional/);
 assert.match(source, /clearTimeout\(updateNoticeTimer\)/);
 assert.match(source, /updateNotice\?\.remove\(\)/);
 console.log("Update cards: backlog, migration, focus, delivery, acknowledgement, reopening, opt-out and cleanup passed.");

@@ -96,3 +96,7 @@ Keep page state and divider geometry, local-only operation, keyboard access, exp
 - Verified Option+Shift+L opens the existing split layout menu in native macOS Zen 1.22.3b, and Escape closes it. Controller coverage also checks overview cancellation and recording suppression.
 - Phase 4 has local floating-session implementation: versioned per-tab geometry and pin records, delayed recovery until native session restoration, bounded panels, original page instances, and docking/disable cleanup. The automated suite covers these cases. Native floating restart, protected-tab placement, and Windows verification are still release gates.
 - Phase 5 remains: consolidate one responsibility at a time, beginning with session presentation state. No broad controller rewrite is planned.
+
+## Main release — October 5
+
+Version 0.11.0 is prepared for the normal `main` update channel. Its README, changelog, and in-app update card identify scrolling, snapshot scrolling, and floating session recovery as optional experimental features. Existing tiled layouts are not automatically switched. Automated checks pass; native Windows and floating restart gates remain open. Phase 5 consolidation remains next.
