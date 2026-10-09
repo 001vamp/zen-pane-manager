@@ -1,6 +1,6 @@
 // This Source Code Form is subject to the Mozilla Public License, v. 2.0.
 // You can obtain a copy at https://mozilla.org/MPL/2.0/.
-import { numericSettings, colorSettings, conditionMatches } from './appearance.mjs?pane=0.11.0-macos-shortcut';
+import { numericSettings, colorSettings, conditionMatches } from './appearance.mjs?pane=0.11.0-labels';
 import { shortcutSettings } from './keybindings.mjs?pane=0.11.0-macos-shortcut';
 try {
   // This page is served from Sine's privileged chrome URI, never from the web.
@@ -48,7 +48,7 @@ try {
   const observer={observe:()=>refreshers.forEach(sync=>sync())};
   Services.prefs.addObserver('mod.pane.',observer);
   window.addEventListener('unload',()=>Services.prefs.removeObserver('mod.pane.',observer),{once:true});
-  await import('./pane-settings.uc.mjs?pane=0.11.0-macos-shortcut');
+  await import('./pane-settings.uc.mjs?pane=0.11.0-labels');
 } catch (error) {
   document.getElementById('load-error').textContent = 'Pane could not open its appearance controls. Enable Pane in Sine and restart Zen, then try again.';
   console.error('[Pane appearance]',error);
