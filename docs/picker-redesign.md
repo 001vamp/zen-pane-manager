@@ -8,6 +8,8 @@ Item 8 in the local vibe-wise plan (`picker redesign / picker-as-hub`). That fil
 
 **Recommendation:** Direction C — one command hub. Search stays focused. The list is destinations *and* verbs. The layout-menu shortcut opens the same overlay in “arrange this tab” scope. Ship it in small PRs.
 
+**No implementation starts until Jasiel picks a direction (A, B, or C).** This document does not authorize product PRs.
+
 ---
 
 ## 1. How the picker works today
@@ -235,7 +237,7 @@ Default-layout chip (Alt+arrows) keeps the fast path: type `notes`, Enter, done.
 **Out of scope for this item**
 
 - Cross-workspace moves, extra native windows, breaking Zen’s four-tab cap (`ROADMAP.md` boundaries).
-- Undo stack (later on the product roadmap).
+- Undo, named layouts, and settings export/import (later on the product roadmap; they plug into this hub — see §5 — they are not in PR1–6).
 - New layouts.
 - Visual redesign for its own sake. Reuse glass tokens, icons, width pref. Drop the wrapping chip bar; do not restyle the browser.
 - Changing replace/add/join internals except where the hub has to call them.
@@ -254,9 +256,29 @@ Mouse still works: click a row, click the default-layout chip, click peek action
 
 ---
 
-## 5. Implementation plan (small PRs)
+## 5. Later features on this hub (not in the plan)
 
-Do not rewrite `pane.uc.mjs` in one shot. Each PR should leave the previous keyboard path working. Native Zen stays Jasiel’s gate; agents run fixtures only.
+`ROADMAP.md` lists these after the reliability gates. They do **not** change PR1–6. They only show that Direction C has a slot for each one so we do not grow a fourth popup later. Build them only after the hub exists and Jasiel has picked C.
+
+Hub rows are one of three things:
+
+- **Verb** — a command (`Unsplit`, `Restore tiled layout`). Enter runs it.
+- **Scope** — the same overlay, filtered (`scope: 'arrange'` from the layout-menu shortcut).
+- **Entry type** — a kind of destination row (open tab, existing split). Peek still applies.
+
+| Later item | Fits as | How it shows up |
+| --- | --- | --- |
+| Undo the last layout/replacement | **Verb** | Empty-query row `Undo last layout`, searchable as `undo`. Disabled with an honest reason if the tabs are gone (same rule as today’s toasts: closed outgoing tab is explicit, not silent). No new scope. |
+| Named layouts | **Entry type** + one **verb** | Verb: `Save current layout as…`. Rows: saved names in a “Saved layouts” section; type the name to filter; Enter applies to the current split. Peek: Apply / Update from current / Rename / Delete. Optional later `scope: 'layouts'` (same trick as arrange-scope), not a second dialog. |
+| Versioned settings export/import | **Verbs** | `Export Pane settings…` and `Import Pane settings…` next to the settings/diagnostics verbs. File format and versioning stay a settings problem. Import is still a verb (pick a file, confirm); do not add a settings-files entry type unless presets become first-class later. |
+
+Closed set still applies: these are named rows, not a plugin API. Same local-only / rollback / eligibility rules when those features are actually designed.
+
+---
+
+## 6. Implementation plan (small PRs)
+
+Do not rewrite `pane.uc.mjs` in one shot. Each PR should leave the previous keyboard path working. Native Zen stays Jasiel’s gate; agents run fixtures only. **No implementation PR starts until Jasiel picks A, B, or C.** PR1–6 below assume C; they still do not include undo, named layouts, or settings files.
 
 ### PR 0 — this document
 
@@ -338,7 +360,7 @@ If C feels too far after PR2, stop and re-evaluate with Jasiel. PR1–2 are usef
 
 ---
 
-## 6. Test plan (what “done” means per layer)
+## 7. Test plan (what “done” means per layer)
 
 ### Fixtures (every PR)
 
@@ -370,7 +392,7 @@ Record PASS / FAIL / NOT RUN per entry point.
 
 ---
 
-## 7. Open questions for Jasiel
+## 8. Open questions for Jasiel
 
 1. **Layout menu popup:** delete in PR 4, or keep one release behind a hidden pref? Recommendation: delete once arrange-scope fixtures pass, keep the shortcut.
 
@@ -394,7 +416,7 @@ Record PASS / FAIL / NOT RUN per entry point.
 
 ---
 
-## 8. Files that will change later (not in this PR)
+## 9. Files that will change later (not in this PR)
 
 | File | Role |
 | --- | --- |
@@ -412,8 +434,9 @@ This PR adds only `docs/picker-redesign.md`.
 
 ---
 
-## 9. Decision log
+## 10. Decision log
 
 | Date | Decision |
 | --- | --- |
 | 2026-10-09 | Design-only. Recommend Direction C (command hub), staged as PR1–6. A is the fallback after PR2. B is rejected as a wizard that still isn’t a hub. |
+| 2026-10-09 | Later roadmap items (undo, named layouts, settings export/import) map onto hub verbs / scopes / entry types. They do not change PR1–6. No implementation until Jasiel picks a direction. |
