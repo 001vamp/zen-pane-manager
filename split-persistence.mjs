@@ -169,7 +169,22 @@ export function createSplitPersistence(win, origins) {
   function armRestoreScan() { needsRestoreScan = true; }
   function clear({preserveHidden = false} = {}) {
     if (!session) return;
-    for (const {tab} of scanRecords()) if (!preserveHidden || !tab.hidden) session.deleteCustomTabValue(tab, KEY);
+    const records = scanRecords();
+    const pending = preserveHidden ? pendingProtectedGroups(records) : new Set();
+    const keep = new Set();
+    if (preserveHidden) {
+      const entriesByGroup = new Map();
+      for (const entry of records) {
+        if (!validRecord(entry.record) || !pending.has(entry.record.group)) continue;
+        const entries = entriesByGroup.get(entry.record.group) ?? [];
+        entries.push(entry);
+        entriesByGroup.set(entry.record.group, entries);
+      }
+      for (const [group, entries] of entriesByGroup) {
+        if (entries.every(entry => entry.tab.hidden)) for (const entry of entries) keep.add(entry.tab);
+      }
+    }
+    for (const {tab} of records) if (!keep.has(tab)) session.deleteCustomTabValue(tab, KEY);
     lastLayoutState = layoutState();
   }
   return {save, saveIfChanged, armRestoreScan, restore, sync, clear};

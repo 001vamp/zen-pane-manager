@@ -1249,9 +1249,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins, accordionStep, scrollStep,
     capturePresentation, restorePresentation,
     get floatingTabs() { return [...floats.keys()]; },
-    destroy(options = {}) {
+    destroy() {
       if (disposed) return;
-      options ??= {};
       const preserveSession = Boolean(origins.shuttingDown || win.closed || windowClosing);
       if (preserveSession) persistence.save();
       else persistence.clear({preserveHidden:true});

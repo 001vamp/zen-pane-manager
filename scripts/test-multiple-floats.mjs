@@ -327,9 +327,23 @@ const beforeMouseupSplits = splitCalls;
 win.emit('mouseup'); flush();
 assert.equal(splitCalls,beforeMouseupSplits,'mouseup only saves changed layout state and never runs split restore');
 mouseupController.destroy();
-assert.deepEqual([...savedSplits.keys()],[tabs[4]],'real unload clears visible records and keeps hidden pending records');
+assert.equal(savedSplits.size,0,'real unload clears mixed-visibility pending groups atomically');
 savedSplits.clear();
 tabs[4].hidden = false;
+data.tabs = [tabs[3], tabs[4]]; data.layoutTree = tree(data.tabs); data.gridType = 'vsep';
+for (const tab of tabs) { tab.splitView = data.tabs.includes(tab); tab.hidden = data.tabs.includes(tab); }
+const hiddenWorkspaceController = createMultiwindow(win, options); flush();
+assert.ok(savedSplits.size > 0, 'hidden workspace split records are saved while Pane is active');
+hiddenWorkspaceController.destroy();
+assert.equal(savedSplits.size,0,'disable clears restored split records in hidden workspaces');
+data.tabs = [tabs[3]]; data.layoutTree = tree(data.tabs); data.gridType = 'vsep';
+for (const tab of tabs) { tab.splitView = data.tabs.includes(tab); tab.hidden = false; }
+const hiddenReinitBefore = splitCalls;
+const hiddenWorkspaceReinit = createMultiwindow(win, options); flush();
+assert.equal(splitCalls,hiddenReinitBefore,'re-init after hidden-workspace native unsplit does not re-split');
+hiddenWorkspaceReinit.destroy();
+data.tabs = [tabs[0], tabs[1]]; data.layoutTree = tree(data.tabs); data.gridType = 'vsep';
+for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
 const closingController = createMultiwindow(win, options); flush();
 assert.ok(savedSplits.size > 0, 'active controller has split metadata to preserve on close');
 win.emit('SSWindowClosing');

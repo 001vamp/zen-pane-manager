@@ -16,7 +16,7 @@ let destroyed = false;
 
 // Sine can reload a user script without restarting the browser. Tear down a
 // previous v0.3+ instance and remove any orphaned UI from older releases.
-window[INSTANCE_KEY]?.destroy?.({reload:true});
+window[INSTANCE_KEY]?.destroy?.();
 document.getElementById("pane-overlay")?.remove();
 document.getElementById("pane-toast")?.remove();
 document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
@@ -967,9 +967,9 @@ const historyProgress = {
   onStateChange() { updateHistoryControls(window); },
 };
 
-function destroy(options = {}) {
-  options ??= {};
-  if (destroyed || (window[INSTANCE_KEY] && window[INSTANCE_KEY].destroy !== destroy)) return;
+function destroy() {
+  if (destroyed) return;
+  const ownsInstance = window[INSTANCE_KEY]?.destroy === destroy;
   destroyed = true;
   diagnosticLog("Pane runtime unloading");
   gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
@@ -979,7 +979,7 @@ function destroy(options = {}) {
   }
   toolbarReveals.clear();
   renderGeneration++;
-  multiwindow?.destroy(options);
+  multiwindow?.destroy();
   clearTimeout(updateNoticeTimer);
   updateNotice?.remove();
   updateNotice = null;
@@ -994,11 +994,13 @@ function destroy(options = {}) {
   window.removeEventListener("resize", onWindowResize);
   try { Services.prefs.removeObserver("mod.pane.", prefObserver); } catch (e) {}
   overlay?.remove();
-  document.getElementById("pane-toast")?.remove();
-  document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
-  root.removeAttribute("pane-ready");
-  root.removeAttribute("pane-toolbar-always");
-  if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
+  if (ownsInstance) {
+    document.getElementById("pane-toast")?.remove();
+    document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
+    root.removeAttribute("pane-ready");
+    root.removeAttribute("pane-toolbar-always");
+    delete window[INSTANCE_KEY];
+  }
 }
 
 function initialize() {
