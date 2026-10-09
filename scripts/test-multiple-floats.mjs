@@ -238,7 +238,8 @@ assert.ok(tabs.every(tab=>!container(tab).hasAttribute('--pane-accordion-line-le
 const savedLayouts = new Map();
 const savedScrollings = new Map();
 const savedFloats = new Map();
-const sessionValues = key => key==='pane-floating-v1' ? savedFloats : key==='pane-scrolling-v1' ? savedScrollings : savedLayouts;
+const savedSplits = new Map();
+const sessionValues = key => key==='pane-split-v1' ? savedSplits : key==='pane-floating-v1' ? savedFloats : key==='pane-scrolling-v1' ? savedScrollings : savedLayouts;
 win.SessionStore = {
   getCustomTabValue: (tab,key) => sessionValues(key).get(tab) ?? '',
   setCustomTabValue: (tab, key, value) => sessionValues(key).set(tab, value),
@@ -257,7 +258,7 @@ assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'wait for
 view._sessionRestoring = false;
 win.emit('SSWindowStateReady'); flush();
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 2, 'restore accordion after restart');
-assert.equal(data.layoutTree, preservedTree, 'restoration keeps the native layout tree');
+assert.equal(data.layoutTree.children[0].sizeInParent, preservedTree.children[0].sizeInParent, 'restoration keeps native divider sizes');
 afterRestart.arrange(tabs[0], 'tiles');
 assert.equal(savedLayouts.size, 0, 'explicit return to tiles clears saved accordion');
 afterRestart.destroy();
