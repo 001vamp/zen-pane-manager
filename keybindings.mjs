@@ -82,6 +82,10 @@ export const layoutShortcuts = [
   { key: 'layout-menu', label: 'Open split layout menu', value: 'Auto', defaultBinding: 'Alt+Shift+L' },
 ];
 
+function defaultLayoutBinding(setting, platform = currentPlatform()) {
+  return setting.key === 'layout-menu' && /Mac/i.test(platform) ? 'Ctrl+Shift+L' : setting.defaultBinding;
+}
+
 export function shortcutLabel(binding, platform = currentPlatform()) {
   if (!binding) return 'Disabled';
   return binding.label.replace('Alt', /Mac/i.test(platform) ? 'Option' : 'Alt')
@@ -93,7 +97,7 @@ export function layoutBindings(prefs, platform = currentPlatform()) {
   const records = layoutShortcuts.map(setting => {
     const value = prefs?.getStringPref?.(`mod.pane.${setting.key}`, 'Auto') ?? 'Auto';
     const disabled = !value.trim() || /^disabled$/i.test(value.trim());
-    const binding = disabled ? null : parseBinding(/^auto$/i.test(value.trim()) ? setting.defaultBinding : value);
+    const binding = disabled ? null : parseBinding(/^auto$/i.test(value.trim()) ? defaultLayoutBinding(setting, platform) : value);
     return { ...setting, binding, error: !disabled && !binding ? 'Use a shortcut such as Alt+Shift+Left, Auto, or Disabled.' : '' };
   });
   const reserved = [{ label: 'the picker', binding: pickerBinding(prefs ?? {}, platform) }];
