@@ -978,12 +978,15 @@
 
 .pane-scrolling-handoff { position:fixed; z-index:2147483000; background:light-dark(#f4f4f7,#18181c); pointer-events:auto; }
 
-.pane-snapshot-overview { position:fixed; z-index:2147483000; overflow:hidden; background:light-dark(#eeeef3,#19191f); }
-.pane-snapshot-strip { display:flex; gap:10px; height:100%; align-items:center; }
-.pane-snapshot-card { flex:none; height:86%; border-radius:var(--pane-radius); overflow:hidden; background:light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark)); box-shadow:0 8px 28px #0004; }
-.pane-snapshot-card[data-landing] { outline:3px solid var(--pane-accent,#9b7bea); outline-offset:-3px; }
-.pane-snapshot-title { padding:14px; font:13px system-ui; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:light-dark(#222,#fff); }
-.pane-snapshot-image { width:100%; height:calc(100% - 45px); object-fit:contain; }
+/* Snapshot surfaces use the scrolling columns' styling without resizing live pages. */
+.pane-snapshot-overview { position:fixed; z-index:2147483000; overflow:hidden; background:light-dark(#f4f4f7,#18181c); }
+.pane-snapshot-strip { display:flex; gap:10px; height:100%; align-items:stretch; }
+.pane-snapshot-card { position:relative; flex:none; height:100%; overflow:hidden; background:light-dark(var(--pane-user-tint-light),var(--pane-user-tint-dark)); }
+.pane-snapshot-card[data-landing] { box-shadow:inset 0 0 0 2px var(--pane-accent),0 4px 22px #0005; }
+.pane-snapshot-card[data-landing] > .pane-scrolling-header { border-color:color-mix(in srgb,var(--pane-accent) 65%,var(--pane-line)); box-shadow:0 0 0 2px color-mix(in srgb,var(--pane-accent) 22%,transparent),0 5px 18px #0003; }
+.pane-snapshot-card[data-landing] .pane-scrolling-landing-label { display:block; }
+.pane-snapshot-image { width:100%; height:100%; object-fit:contain; }
+
 
 /* Only the active/landing page owns the scrolling toolbar. */
 .browserSidebarContainer[pane-scrolling]:not([pane-scrolling-toolbar-active]) > .pane-scrolling-header,

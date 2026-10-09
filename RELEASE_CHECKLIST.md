@@ -63,7 +63,7 @@ For feature updates, append a card with a unique ID to `UPDATE_NOTICES` in `pane
 - [ ] Restart restores accordion/scrolling, widths, and tab origins. Disable/enable twice leaves no stale UI or metadata.
 - [ ] Both settings entry points expose the same controls; recorded shortcuts, conflict messages, warning confirmation, and section resets work.
 - [ ] Keyboard-only, reduced motion, light/dark personalization, and narrow windows remain usable.
-- [ ] Keep scrolling and snapshot scrolling experimental until their native gates pass.
+- [ ] Keep scrolling experimental until their native gates pass.
 - [ ] Review release ZIP contents: exclude local-work, output, agent metadata, and unrelated promo experiments; preserve those locally.
 
 Unchecked items are work remaining, not evidence of compatibility. Publication requires owner approval.

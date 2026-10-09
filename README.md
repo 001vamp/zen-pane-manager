@@ -12,7 +12,7 @@ Start with one tab or an existing split. Pick another open tab, choose a layout,
 
 This update adds a layout-menu shortcut, more consistent settings and toolbars, and better layout recovery. On Windows/Linux, press **Alt+Shift+L** while a split tab is selected. On Mac, use **Ctrl+Shift+L**. This changed because Option modifies letter keys before Pane can read them on real macOS.
 
-**This release also includes optional experimental features:** scrolling, snapshot scrolling, and saving floating positions/pins across restarts. They are available in the layout menu; updating does not switch an existing tiled split into scrolling. You can return to a tiled layout from that same menu. Current-release Windows and floating restart checks are still pending—please report reproducible problems with a diagnostic report.
+**This release also includes optional experimental features:** scrolling and saving floating positions/pins across restarts. They are available in the layout menu; updating does not switch an existing tiled split into scrolling. You can return to a tiled layout from that same menu. Current-release Windows and floating restart checks are still pending—please report reproducible problems with a diagnostic report.
 
 To update an existing installation, use **Settings → Sine Mods → Check for Updates**, then fully quit and reopen Zen. The normal repository install now receives this version from `main`.
 

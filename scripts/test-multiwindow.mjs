@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
-import { fitRectangle, resizeRectangle, layoutTypes, modeLabels, isSupportedTab, tabWorkspace } from "../multiwindow.mjs";
+import { fitRectangle, resizeRectangle, layoutTypes, modeLabels, isSupportedTab, tabWorkspace, normalizeMode, presentationModes, scrollingSizes, scrollingColumnWidth } from "../multiwindow.mjs";
 assert.deepEqual(layoutTypes, { right: "vsep", below: "hsep", grid: "grid" });
 assert.equal(modeLabels.scrolling, "Scrolling (experimental)");
-assert.equal(modeLabels.snapshot, "Snapshot scrolling (prototype)");
+assert.equal(modeLabels.snapshot, undefined);
+assert.deepEqual(presentationModes,['accordion','scrolling']);
+assert.equal(normalizeMode('snapshot'),'scrolling');
+assert.equal(normalizeMode('scrolling'),'scrolling');
+assert.equal(normalizeMode('grid'),'grid');
+assert.deepEqual(scrollingSizes(1000.25,65,[800.125,null]),{
+ viewport:1000.25,width:650.1625,widths:[800.125,650.1625],positions:[0,810.125],max:800.125 + 10 + 650.1625 - 1000.25
+});
+assert.deepEqual(scrollingSizes(200,65,[500,10]).widths,[200,200]);
 assert.deepEqual(fitRectangle({x:900,y:800,width:480,height:420},800,600), {x:320,y:180,width:480,height:420});
 assert.deepEqual(fitRectangle({x:-20,y:-10,width:10,height:20},800,600), {x:0,y:0,width:260,height:180});
 assert.deepEqual(fitRectangle({x:40,y:50,width:480,height:420},200,100), {x:0,y:0,width:200,height:100});
@@ -38,3 +46,8 @@ console.log("Folder eligibility and protected tab exclusions passed.");
 const essential = { ...ordinary, hasAttribute: name => name === "zen-essential" };
 assert.equal(isSupportedTab(essential), true);
 assert.equal(tabWorkspace({ gZenWorkspaces: { activeWorkspace: "active" } }, essential), "active");
+
+assert.equal(scrollingColumnWidth(1000.25,800.125),800.125);
+assert.equal(scrollingColumnWidth(1000.25,9999),1000.25);
+assert.equal(scrollingColumnWidth(1000.25,10),320);
+assert.equal(scrollingColumnWidth(200.125,10),200.125);

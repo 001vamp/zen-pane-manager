@@ -12,7 +12,6 @@ Use [SKILL.md](../SKILL.md) for isolation, launch, doctor, evidence and cleanup.
 | Split below | Mock layout/presentation/geometry logic | [split-below](split-below.md) |
 | Grid | Mock layout/presentation/geometry logic | [grid](grid.md) |
 | Horizontal accordion | Mock layout/presentation/geometry logic | [accordion](accordion.md) |
-| Snapshot scrolling | Mock layout/presentation/geometry logic | [snapshot](snapshot.md) |
 | Scrolling | Mock layout/presentation/geometry logic | [scrolling](scrolling.md) |
 | Floating | Mock layout/presentation/geometry logic | [floating](floating.md) |
 
