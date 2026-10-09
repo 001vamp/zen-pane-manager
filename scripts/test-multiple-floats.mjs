@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createMultiwindow } from '../multiwindow.mjs';
+import { createMultiwindow, presentationModes } from '../multiwindow.mjs';
 
 // Minimal browser-chrome fixture exercising the controller with real DOM-like events.
 class Node {
@@ -43,7 +43,7 @@ const tabs = Array.from({length:5}, (_,i) => {
   tab.linkedBrowser = new Node(doc,'browser'); container.append(tab.linkedBrowser);
   return tab;
 });
-const tree = tabs => ({ children: tabs.map(tab => ({ tab })) });
+const tree = (tabs, type = 'grid') => ({ type, children: tabs.map(tab => ({ tab })) });
 const data = {tabs:[tabs[0]], gridType:'vsep', layoutTree:tree([tabs[0]])};
 let lastLayout;
 const view = {
@@ -115,6 +115,41 @@ assert.ok(memberTabs.every((tab,i)=>!tab.splitView && tab.linkedBrowser===member
 assert.throws(()=>controller.unsplit({tabs:memberTabs}),/no longer available/);
 data.tabs = [tabs[0]];
 data.layoutTree = tree(data.tabs);
+const customTree = () => ({
+  children: [
+    { sizeInParent: 62, children: [{ tab: tabs[0], sizeInParent: 30 }, { tab: tabs[2], sizeInParent: 70 }] },
+    { tab: tabs[3], sizeInParent: 38 },
+  ],
+});
+const resetCustomTree = () => {
+  data.tabs = [tabs[0], tabs[2], tabs[3]];
+  data.gridType = 'vsep';
+  data.layoutTree = customTree();
+  for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+  tabs[4].splitView = false;
+};
+resetCustomTree();
+controller.join(data, tabs[4], 'right');
+assert.equal(data.gridType, 'vsep', 'joining right preserves the existing group type');
+assert.equal(data.layoutTree.children[0].sizeInParent, 62, 'joining right preserves the resized nested branch');
+assert.equal(data.layoutTree.children[1].sizeInParent, 38, 'joining right preserves sibling size');
+assert.equal(data.layoutTree.children[0].children[1].sizeInParent, 70, 'joining right preserves existing leaf size');
+assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining right keeps the target leaf size on the inserted branch');
+assert.equal(data.layoutTree.children[0].children[0].type, 'vsep', 'joining right splits the target leaf horizontally');
+assert.deepEqual(data.layoutTree.children[0].children[0].children.map(n => n.tab), [tabs[0], tabs[4]]);
+resetCustomTree();
+controller.join(data, tabs[4], 'below');
+assert.equal(data.gridType, 'vsep', 'joining below preserves the existing group type');
+assert.equal(data.layoutTree.children[0].sizeInParent, 62, 'joining below preserves the resized nested branch');
+assert.equal(data.layoutTree.children[1].sizeInParent, 38, 'joining below preserves sibling size');
+assert.equal(data.layoutTree.children[0].children[1].sizeInParent, 70, 'joining below preserves existing leaf size');
+assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining below keeps the target leaf size on the inserted branch');
+assert.equal(data.layoutTree.children[0].children[0].type, 'hsep', 'joining below splits the target leaf vertically');
+assert.deepEqual(data.layoutTree.children[0].children[0].children.map(n => n.tab), [tabs[0], tabs[4]]);
+data.tabs = [tabs[0]];
+data.gridType = 'vsep';
+data.layoutTree = tree(data.tabs);
+for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
 controller.add(tabs[0],tabs[2],'right');
 controller.add(tabs[0],tabs[3],'below');
 data.layoutTree.children[0].sizeInParent = 36;
@@ -457,7 +492,7 @@ invalidFloats.destroy();
 console.log('Floating sessions: multiple panels, pins, smaller bounds, original pages, docking and disable passed.');
 
 // Picker modes use the same add/join controller as ordinary tile choices.
-for (const mode of ['right', 'below', 'grid', 'accordion', 'snapshot', 'scrolling', 'float']) {
+for (const mode of ['right', 'below', 'grid', ...presentationModes, 'float']) {
   for (const joining of [false, true]) {
     data.tabs = [tabs[0], tabs[1]];
     data.layoutTree = tree(data.tabs); data.gridType = 'vsep'; view.currentView = 0;
@@ -473,7 +508,8 @@ for (const mode of ['right', 'below', 'grid', 'accordion', 'snapshot', 'scrollin
     if (mode === 'accordion') assert.equal(presentation.accordion, tabs[2]);
     if (['snapshot', 'scrolling'].includes(mode)) assert.equal(presentation.scrolling.snapshot, mode === 'snapshot');
     if (mode === 'float') assert.ok(hub.floatingTabs.includes(tabs[2]));
-    if (['right', 'below', 'grid'].includes(mode)) assert.equal(data.gridType, {right:'vsep', below:'hsep', grid:'grid'}[mode]);
+    if (mode === 'grid') assert.equal(data.gridType, 'grid');
+    if (['right', 'below'].includes(mode)) assert.equal(data.gridType, 'vsep');
     hub.destroy();
   }
 }

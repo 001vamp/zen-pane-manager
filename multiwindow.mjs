@@ -38,6 +38,7 @@ export function addHistoryControls(win, parent) {
 }
 
 export const layoutTypes = { right: "vsep", below: "hsep", grid: "grid" };
+export const presentationModes = ["accordion", "snapshot", "scrolling"];
 export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", snapshot: "Snapshot scrolling", scrolling: "Scrolling" };
 
 export function fitRectangle(rect, width, height) {
@@ -997,12 +998,33 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (node.children) copy.children = node.children.map(copyTree);
     return copy;
   }
+  function replaceLeaf(node, tab, replacement) {
+    if (!node.children) {
+      if (node.tab !== tab) return null;
+      for (const [key, value] of Object.entries(node)) {
+        if (!["tab", "children", "parent"].includes(key) && !(key in replacement)) replacement[key] = value;
+      }
+      return replacement;
+    }
+    for (let i = 0; i < node.children.length; i++) {
+      const next = replaceLeaf(node.children[i], tab, replacement);
+      if (next) { node.children[i] = next; return node; }
+    }
+    return null;
+  }
+  function addToExistingTree(snapshot, target, incoming, layout) {
+    const branch = view.calculateLayoutTree([target, incoming], layout);
+    const tree = copyTree(snapshot.tree);
+    const replaced = replaceLeaf(tree, target, branch);
+    if (!replaced) throw new Error("Zen could not find the target pane");
+    return replaced === tree ? tree : replaced;
+  }
   function add(target, incoming, mode) {
     checkTab(target); checkTab(incoming);
     if (target === incoming || incoming.splitView || tabWorkspace(win, target) !== tabWorkspace(win, incoming)) throw new Error("Choose an available tab in the same workspace");
     const current = groupFor(target);
     if ((current?.tabs.length ?? 1) >= view.MAX_TABS) throw new Error("This split has reached Zen’s tab limit");
-    const presentationMode = ["accordion", "snapshot", "scrolling"].includes(mode);
+    const presentationMode = presentationModes.includes(mode);
     const layout = layoutTypes[mode] || "vsep";
     if (!layoutTypes[mode] && mode !== "float" && !presentationMode) throw new Error("Unknown layout");
     const presentation=capturePresentation(current);
@@ -1015,8 +1037,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       if (!data?.tabs.includes(incoming)) throw new Error("Zen could not create this layout");
       // Zen adds to an existing tree without applying the requested direction.
       if (mode !== "float") {
-        data.gridType = layout;
-        data.layoutTree = view.calculateLayoutTree(data.tabs, data.gridType);
+        data.gridType = current && layout !== "grid" ? snapshot.type : layout;
+        data.layoutTree = current && layout !== "grid" ? addToExistingTree(snapshot, target, incoming, layout)
+          : view.calculateLayoutTree(data.tabs, data.gridType);
         view.activateSplitView(data, true);
       }
       browser.selectedTab = incoming;
@@ -1047,7 +1070,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   }
   function join(data, incoming, mode = "grid") {
     if (!view._data.includes(data) || data.tabs.length < 2) throw new Error("That split is no longer available");
-    if (!layoutTypes[mode] && !["float", "accordion", "snapshot", "scrolling"].includes(mode)) throw new Error("Unknown layout");
+    if (!layoutTypes[mode] && !["float", ...presentationModes].includes(mode)) throw new Error("Unknown layout");
     const target = data.tabs.find(tab => !floats.has(tab)) || data.tabs[0];
     add(target, incoming, mode);
   }
