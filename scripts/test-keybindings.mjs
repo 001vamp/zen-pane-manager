@@ -36,8 +36,10 @@ for (const platform of ['MacIntel','Win32','Linux x86_64']) {
   assert.equal(bindings[4].binding.label,/Mac/i.test(platform) ? 'Ctrl+Shift+Minus' : 'Alt+Shift+Minus');
   assert.ok(bindings.every(record=>!record.error), `${platform} default layout bindings do not collide`);
   assert.ok(matchesBinding(event({key:'ArrowRight',ctrlKey:false,shiftKey:true}),bindings[1].binding));
-  assert.ok(matchesBinding(event({key:'+',ctrlKey:/Mac/i.test(platform),altKey:!/Mac/i.test(platform),shiftKey:true}),bindings[3].binding));
-  assert.ok(matchesBinding(event({key:'-',ctrlKey:/Mac/i.test(platform),altKey:!/Mac/i.test(platform),shiftKey:true}),bindings[4].binding));
+  assert.ok(matchesBinding(event({key:'=',code:'Equal',ctrlKey:/Mac/i.test(platform),altKey:!/Mac/i.test(platform),shiftKey:true}),bindings[3].binding));
+  assert.ok(matchesBinding(event({key:'_',code:'Minus',ctrlKey:/Mac/i.test(platform),altKey:!/Mac/i.test(platform),shiftKey:true}),bindings[4].binding));
+  assert.ok(matchesBinding(event({key:'Add',code:'NumpadAdd',ctrlKey:/Mac/i.test(platform),altKey:!/Mac/i.test(platform),shiftKey:true}),bindings[3].binding));
+  assert.ok(matchesBinding(event({key:'Subtract',code:'NumpadSubtract',ctrlKey:/Mac/i.test(platform),altKey:!/Mac/i.test(platform),shiftKey:true}),bindings[4].binding));
   assert.ok(!matchesBinding(event({key:'ArrowRight',ctrlKey:false,shiftKey:false}),bindings[1].binding));
 }
 assert.equal(shortcutLabel(accordionBindings(prefs({}))[0].binding,'MacIntel'),'Option+Shift+←');

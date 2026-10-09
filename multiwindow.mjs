@@ -387,8 +387,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
           if (state.resizeDrag) finishAccordionResize(state);
           container.querySelector(".pane-accordion-bar")?.remove();
           container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
-          handle = button("", event => {
-            if (event.target?.closest?.(".pane-accordion-resize")) return;
+          handle = button("", () => {
             hideEdgeHint();
             if (tab === state.active) { openMenu(tab, handle); return; }
             browser.selectedTab = tab; state.active = tab; applyAccordion(); tab.linkedBrowser.focus();
@@ -1307,6 +1306,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (!accordion && !scrolling) return;
     if (bindings[index].resize) {
       if (!accordion) return;
+      if (accordion.resizeDrag) return;
       event.preventDefault(); event.stopPropagation();
       if (resizeAccordionByShortcut(data, accordion, bindings[index].resize)) browser.selectedTab.linkedBrowser.focus();
       return;

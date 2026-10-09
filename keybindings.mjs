@@ -42,6 +42,8 @@ export function matchesBinding(event, binding, platform = event.view?.navigator?
   if (binding.altKey && /^[a-z0-9]$/.test(binding.key) && /^(Key[A-Z]|Digit[0-9])$/.test(event.code ?? '')) {
     return event.code === (/^[a-z]$/.test(binding.key) ? `Key${binding.key.toUpperCase()}` : `Digit${binding.key}`);
   }
+  if (binding.key === '+' && ['Equal', 'NumpadAdd'].includes(event.code ?? '')) return true;
+  if (binding.key === '-' && ['Minus', 'NumpadSubtract'].includes(event.code ?? '')) return true;
   return String(event.key).toLowerCase() === binding.key.toLowerCase();
 }
 

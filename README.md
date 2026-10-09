@@ -70,9 +70,9 @@ The close button returns the tab to the sidebar. It does not close the page. Use
 
 ### Horizontal accordion (prototype)
 
-In an existing split, open the layout menu and choose **Horizontal accordion**. One tab comes forward while narrow live edges of the other pages remain visible. Hover an edge for a small favicon and title hint, then click to switch tabs. Use **Option+Shift+Left/Right** on Mac or **Alt+Shift+Left/Right** on Windows or Linux to switch from the page. Navigation wraps at either end. When an edge has keyboard focus, plain **Left/Right**, **Home**, and **End** also work.
+In an existing split, open the layout menu and choose **Horizontal accordion**. One tab comes forward while narrow live edges of the other pages remain visible. Hover an edge for a small favicon and title hint, then click to switch tabs. Use **Option+Shift+Left/Right** on Mac or **Alt+Shift+Left/Right** on Windows or Linux to switch from the page. Use **Ctrl+Shift+Plus/Minus** on Mac or **Alt+Shift+Plus/Minus** on Windows/Linux to widen or narrow the expanded page. Navigation wraps at either end. When an edge has keyboard focus, plain **Left/Right**, **Home**, and **End** also work.
 
-In Pane’s settings, use **Change shortcut** to record either layout navigation shortcut, or **Disable** to turn it off. Duplicate shortcuts within Pane are flagged and inactive until corrected. Accordion uses soft shadows to separate tabs. Optional edge lines are off by default; adjust their thickness, color, and opacity in the appearance controls.
+In Pane’s settings, use **Change shortcut** to record layout navigation or accordion resize shortcuts, or **Disable** to turn one off. Duplicate shortcuts within Pane are flagged and inactive until corrected. Accordion uses soft shadows to separate tabs. Optional edge lines are off by default; adjust their thickness, color, and opacity in the appearance controls.
 
 Hover the top edge of the active page to reveal its title and controls. Use the arrows to switch tabs, the three-dot button to arrange them, or the grid button to **Restore tiled layout** with your previous divider sizes. Dock any floating tabs before entering accordion. Accordion is restored when Zen restores the split after a restart. Disabling Pane removes its presentation and restores tracked tabs to their original placement.
 
