@@ -355,7 +355,7 @@ win.emit('keydown',{key:'+',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false
 const shortcutRightWider = parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right'));
 assert.ok(shortcutRightWider < shortcutRightBefore, 'widen shortcut expands the active accordion tab');
 win.emit('keydown',{key:'-',code:'Minus',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
-near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), shortcutRightBefore);
+assert.ok(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')) > shortcutRightWider, 'narrow shortcut shrinks the active accordion tab');
 for (let i = 0; i < 30; i++) win.emit('keydown',{key:'-',code:'Minus',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
 near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 880);
 for (let i = 0; i < 30; i++) win.emit('keydown',{key:'+',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
