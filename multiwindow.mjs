@@ -1249,10 +1249,12 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins, accordionStep, scrollStep,
     capturePresentation, restorePresentation,
     get floatingTabs() { return [...floats.keys()]; },
-    destroy({reload = false} = {}) {
+    destroy(options = {}) {
+      if (disposed) return;
+      options ??= {};
       const preserveSession = Boolean(origins.shuttingDown || win.closed || windowClosing);
-      if (preserveSession) persistence.save();
-      else persistence.clear({preserveHidden:reload});
+      if (preserveSession || !options.disable) persistence.save();
+      else persistence.clear();
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
