@@ -1018,3 +1018,14 @@
   color: var(--pane-text, white); pointer-events: auto;
 }
 .pane-scrolling-wait button { padding: 8px 12px; cursor: pointer; }
+
+.pane-accordion-resize {
+  position: absolute; top: 36px; bottom: 0; width: 8px; z-index: 8;
+  cursor: ew-resize; touch-action: none; user-select: none;
+}
+.pane-accordion-resize[hidden] { display: none !important; }
+.pane-accordion-resize-left { left: 0; }
+.pane-accordion-resize-right { right: 0; }
+.pane-accordion-resize:hover, .pane-accordion-resize[data-dragging] {
+  background: var(--pane-hover);
+}
