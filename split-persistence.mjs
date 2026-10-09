@@ -54,20 +54,31 @@ export function createSplitPersistence(win, origins) {
     }
     return records;
   }
-  function pendingProtectedGroups(records) {
-    const pending = new Map();
-    for (const {tab, record} of records) {
-      if (record === INVALID || !validRecord(record) || restored.has(record.group)) continue;
-      const entries = pending.get(record.group) ?? [];
-      entries.push({tab, record}); pending.set(record.group, entries);
+  function groupPendingRecords(records) {
+    const grouped = new Map();
+    for (const entry of records) {
+      if (!validRecord(entry.record) || restored.has(entry.record.group)) continue;
+      const entries = grouped.get(entry.record.group) ?? [];
+      entries.push(entry); grouped.set(entry.record.group, entries);
     }
+    return grouped;
+  }
+  function pendingProtectedGroups(grouped) {
     const protectedGroups = new Set();
-    for (const [group, entries] of pending) {
+    for (const [group, entries] of grouped) {
       const count = entries[0].record.count;
       const slots = new Set(entries.map(entry => entry.record.index));
       if (entries.some(entry => entry.tab.hidden) || deferred.has(group) || (entries.length === count && slots.size === count && entries.every(entry => entry.record.count === count))) protectedGroups.add(group);
     }
     return protectedGroups;
+  }
+  function recordsToKeepOnClear(grouped) {
+    const pending = pendingProtectedGroups(grouped), keep = new Set();
+    for (const entries of grouped.values()) {
+      if (!pending.has(entries[0].record.group) || !entries.every(entry => entry.tab.hidden)) continue;
+      for (const entry of entries) keep.add(entry.tab);
+    }
+    return keep;
   }
   function layoutState() {
     try {
@@ -81,7 +92,7 @@ export function createSplitPersistence(win, origins) {
   }
   function save(records = scanRecords(), state = layoutState()) {
     if (!session || view._sessionRestoring) return;
-    const members = new Set(), pending = pendingProtectedGroups(records), raw = new Map(records.map(entry => [entry.tab, entry.raw]));
+    const members = new Set(), pending = pendingProtectedGroups(groupPendingRecords(records)), raw = new Map(records.map(entry => [entry.tab, entry.raw]));
     for (const data of view._data) {
       const tabs = data.tabs.filter(live);
       if (tabs.length < 2) continue;
@@ -169,7 +180,9 @@ export function createSplitPersistence(win, origins) {
   function armRestoreScan() { needsRestoreScan = true; }
   function clear({preserveHidden = false} = {}) {
     if (!session) return;
-    for (const {tab} of scanRecords()) if (!preserveHidden || !tab.hidden) session.deleteCustomTabValue(tab, KEY);
+    const records = scanRecords();
+    const keep = preserveHidden ? recordsToKeepOnClear(groupPendingRecords(records)) : new Set();
+    for (const {tab} of records) if (!keep.has(tab)) session.deleteCustomTabValue(tab, KEY);
     lastLayoutState = layoutState();
   }
   return {save, saveIfChanged, armRestoreScan, restore, sync, clear};

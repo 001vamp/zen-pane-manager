@@ -1251,19 +1251,26 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     get floatingTabs() { return [...floats.keys()]; },
     destroy(options = {}) {
       if (disposed) return;
-      options ??= {};
+      const {detachOnly = false} = options ?? {};
       const preserveSession = Boolean(origins.shuttingDown || win.closed || windowClosing);
-      if (preserveSession) persistence.save();
-      else persistence.clear({preserveHidden:true});
+      if (!detachOnly) {
+        if (preserveSession) persistence.save();
+        else persistence.clear({preserveHidden:true});
+      }
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
       closeMenu();
       hideEdgeHint();
-      for (const data of [...accordions.keys()]) clearAccordion(data, true, preserveSession);
-      for (const data of [...scrollings.keys()]) clearScrolling(data, true, preserveSession);
-      clearFloat(true,null,preserveSession); origins.destroy();
-      if (session && !preserveSession) {
+      if (!detachOnly) {
+        for (const data of [...accordions.keys()]) clearAccordion(data, true, preserveSession);
+        for (const data of [...scrollings.keys()]) clearScrolling(data, true, preserveSession);
+        clearFloat(true,null,preserveSession);
+      }
+      // A stale runtime must only unplug callbacks. Its old presentation DOM is
+      // safer left alone because the live owner may be using the same split data.
+      origins.destroy({detachOnly});
+      if (session && !preserveSession && !detachOnly) {
         for (const tab of browser.tabs) if (!tab.closing) session.deleteCustomTabValue(tab,floatingKey);
       }
       win.removeEventListener("keydown", onScrollingModifier, true);
