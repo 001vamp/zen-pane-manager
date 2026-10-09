@@ -1,6 +1,27 @@
 import assert from 'node:assert/strict';
-import { createMultiwindow, presentationModes } from '../multiwindow.mjs';
+import { createMultiwindow, presentationModes, accordionSizes } from '../multiwindow.mjs';
 import { encodeTree } from '../split-persistence.mjs';
+
+const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
+assert.deepEqual(accordionSizes(1200, 4), {expanded:1068, strip:44});
+assert.deepEqual(accordionSizes(1200, 4, 2000), {expanded:1104, strip:32});
+assert.deepEqual(accordionSizes(1200, 4, 0), {expanded:320, strip:880/3});
+assert.deepEqual(accordionSizes(100, 4, 2000), {expanded:50, strip:50/3});
+assert.deepEqual(accordionSizes(0, 4, 500), {expanded:0, strip:0});
+assert.deepEqual(accordionSizes(500, 1, 20), {expanded:500, strip:0});
+const fractional = accordionSizes(1200.75, 4, 800.125);
+near(fractional.expanded, 800.125);
+near(fractional.expanded + fractional.strip * 3, 1200.75);
+assert.ok(!Number.isInteger(fractional.strip));
+
+for (const width of [0, 80.125, 400, 1200.75]) for (const count of [2, 3, 4]) {
+  for (const desired of [-100, 350.125, 10000]) {
+    const sizes = accordionSizes(width, count, desired);
+    near(sizes.expanded + sizes.strip * (count - 1), width);
+    assert.ok(sizes.strip >= Math.min(32, width / (count + 2)) - 1e-9);
+    assert.ok(sizes.expanded >= 0);
+  }
+}
 
 // Minimal browser-chrome fixture exercising the controller with real DOM-like events.
 class Node {
@@ -32,6 +53,9 @@ class Node {
   }
   removeEventListener(name, fn) { this.listeners.set(name,(this.listeners.get(name) ?? []).filter(f => f !== fn)); }
   emit(name, props = {}) { for (const fn of this.listeners.get(name) ?? []) fn({ target:this, preventDefault(){}, stopPropagation(){}, ...props }); }
+  setPointerCapture(id) { this.capturedPointer = id; }
+  hasPointerCapture(id) { return this.capturedPointer === id; }
+  releasePointerCapture(id) { assert.equal(this.capturedPointer, id); this.capturedPointer = null; }
   focus() { this.ownerDocument.activeElement = this; }
   animate(keyframes,options) { const animation = {keyframes,options,cancel(){this.cancelled=true;}}; this.animations.push(animation); return animation; }
 }
@@ -72,7 +96,19 @@ const prefs = {getStringPref:(key,fallback)=>shortcutPrefs.get(key) ?? fallback,
 const controller = createMultiwindow(win,{notify(){},chooseTab(){},appearance(){},prefs,origins:{begin(){},end(){},destroy(){}}});
 const container = tab => tab.linkedBrowser.parent;
 const header = tab => container(tab).querySelector('.pane-float-header');
+const accordionResize = side => doc.querySelectorAll(`.pane-accordion-resize-${side}`).find(node => !node.hidden);
 const flush = () => {const fn=queued;queued=null;fn?.();};
+const guardedPress = (node, name, fallback) => {
+  let prevented = false, stopped = false;
+  node.emit(name, {
+    button:0, pointerId:41, clientX:500,
+    preventDefault(){ prevented = true; },
+    stopPropagation(){ stopped = true; },
+    stopImmediatePropagation(){ stopped = true; },
+  });
+  if (!stopped) fallback?.();
+  return { prevented, stopped };
+};
 controller.add(tabs[0],tabs[1],'float');
 const originalBrowser = tabs[1].linkedBrowser;
 const before = container(tabs[1]).getAttribute('--pane-float-x');
@@ -171,6 +207,109 @@ assert.equal(tabs[0].linkedBrowser.hasAttribute('inert'),true,'background pages 
 assert.equal(tabs[2].linkedBrowser.hasAttribute('inert'),false,'the active page remains interactive');
 assert.equal(container(tabs[0]).getAttribute('--pane-accordion-right'),'88px','background pages keep a full width');
 assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'),'44px');
+const resizeRight = accordionResize('right');
+assert.equal(resizeRight.hidden, false);
+for (const name of ['pointerdown', 'mousedown', 'click']) {
+  const beforePress = win.gBrowser.selectedTab;
+  const press = guardedPress(resizeRight, name, () => { win.gBrowser.selectedTab = tabs[3]; });
+  assert.equal(press.prevented, true, `${name} on resize target is prevented`);
+  assert.equal(press.stopped, true, `${name} on resize target cannot reach strip selection`);
+  assert.equal(win.gBrowser.selectedTab, beforePress, `${name} on resize target does not switch tabs`);
+  if (name === 'pointerdown') {
+    assert.equal(resizeRight.capturedPointer, 41, 'resize target captures the pointer before drag');
+    resizeRight.emit('pointercancel', {pointerId:41});
+  }
+}
+resizeRight.emit('pointerdown', {button:2, pointerId:7, clientX:500});
+resizeRight.emit('pointermove', {pointerId:7, clientX:520}); flush();
+assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), '44px', 'secondary button does not resize');
+resizeRight.emit('pointerdown', {button:0, pointerId:7, clientX:500});
+resizeRight.emit('pointermove', {pointerId:8, clientX:900});
+resizeRight.emit('pointermove', {pointerId:7, clientX:509});
+resizeRight.emit('pointermove', {pointerId:7, clientX:510.125});
+assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), '44px', 'pointer moves wait for a rendering frame');
+flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 33.875);
+resizeRight.emit('pointerup', {pointerId:7});
+container(tabs[0]).querySelector('.pane-accordion-handle').emit('click');
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 67.75);
+assert.equal(container(tabs[0]).querySelector('.pane-accordion-resize-left').hidden, true);
+container(tabs[2]).querySelector('.pane-accordion-handle').emit('click');
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 33.875, 'width survives selection');
+container(tabs[2]).querySelector('.pane-accordion-handle').emit('keydown', {key:'ArrowRight'});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 67.75, 'keyboard selection keeps resized width');
+container(tabs[2]).querySelector('.pane-accordion-handle').emit('click');
+const resizeLeft = accordionResize('left');
+resizeLeft.emit('pointerdown', {button:0, pointerId:9, clientX:500});
+resizeLeft.emit('pointermove', {pointerId:9, clientX:510.125});
+resizeLeft.emit('pointercancel', {pointerId:9});
+assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), '44px', 'left drag shrinks and cancellation flushes');
+resizeLeft.emit('pointermove', {pointerId:9, clientX:900}); flush();
+assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), '44px', 'cancel ends the drag');
+
+// Uneven neighbors: the active pane has one strip to its left and two to its right.
+controller.join(data, tabs[1], 'right');
+controller.arrange(tabs[2], 'accordion');
+const fourPaneTree = data.layoutTree;
+const fourRight = accordionResize('right');
+fourRight.emit('pointerdown', {button:0, pointerId:10, clientX:500});
+fourRight.emit('pointermove', {pointerId:10, clientX:484}); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 52);
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-right')), 104);
+fourRight.emit('pointerup', {pointerId:10});
+const fourLeft = accordionResize('left');
+fourLeft.emit('pointerdown', {button:0, pointerId:11, clientX:500});
+fourLeft.emit('pointermove', {pointerId:11, clientX:508}); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 60);
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-right')), 120);
+fourLeft.emit('pointerup', {pointerId:11});
+assert.equal(data.layoutTree, fourPaneTree, 'resizing preserves the native four-pane tree');
+const panelBounds = view.tabBrowserPanel.getBoundingClientRect;
+view.tabBrowserPanel.getBoundingClientRect = () => ({width:2400, height:900});
+controller.sync(); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 120);
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-right')), 240);
+view.tabBrowserPanel.getBoundingClientRect = panelBounds;
+controller.sync(); flush();
+
+fourRight.emit('pointerdown', {button:0, pointerId:12, clientX:500});
+fourRight.emit('pointermove', {pointerId:12, clientX:492});
+container(tabs[2]).querySelector('.pane-accordion-bar').remove();
+controller.sync(); flush();
+assert.equal(fourRight.hasAttribute('data-dragging'), false, 'rebuilding ends the old drag');
+assert.equal(fourRight.capturedPointer, null, 'rebuilding releases pointer capture');
+const rebuiltRight = accordionResize('right');
+assert.equal(rebuiltRight, fourRight, 'active chrome rebuild keeps the neighbor-strip resize target');
+const rebuiltWidth = container(tabs[2]).getAttribute('--pane-accordion-left');
+fourRight.emit('pointermove', {pointerId:12, clientX:900}); flush();
+assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), rebuiltWidth, 'old target cannot continue resizing');
+rebuiltRight.emit('pointerdown', {button:0, pointerId:13, clientX:500});
+rebuiltRight.emit('pointermove', {pointerId:13, clientX:516}); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 56);
+rebuiltRight.emit('pointerup', {pointerId:13});
+// Missing strips are rebuilt rather than dereferenced during layout.
+rebuiltRight.emit('pointerdown', {button:0, pointerId:15, clientX:500});
+rebuiltRight.remove();
+controller.sync(); flush();
+assert.equal(rebuiltRight.capturedPointer, null, 'removing the strip itself ends its drag');
+assert.ok(accordionResize('right'), 'removing the strip itself rebuilds a visible resize target');
+rebuiltRight.emit('pointerdown', {button:0, pointerId:17, clientX:500});
+assert.equal(rebuiltRight.capturedPointer, null, 'removed targets cannot start another drag');
+const countChangeRight = accordionResize('right');
+countChangeRight.emit('pointerdown', {button:0, pointerId:16, clientX:500});
+countChangeRight.emit('pointermove', {pointerId:16, clientX:492});
+view.removeTabFromGroup(tabs[1]);
+controller.sync(); flush();
+assert.equal(countChangeRight.hasAttribute('data-dragging'), false, 'member removal ends accordion resize');
+assert.equal(countChangeRight.capturedPointer, null, 'member removal releases accordion pointer capture');
+const countChangeWidth = container(tabs[2]).getAttribute('--pane-accordion-left');
+countChangeRight.emit('pointermove', {pointerId:16, clientX:900}); flush();
+assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), countChangeWidth, 'old member count cannot keep resizing');
+controller.arrange(tabs[2], 'tiles');
+data.tabs = data.tabs.filter(tab => tab !== tabs[1]);
+tabs[1].splitView = false;
+data.layoutTree = tiledTree;
+controller.arrange(tabs[2], 'accordion');
 const hoverHandle = container(tabs[0]).querySelector('.pane-accordion-handle');
 hoverHandle.emit('pointerenter',{clientX:20,clientY:50});
 assert.equal(doc.querySelector('.pane-accordion-edge-hint'),null,'hint waits before appearing');
@@ -211,6 +350,25 @@ shortcutPrefs.set('mod.pane.accordion-next','Ctrl+F8');
 win.emit('keydown',{key:'F8',ctrlKey:true});
 assert.equal(win.gBrowser.selectedTab,tabs[0],'custom shortcuts update without reloading');
 shortcutPrefs.clear();
+const shortcutRightBefore = parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right'));
+const dragIgnored = accordionResize('right');
+dragIgnored.emit('pointerdown', {button:0, pointerId:42, clientX:500});
+win.emit('keydown',{key:'=',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), shortcutRightBefore, 'resize shortcuts are ignored during pointer drag');
+dragIgnored.emit('pointercancel', {pointerId:42});
+win.emit('keydown',{key:'=',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+const shortcutRightWider = parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right'));
+assert.ok(shortcutRightWider < shortcutRightBefore, 'widen shortcut expands the active accordion tab');
+win.emit('keydown',{key:'_',code:'Minus',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+assert.ok(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')) > shortcutRightWider, 'narrow shortcut shrinks the active accordion tab');
+for (let i = 0; i < 30; i++) win.emit('keydown',{key:'_',code:'Minus',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 880);
+for (let i = 0; i < 30; i++) win.emit('keydown',{key:'=',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 64);
+shortcutPrefs.set('mod.pane.accordion-widen','Disabled');
+win.emit('keydown',{key:'=',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 64, 'disabled resize shortcut does not resize');
+shortcutPrefs.clear();
 container(tabs[0]).querySelector('.pane-accordion-bar').remove();
 controller.sync(); flush();
 assert.ok(container(tabs[0]).querySelector('.pane-accordion-handle'),'rebuilt native chrome gets new accordion controls');
@@ -223,6 +381,7 @@ assert.equal(lastLayout,tiledTree,'returning to tiles restores the same tree');
 assert.deepEqual(layoutSizes(tiledTree),[36,50],'every divider size survives accordion');
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length,0);
 assert.equal(doc.querySelectorAll('.pane-accordion-bar').length,0);
+assert.equal(doc.querySelectorAll('.pane-accordion-resize').length,0, 'returning to tiles removes resize targets');
 assert.ok(data.tabs.every(t=>!t.linkedBrowser.hasAttribute('inert')),'tile restoration restores page interactivity');
 win.gBrowser.selectedTab = tabs[3];
 controller.arrange(tabs[2],'normal');
@@ -366,6 +525,14 @@ assert.equal(savedSplits.size,0,'cancelled close resets the close flag before di
 const beforeRestart = createMultiwindow(win, options);
 beforeRestart.arrange(tabs[0], 'accordion');
 assert.equal(savedLayouts.size, 2, 'accordion is saved on its member tabs');
+const restartResize = accordionResize('right');
+restartResize.emit('pointerdown', {button:0, pointerId:31, clientX:500});
+restartResize.emit('pointermove', {pointerId:31, clientX:507.125});
+restartResize.emit('pointerup', {pointerId:31});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 36.875);
+assert.ok([...savedLayouts.values()].every(value =>
+  Object.keys(JSON.parse(value)).sort().join(',') === 'active,group'),
+  'resize leaves existing accordion restart metadata unchanged');
 const preservedTree = data.layoutTree;
 const preservedEncodedTree = encodeTree(data.layoutTree,data.tabs);
 options.origins.shuttingDown=true; beforeRestart.destroy(); options.origins.shuttingDown=false;
@@ -376,6 +543,7 @@ assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'wait for
 view._sessionRestoring = false;
 win.emit('SSWindowStateReady'); flush();
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 2, 'restore accordion after restart');
+assert.equal(container(tabs[0]).getAttribute('--pane-accordion-right'), '44px', 'restart restores accordion with default session-only width');
 assert.equal(data.layoutTree, preservedTree, 'restart keeps Zen native layout nodes');
 assert.deepEqual(encodeTree(data.layoutTree,data.tabs), preservedEncodedTree, 'restart keeps every native divider size');
 afterRestart.arrange(tabs[0], 'tiles');

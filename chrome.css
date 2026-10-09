@@ -47,7 +47,7 @@
 }
 .pane-accordion-shortcuts { display: grid; gap: 8px; padding: 10px 14px; font-size: 11px; }
 .pane-accordion-bar { display: contents; }
-.browserSidebarContainer[pane-accordion]:not([pane-accordion-active]) > :not(.pane-accordion-bar) { pointer-events: none !important; }
+.browserSidebarContainer[pane-accordion]:not([pane-accordion-active]) > :not(.pane-accordion-bar):not(.pane-accordion-resize) { pointer-events: none !important; }
 .pane-accordion-handle {
   appearance: none !important; position: absolute; inset: 0; z-index: 4;
   box-sizing: border-box !important; display: block;
@@ -1018,3 +1018,14 @@
   color: var(--pane-text, white); pointer-events: auto;
 }
 .pane-scrolling-wait button { padding: 8px 12px; cursor: pointer; }
+
+.pane-accordion-resize {
+  position: absolute; top: 0; bottom: 0; width: 8px; z-index: 10;
+  cursor: ew-resize; touch-action: none; user-select: none;
+}
+.pane-accordion-resize[hidden] { display: none !important; }
+.pane-accordion-resize-left { left: max(0px, calc(var(--pane-accordion-strip) - 8px)); }
+.pane-accordion-resize-right { right: max(0px, calc(var(--pane-accordion-strip) - 8px)); }
+.pane-accordion-resize:hover, .pane-accordion-resize[data-dragging] {
+  background: var(--pane-hover);
+}

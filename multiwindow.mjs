@@ -39,6 +39,20 @@ export function addHistoryControls(win, parent) {
 }
 
 export const layoutTypes = { right: "vsep", below: "hsep", grid: "grid" };
+// Pure presentation geometry; native split ratios and browser state stay at the edges.
+export function accordionSizes(width, count, requestedWidth) {
+  const available = Math.max(0, Number.isFinite(width) ? width : 0);
+  const neighbors = Math.max(0, count - 1);
+  if (!neighbors) return { expanded: available, strip: 0 };
+  const defaultStrip = Math.min(44, available / (count + 2));
+  const minimumStrip = Math.min(32, available / (count + 2));
+  const minimumExpanded = Math.min(320, available - neighbors * defaultStrip);
+  const maximumExpanded = available - neighbors * minimumStrip;
+  const desired = Number.isFinite(requestedWidth) ? requestedWidth : available - neighbors * defaultStrip;
+  const expanded = Math.min(maximumExpanded, Math.max(minimumExpanded, desired));
+  return { expanded, strip: (available - expanded) / neighbors };
+}
+
 export const presentationModes = ["accordion", "snapshot", "scrolling"];
 export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", snapshot: "Snapshot scrolling (prototype)", scrolling: "Scrolling (experimental)" };
 
@@ -161,7 +175,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function button(label, callback, className = "") {
     const b = el("button", className, label);
     b.type = "button"; b.addEventListener("click", event => {
-      event.preventDefault(); event.stopPropagation(); callback();
+      event.preventDefault(); event.stopPropagation(); callback(event);
     });
     return b;
   }
@@ -216,10 +230,12 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const state = accordions.get(data);
     if (!state) return;
     hideEdgeHint();
+    finishAccordionResize(state);
     state.animation?.cancel();
     for (const [container, handle] of state.handles) {
       handle.remove();
       container.querySelector(".pane-accordion-bar")?.remove();
+      container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
       container.removeAttribute("pane-accordion");
       container.removeAttribute("pane-accordion-active");
       for (const name of ["left", "right", "z", "strip", "line-left", "line-right"]) container.style.removeProperty(`--pane-accordion-${name}`);
@@ -251,14 +267,79 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (focusHandle) state.handles.get(containerFor(next))?.focus();
     else next.linkedBrowser.focus();
   }
+  function finishAccordionResize(state) {
+    if (state.resizeFrame) win.cancelAnimationFrame(state.resizeFrame);
+    state.resizeFrame = 0;
+    const drag = state.resizeDrag;
+    state.resizeDrag = null;
+    drag?.target.removeAttribute("data-dragging");
+    if (drag?.target.hasPointerCapture?.(drag.pointerId)) drag.target.releasePointerCapture(drag.pointerId);
+  }
+  function consumeAccordionResizePress(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  function resizeAccordionByShortcut(data, state, direction) {
+    const width = view.tabBrowserPanel.getBoundingClientRect().width;
+    if (!(width > 0)) return false;
+    const current = accordionSizes(width, data.tabs.length, state.expandedRatio * width).expanded;
+    state.expandedRatio = accordionSizes(width, data.tabs.length, current + direction * width * 0.05).expanded / width;
+    applyAccordion();
+    return true;
+  }
+  function accordionResizeHandle(data, state, side) {
+    const target = el("div", `pane-accordion-resize pane-accordion-resize-${side}`);
+    target.setAttribute("title", "Drag to resize the expanded tab");
+    for (const name of ["pointerdown", "mousedown", "click"]) target.addEventListener(name, consumeAccordionResizePress, { capture:true });
+    target.addEventListener("pointerdown", event => {
+      const tab = state.active;
+      if (event.button !== 0 || !target.isConnected) return;
+      const index = data.tabs.indexOf(tab);
+      if (index < 0 || accordions.get(data) !== state) return;
+      const neighbors = side === "left" ? index : data.tabs.length - index - 1;
+      if (!neighbors) return;
+      event.preventDefault(); event.stopPropagation(); hideEdgeHint();
+      finishAccordionResize(state);
+      const width = view.tabBrowserPanel.getBoundingClientRect().width;
+      if (!(width > 0)) return;
+      state.resizeDrag = { target, tab, pointerId:event.pointerId, x:event.clientX,
+        expanded:accordionSizes(width, data.tabs.length, state.expandedRatio * width).expanded,
+        // A handle beside one neighbor moves the expanded width across every strip on that side.
+        scale:(side === "left" ? -1 : 1) * (data.tabs.length - 1) / neighbors,
+        memberCount:data.tabs.length };
+      target.setAttribute("data-dragging", "");
+      target.setPointerCapture?.(event.pointerId);
+    }, { capture:true });
+    target.addEventListener("pointermove", event => {
+      const drag = state.resizeDrag;
+      if (!drag || drag.target !== target || drag.pointerId !== event.pointerId) return;
+      if (state.active !== drag.tab || data.tabs.length !== drag.memberCount) { finishAccordionResize(state); return; }
+      const width = view.tabBrowserPanel.getBoundingClientRect().width;
+      if (!(width > 0)) { finishAccordionResize(state); return; }
+      state.expandedRatio = accordionSizes(width, data.tabs.length,
+        drag.expanded + (event.clientX - drag.x) * drag.scale).expanded / width;
+      if (!state.resizeFrame) state.resizeFrame = win.requestAnimationFrame(() => {
+        state.resizeFrame = 0;
+        if (accordions.get(data) === state) applyAccordion();
+      });
+    });
+    for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) target.addEventListener(name, event => {
+      if (state.resizeDrag?.target !== target || state.resizeDrag.pointerId !== event.pointerId) return;
+      finishAccordionResize(state); applyAccordion();
+    });
+    return target;
+  }
   function applyAccordion() {
     for (const [data, state] of [...accordions]) {
       if (!view._data.includes(data) || data.tabs.length < 2) { clearAccordion(data); continue; }
+      if (state.resizeDrag && (!state.resizeDrag.target.isConnected || data.tabs.length !== state.resizeDrag.memberCount)) finishAccordionResize(state);
       const containers = data.tabs.map(containerFor);
       for (const [container, handle] of [...state.handles]) {
         if (!containers.includes(container)) {
+          if (state.resizeDrag && container.contains(state.resizeDrag.target)) finishAccordionResize(state);
           handle.remove(); state.handles.delete(container);
           container.querySelector(".pane-accordion-bar")?.remove();
+          container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
           container.removeAttribute("pane-accordion"); container.removeAttribute("pane-accordion-active");
           for (const name of ["left", "right", "z", "strip", "line-left", "line-right"]) container.style.removeProperty(`--pane-accordion-${name}`);
           container.removeAttribute("pane-accordion-edge");
@@ -267,12 +348,13 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
           state.pages.delete(container);
         }
       }
-      if (view._data[view.currentView] !== data) continue;
+      if (view._data[view.currentView] !== data) { finishAccordionResize(state); continue; }
       if (!data.tabs.includes(state.active) && browser.selectedTab === state.active) {
         browser.selectedTab = data.tabs[0];
       }
       if (data.tabs.includes(browser.selectedTab)) state.active = browser.selectedTab;
       if (!data.tabs.includes(state.active)) state.active = data.tabs[0];
+      if (state.resizeDrag && state.resizeDrag.tab !== state.active) finishAccordionResize(state);
       saveAccordion(data, state);
       const activeIndex = data.tabs.indexOf(state.active);
       const previousIndex = data.tabs.indexOf(state.presented);
@@ -280,7 +362,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       // Presentation only: leave Zen's tree and divider sizes untouched.
       view.removeSplitters();
       const width = view.tabBrowserPanel.getBoundingClientRect().width;
-      const strip = Math.min(44, width / (data.tabs.length + 2));
+      const { strip } = accordionSizes(width, data.tabs.length, state.expandedRatio * width);
       for (let i = 0; i < data.tabs.length; i++) {
         const tab = data.tabs[i], container = containers[i];
         if (!container) continue;
@@ -300,8 +382,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         container.style.setProperty("--pane-accordion-line-left", i < activeIndex || (active && i > 0) ? "var(--pane-accordion-border-width)" : "0px");
         container.style.setProperty("--pane-accordion-line-right", i > activeIndex || (active && i < data.tabs.length - 1) ? "var(--pane-accordion-border-width)" : "0px");
         let handle = state.handles.get(container);
-        if (!handle || !container.querySelector(".pane-accordion-bar")?.contains(handle) || !container.querySelector(".pane-accordion-controls")) {
+        if (!handle || !container.querySelector(".pane-accordion-bar")?.contains(handle) || !container.querySelector(".pane-accordion-controls")
+          || !container.querySelector(".pane-accordion-resize-left") || !container.querySelector(".pane-accordion-resize-right")) {
+          if (state.resizeDrag) finishAccordionResize(state);
           container.querySelector(".pane-accordion-bar")?.remove();
+          container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
           handle = button("", () => {
             hideEdgeHint();
             if (tab === state.active) { openMenu(tab, handle); return; }
@@ -327,8 +412,12 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
             setPaneIcon(control, name); control.title = label; control.setAttribute("aria-label", label);
             controls.append(control);
           }
-          bar.append(handle, controls); container.append(bar); state.handles.set(container, handle);
+          bar.append(handle, controls);
+          container.append(bar, accordionResizeHandle(data, state, "left"), accordionResizeHandle(data, state, "right"));
+          state.handles.set(container, handle);
         }
+        container.querySelector(".pane-accordion-resize-left").hidden = i !== activeIndex - 1;
+        container.querySelector(".pane-accordion-resize-right").hidden = i !== activeIndex + 1;
         handle.textContent = tab.label;
         handle.removeAttribute("title");
         handle.setAttribute("aria-label", `${tab.label}. ${active ? "Click to arrange. " : ""}Use Left and Right to switch tabs`);
@@ -1213,10 +1302,18 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       openMenu(browser.selectedTab);
       return;
     }
-    if (!accordions.has(data) && !scrollings.has(data)) return;
+    const accordion = accordions.get(data), scrolling = scrollings.get(data);
+    if (!accordion && !scrolling) return;
+    if (bindings[index].resize) {
+      if (!accordion) return;
+      if (accordion.resizeDrag) return;
+      event.preventDefault(); event.stopPropagation();
+      if (resizeAccordionByShortcut(data, accordion, bindings[index].resize)) browser.selectedTab.linkedBrowser.focus();
+      return;
+    }
     event.preventDefault(); event.stopPropagation();
     if (scrollings.get(data)?.cancelled) return;
-    if (scrollings.has(data)) scrollStep(data, bindings[index].direction);
+    if (scrolling) scrollStep(data, bindings[index].direction);
     else accordionStep(data, bindings[index].direction);
   }
   win.addEventListener("keydown", onScrollingModifier, true);

@@ -123,8 +123,20 @@
     "defaultValue": "Auto"
   },
   {
+    "property": "mod.pane.accordion-widen",
+    "label": "Widen expanded accordion tab",
+    "type": "string",
+    "defaultValue": "Auto"
+  },
+  {
+    "property": "mod.pane.accordion-narrow",
+    "label": "Narrow expanded accordion tab",
+    "type": "string",
+    "defaultValue": "Auto"
+  },
+  {
     "type": "text",
-    "label": "These shortcuts navigate the active accordion or scrolling layout.",
+    "label": "These shortcuts navigate layouts and resize the active accordion tab.",
     "size": "12px"
   },
   {
