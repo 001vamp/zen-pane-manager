@@ -302,6 +302,7 @@ const beforeRestart = createMultiwindow(win, options);
 beforeRestart.arrange(tabs[0], 'accordion');
 assert.equal(savedLayouts.size, 2, 'accordion is saved on its member tabs');
 const preservedTree = data.layoutTree;
+const preservedEncodedTree = encodeTree(data.layoutTree,data.tabs);
 options.origins.shuttingDown=true; beforeRestart.destroy(); options.origins.shuttingDown=false;
 assert.equal(savedLayouts.size, 2, 'unload preserves restart metadata');
 view._sessionRestoring = true;
@@ -310,7 +311,8 @@ assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'wait for
 view._sessionRestoring = false;
 win.emit('SSWindowStateReady'); flush();
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 2, 'restore accordion after restart');
-assert.equal(data.layoutTree.children[0].sizeInParent, preservedTree.children[0].sizeInParent, 'restoration keeps native divider sizes');
+assert.equal(data.layoutTree, preservedTree, 'restart keeps Zen native layout nodes');
+assert.deepEqual(encodeTree(data.layoutTree,data.tabs), preservedEncodedTree, 'restart keeps every native divider size');
 afterRestart.arrange(tabs[0], 'tiles');
 assert.equal(savedLayouts.size, 0, 'explicit return to tiles clears saved accordion');
 afterRestart.destroy();
@@ -540,8 +542,8 @@ for (const mode of ['right', 'below', 'grid', ...presentationModes, 'float']) {
 }
 console.log('Picker layouts: add and join preserve pages and apply every layout.');
 
-// Persist the actual tree produced by PR #1's join path, then hydrate it over
-// native defaults. There is no second layout model to reconcile.
+// Persist the actual tree produced by PR #1's join path, but do not overwrite
+// Zen's native session tree when Zen already restored the group.
 savedSplits.clear(); savedScrollings.clear(); savedLayouts.clear(); savedFloats.clear();
 resetCustomTree();
 win.gBrowser.selectedTab=tabs[2];
@@ -551,7 +553,7 @@ const joinedTree=encodeTree(data.layoutTree,data.tabs);
 assert.equal(joinedTree.children[0].children[1].sizeInParent,70);
 options.origins.shuttingDown=true; savingJoin.destroy(); options.origins.shuttingDown=false;
 assert.deepEqual(JSON.parse(savedSplits.get(tabs[0])).tree,joinedTree,'saved layout uses the live joined tree and its preserved sizes');
-data.layoutTree=tree(data.tabs);
+const nativeDefaultTree = data.layoutTree = tree(data.tabs);
 const recoveringJoin=createMultiwindow(win,options); flush();
-assert.deepEqual(encodeTree(data.layoutTree,data.tabs),joinedTree,'joined nested sizes round-trip over native defaults');
+assert.equal(data.layoutTree,nativeDefaultTree,'native-restored split trees are not replaced by Pane fallback data');
 recoveringJoin.destroy();

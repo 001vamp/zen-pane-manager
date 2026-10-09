@@ -11,15 +11,23 @@ class Branch extends Leaf {
   addChild(child) {this.children=[...this.children,child];}
 }
 const values = new Map();
-const tab = id => ({id, isConnected:true, closing:false});
+const tab = id => ({id, isConnected:true, closing:false, hidden:false, pending:false, loads:0, hasAttribute(name) { return name === 'pending' && this.pending; }});
 function fixture(tabs) {
   const win = {gBrowser:{tabs,selectedTab:tabs[0]},SessionStore:{
     getCustomTabValue: tab=>values.get(tab.id) ?? '',setCustomTabValue:(tab,key,value)=>values.set(tab.id,value),deleteCustomTabValue:tab=>values.delete(tab.id),
   }};
-  const view = {_data:[], currentView:-1, MAX_TABS:4, _tabToSplitNode:new WeakMap(), calls:0,
+  const view = {_data:[], currentView:-1, MAX_TABS:4, _tabToSplitNode:new WeakMap(), calls:0, activations:0,
     calculateLayoutTree: tabs => new Branch(tabs.map(tab=>new Leaf(tab,100/tabs.length))),
-    splitTabs(tabs,type) {this.calls++; this.splitArgs=[...arguments]; const data={tabs,gridType:type,layoutTree:this.calculateLayoutTree(tabs)};this._data.push(data);this.currentView=this._data.indexOf(data);win.gBrowser.selectedTab=tabs[0];return data;},
-    activateSplitView(data) {this.currentView=this._data.indexOf(data);},removeSplitters(){},applyGridLayout(tree){this.applied=tree;},
+    splitTabs(tabs,type,initialIndex=0,options={}) {
+      this.calls++; this.splitArgs=[...arguments];
+      tabs = tabs.filter(tab => !tab.hidden && !tab.hasAttribute('zen-empty-tab'));
+      if (tabs.length < 2) return undefined;
+      const data={tabs,gridType:type,layoutTree:this.calculateLayoutTree(tabs)};this._data.push(data);
+      if (options.activate !== false) {win.gBrowser.selectedTab=tabs[Math.max(0,initialIndex)] ?? tabs[0];this.activateSplitView(data);}
+      else tabs.forEach(tab=>{tab.splitView=true;});
+      return data;
+    },
+    activateSplitView(data) {this.activations++; this.currentView=this._data.indexOf(data); data.tabs.forEach(tab=>{if(tab.pending) tab.loads++;});},removeSplitters(){},applyGridLayout(tree){this.applied=tree;},
   };
   win.gZenViewSplitter = view;
   return {win,view,persistence:createSplitPersistence(win,{begin(){},end(){}})};
@@ -34,10 +42,23 @@ original.persistence.save();
 const saved=JSON.parse(JSON.stringify([...values]));
 values.clear(); saved.forEach(([id,value])=>values.set(id,value));
 const deferred=fixture(['a','b','c'].map(tab));
-deferred.view.splitTabs = () => {deferred.view.calls++; throw new Error('hidden workspace');};
+deferred.win.gBrowser.tabs[1].hidden = true;
 deferred.persistence.restore();
 deferred.persistence.save();
+deferred.persistence.restore();
+deferred.persistence.restore({retryDeferred:true});
+assert.equal(deferred.view.calls,0,'hidden groups defer until their workspace is visible');
+assert.deepEqual([...values],saved,'hidden workspace records survive ordinary sync saves');
+deferred.win.gBrowser.tabs[1].hidden = false;
+deferred.persistence.restore({retryDeferred:true});
+assert.equal(deferred.view.calls,1,'meaningful boundaries retry deferred groups');
 assert.deepEqual([...values],saved,'failed restore keeps complete saved split records for a later workspace');
+values.clear(); saved.forEach(([id,value])=>values.set(id,value));
+const refused=fixture(['a','b','c'].map(tab));
+refused.view.splitTabs = () => {refused.view.calls++; return undefined;};
+refused.persistence.restore(); refused.persistence.restore(); refused.persistence.save();
+assert.equal(refused.view.calls,1,'failed splitTabs does not retry on every sync');
+assert.deepEqual([...values],saved,'splitTabs returning undefined keeps records pending');
 // A normal live sync must never replay a record written by this controller.
 tree.children[0].sizeInParent=42;
 original.persistence.restore();
@@ -58,13 +79,35 @@ for (const missing of [null,'b','c']) {
   if (!missing) {
     assert.deepEqual(sizes(restored.layoutTree), sizes(tree),'every divider size survives boundary hydration');
     assert.deepEqual(encodeTree(restored.layoutTree,restored.tabs),encodeTree(tree,[a,b,c]));
-    assert.deepEqual(fresh.view.splitArgs,[restored.tabs,'grid'],'restore uses the same splitTabs(tabs, type) call shape as add');
+    assert.deepEqual(fresh.view.splitArgs,[restored.tabs,'grid',-1,{activate:false}],'restore creates fallback groups without activation');
     assert.equal(fresh.win.gBrowser.selectedTab.id,'c','restore keeps the browser-selected tab stable');
     fresh.persistence.save(); assert.deepEqual([...values],saved,'layout and focus round-trip exactly');
   }
 }
+values.clear();
+const startup=fixture(['a','b','c','d'].map(tab));
+startup.win.gBrowser.tabs.forEach(tab=>{tab.pending=true;});
+startup.win.gBrowser.selectedTab=startup.win.gBrowser.tabs[2];
+for (const [group, ids] of [['left',['a','b']], ['right',['c','d']]]) {
+  const groupTabs = ids.map(id => startup.win.gBrowser.tabs.find(tab => tab.id === id));
+  const savedTree = encodeTree(new Branch(groupTabs.map(tab => new Leaf(tab,50))), groupTabs);
+  groupTabs.forEach((tab,index)=>values.set(tab.id,JSON.stringify({version:1,group,count:2,type:'grid',index,tree:savedTree})));
+}
+startup.persistence.restore();
+assert.equal(startup.view.calls,2,'both missing groups are rebuilt');
+assert.equal(startup.view.activations,1,'startup restore activates only the selected group');
+assert.deepEqual(startup.win.gBrowser.tabs.map(tab=>tab.loads),[0,0,1,1],'non-selected pending split tabs stay unloaded');
+const native=fixture(['a','b'].map(tab));
+native.win.gBrowser.tabs.forEach(tab=>{tab.pending=true;});
+native.view._data=[{tabs:native.win.gBrowser.tabs,gridType:'grid',layoutTree:new Branch(native.win.gBrowser.tabs.map(tab=>new Leaf(tab,50)))}];
+values.clear();
+const nativeTree=encodeTree(native.view._data[0].layoutTree,native.win.gBrowser.tabs);
+native.win.gBrowser.tabs.forEach((tab,index)=>values.set(tab.id,JSON.stringify({version:1,group:'native',count:2,type:'grid',index,tree:nativeTree})));
+const beforeTree=native.view._data[0].layoutTree;
+native.persistence.restore();
+assert.equal(native.view._data[0].layoutTree,beforeTree,'native-restored groups keep Zen node instances');
 values.clear();saved.forEach(([id,value])=>values.set(id,value));
 const solo=fixture([tab('a')]);solo.persistence.restore();solo.persistence.save();assert.equal(solo.view.calls,0);assert.equal(values.has('a'),false);
 values.set('a',JSON.stringify({version:99,group:'stale'}));solo.persistence.restore();assert.equal(values.has('a'),false);
 values.set('a','{broken');solo.persistence.restore();solo.persistence.save();assert.equal(values.has('a'),false);
-console.log('Split persistence: exact nested geometry/focus round-trip, native prototypes, idempotence, restore gating, missing and stale tabs passed.');
+console.log('Split persistence: fallback restore, deferred retries, unloaded tabs, native coexistence, idempotence, missing and stale tabs passed.');
