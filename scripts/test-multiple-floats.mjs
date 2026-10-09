@@ -290,6 +290,14 @@ win.SessionStore = {
   deleteCustomTabValue: (tab,key) => sessionValues(key).delete(tab),
 };
 const options = {notify(){},chooseTab(){},appearance(){},origins:{begin(){},end(){},destroy(){}}};
+const reloadController = createMultiwindow(win, options); flush();
+const reloadTree = {children:[{tab:0,sizeInParent:50},{tab:1,sizeInParent:50}]};
+savedSplits.clear();
+for (const [index, tab] of [tabs[3], tabs[4]].entries()) savedSplits.set(tab, JSON.stringify({version:1,group:'reload-hidden',count:2,type:'grid',index,tree:reloadTree}));
+tabs[4].hidden = true;
+reloadController.destroy({reload:true});
+assert.equal(savedSplits.has(tabs[4]),true,'script reload preserves unrestored hidden split records');
+savedSplits.clear(); tabs[4].hidden = false;
 const mouseupController = createMultiwindow(win, options); flush();
 const hiddenTree = {children:[{tab:0,sizeInParent:50},{tab:1,sizeInParent:50}]};
 for (const [index, tab] of [tabs[3], tabs[4]].entries()) savedSplits.set(tab, JSON.stringify({version:1,group:'hidden',count:2,type:'grid',index,tree:hiddenTree}));
@@ -302,9 +310,9 @@ assert.equal(savedSplits.size,0,'disable clears saved split recovery metadata');
 tabs[4].hidden = false;
 const closingController = createMultiwindow(win, options); flush();
 assert.ok(savedSplits.size > 0, 'active controller has split metadata to preserve on close');
-win.emit('close');
+win.emit('SSWindowClosing');
 closingController.destroy();
-assert.ok(savedSplits.size > 0, 'window close preserves split recovery metadata');
+assert.ok(savedSplits.size > 0, 'window close shortcut preserves split recovery metadata');
 const cancelledCloseController = createMultiwindow(win, options); flush();
 win.emit('close');
 const closeReset = [...timers.entries()].at(-1);

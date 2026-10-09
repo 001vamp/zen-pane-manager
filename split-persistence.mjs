@@ -2,6 +2,7 @@
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 const KEY = 'pane-split-v1';
 const MAX_RETRIES = 3;
+const MAX_DEFERRED_BOUNDARIES = 25;
 const INVALID = Symbol('invalid-split-record');
 
 // Only JSON values cross SessionStore; native nodes and parent links stay in memory.
@@ -37,7 +38,7 @@ export function decodeTree(saved, tabs, parent = null, prototypes = {}) {
 
 export function createSplitPersistence(win, origins) {
   const {SessionStore: session, gBrowser: browser, gZenViewSplitter: view} = win;
-  const groups = new WeakMap(), restored = new Set(), deferred = new Map();
+  const groups = new WeakMap(), restored = new Set(), deferred = new Map(), deferrals = new Map();
   let needsRestoreScan = true, lastLayoutState = "";
   const live = tab => tab && tab.isConnected && !tab.closing;
   const parseRecord = raw => {
@@ -124,12 +125,17 @@ export function createSplitPersistence(win, origins) {
       if (members.length < 2) continue;
       let data = view._data.find(data => members.every(tab => data.tabs.includes(tab)) && data.tabs.length === members.length);
       if (data) {
-        groups.set(data, group); restored.add(group); deferred.delete(group);
+        groups.set(data, group); restored.add(group); deferred.delete(group); deferrals.delete(group);
         if (data.tabs.includes(browser.selectedTab) && view._data[view.currentView] !== data) view.activateSplitView(data, true);
         continue;
       }
       // Do not steal tabs from a different native group.
       if (members.some(tab => view._data.some(data => data.tabs.includes(tab))) || members.some(tab => tab.hidden)) {
+        if (retryDeferred) {
+          const skips = (deferrals.get(group) ?? 0) + 1;
+          if (skips >= MAX_DEFERRED_BOUNDARIES) {restored.add(group); deferred.delete(group); deferrals.delete(group); continue;}
+          deferrals.set(group, skips);
+        }
         deferred.set(group, attempts); continue;
       }
       const prototypes = {};
@@ -142,7 +148,7 @@ export function createSplitPersistence(win, origins) {
       if (!tree) continue;
       if (!data) {
         origins.begin(members);
-        try {data = view.splitTabs(members, record.type, -1, {activate:false});} catch (error) {data = null;} finally {origins.end();}
+        try {data = view.splitTabs(members, record.type, -1, {activate:false});} catch (error) {console.error("[Pane] Split fallback restore failed", error); data = null;} finally {origins.end();}
       }
       if (!data) {deferred.set(group, attempts + 1); continue;}
       data.tabs = members; data.gridType = record.type; data.layoutTree = tree; groups.set(data, group);
@@ -150,7 +156,7 @@ export function createSplitPersistence(win, origins) {
       map(tree);
       if (data.tabs.includes(browser.selectedTab)) view.activateSplitView(data, true);
       if (view._data[view.currentView] === data) {view.removeSplitters(); view.applyGridLayout(tree);}
-      restored.add(group); deferred.delete(group);
+      restored.add(group); deferred.delete(group); deferrals.delete(group);
     }
     needsRestoreScan = false;
   }
@@ -166,10 +172,11 @@ export function createSplitPersistence(win, origins) {
     const state = layoutState();
     if (state !== lastLayoutState) save(scanRecords(), state);
   }
-  function clear() {
+  function armRestoreScan() { needsRestoreScan = true; }
+  function clear({preserveHidden = false} = {}) {
     if (!session) return;
-    for (const {tab} of scanRecords()) session.deleteCustomTabValue(tab, KEY);
+    for (const {tab} of scanRecords()) if (!preserveHidden || !tab.hidden) session.deleteCustomTabValue(tab, KEY);
     lastLayoutState = layoutState();
   }
-  return {save, saveIfChanged, restore, sync, clear};
+  return {save, saveIfChanged, armRestoreScan, restore, sync, clear};
 }

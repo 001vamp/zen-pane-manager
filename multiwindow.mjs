@@ -1197,7 +1197,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function outside(event) { if (menu && !menu.contains(event.target)) closeMenu(); }
   function tabChanged() { closeMenu(); sync(); }
   function eventSync() { sync(); }
-  function boundarySync() { sync(true); }
+  function boundarySync() { persistence.armRestoreScan(); sync(true); }
   function saveSplitLayoutIfChanged() { persistence.saveIfChanged(); }
   function markWindowClosing() { windowClosing = true; win.setTimeout?.(() => { if (!win.closed) windowClosing = false; }, 0); }
   function onAccordionShortcut(event) {
@@ -1235,6 +1235,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   win.addEventListener("ZenWorkspaceDataChanged", boundarySync);
   win.addEventListener("resize", onResize);
   win.addEventListener("close", markWindowClosing);
+  win.addEventListener("SSWindowClosing", markWindowClosing);
   doc.addEventListener("mousedown", outside, true);
   for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit", "ZenSplitViewTabsSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
   win.addEventListener('SSWindowStateReady', boundarySync);
@@ -1248,10 +1249,10 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins, accordionStep, scrollStep,
     capturePresentation, restorePresentation,
     get floatingTabs() { return [...floats.keys()]; },
-    destroy() {
+    destroy({reload = false} = {}) {
       const preserveSession = Boolean(origins.shuttingDown || win.closed || windowClosing);
       if (preserveSession) persistence.save();
-      else persistence.clear();
+      else persistence.clear({preserveHidden:reload});
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
@@ -1275,6 +1276,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       win.removeEventListener("ZenWorkspaceDataChanged", boundarySync);
       win.removeEventListener("resize", onResize);
       win.removeEventListener("close", markWindowClosing);
+      win.removeEventListener("SSWindowClosing", markWindowClosing);
       win.removeEventListener("keydown", onAccordionShortcut, true);
       win.removeEventListener("blur", hideEdgeHint);
       reducedMotion?.removeEventListener('change', motionChanged);
