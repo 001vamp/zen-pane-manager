@@ -9,6 +9,7 @@ All notable changes to Pane are documented here.
 - Cancel scrolling overview with Escape or by opening the layout menu. Preserve custom column widths through layout changes.
 - Add section resets, shortcut recording warnings, and the same controls in both settings entry points.
 - Make toolbar visibility consistent, with Auto-hide or Always visible and a per-panel floating pin.
+- Clear split-recovery metadata by whole split group on disable so hidden-workspace unsplits do not come back later, while still preserving fully hidden pending groups for restore.
 - **Experimental:** restore floating positions, sizes, and header pins after restart, fitting panels inside smaller windows. Docking or disabling Pane clears the saved state.
 - **Experimental features included:** scrolling and snapshot scrolling are available from the layout menu. They are optional; existing tiled splits remain available. Native Windows and floating restart verification for this release is still pending. Report bugs with your Zen/Sine versions and reproduction steps.
 

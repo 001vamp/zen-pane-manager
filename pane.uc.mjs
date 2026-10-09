@@ -16,7 +16,7 @@ let destroyed = false;
 
 // Sine can reload a user script without restarting the browser. Tear down a
 // previous v0.3+ instance and remove any orphaned UI from older releases.
-window[INSTANCE_KEY]?.destroy?.({reload:true});
+window[INSTANCE_KEY]?.destroy?.();
 document.getElementById("pane-overlay")?.remove();
 document.getElementById("pane-toast")?.remove();
 document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
@@ -967,19 +967,23 @@ const historyProgress = {
   onStateChange() { updateHistoryControls(window); },
 };
 
-function destroy(options = {}) {
-  options ??= {};
-  if (destroyed || (window[INSTANCE_KEY] && window[INSTANCE_KEY].destroy !== destroy)) return;
+function destroy() {
+  if (destroyed) return;
+  const instance = window[INSTANCE_KEY];
+  const ownsInstance = !instance || instance.destroy === destroy;
   destroyed = true;
   diagnosticLog("Pane runtime unloading");
   gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
   for (const [header, state] of toolbarReveals) {
-    clearTimeout(state.timer); state.abort.abort(); header.removeAttribute("data-pane-reveal");
-    for (const property of [...header.style]) if (property.startsWith("--pane-")) header.style.removeProperty(property);
+    clearTimeout(state.timer); state.abort.abort();
+    if (ownsInstance) {
+      header.removeAttribute("data-pane-reveal");
+      for (const property of [...header.style]) if (property.startsWith("--pane-")) header.style.removeProperty(property);
+    }
   }
   toolbarReveals.clear();
   renderGeneration++;
-  multiwindow?.destroy(options);
+  multiwindow?.destroy(ownsInstance ? undefined : {detachOnly:true});
   clearTimeout(updateNoticeTimer);
   updateNotice?.remove();
   updateNotice = null;
@@ -994,11 +998,13 @@ function destroy(options = {}) {
   window.removeEventListener("resize", onWindowResize);
   try { Services.prefs.removeObserver("mod.pane.", prefObserver); } catch (e) {}
   overlay?.remove();
-  document.getElementById("pane-toast")?.remove();
-  document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
-  root.removeAttribute("pane-ready");
-  root.removeAttribute("pane-toolbar-always");
-  if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
+  if (ownsInstance) {
+    document.getElementById("pane-toast")?.remove();
+    document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
+    root.removeAttribute("pane-ready");
+    root.removeAttribute("pane-toolbar-always");
+    if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
+  }
 }
 
 function initialize() {

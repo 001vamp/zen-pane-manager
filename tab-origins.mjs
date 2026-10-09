@@ -128,7 +128,8 @@ export function createTabOrigins(win) {
   win.Services.obs.addObserver(shutdownObserver, 'quit-application-granted');
   recover();
   return { begin, end, reconcile, get shuttingDown() {return shuttingDown || win.closed;},
-    destroy() {
+    destroy(options = {}) {
+      const {detachOnly = false} = options ?? {};
       win.clearTimeout(timer);
       for (const name of events) browser.tabContainer.removeEventListener(name, schedule);
       win.removeEventListener('SSWindowStateReady', recover);
@@ -136,7 +137,7 @@ export function createTabOrigins(win) {
       win.Services.obs.removeObserver(shutdownObserver, 'quit-application-granted');
       // A real browser shutdown keeps records for SessionStore recovery.
       // Disabling or reloading Pane restores every tracked tab immediately.
-      if (!shuttingDown && !win.closed) {
+      if (!detachOnly && !shuttingDown && !win.closed) {
         for (const data of [...view._data]) {
           if (data.tabs.some(tab => records.has(tab))) {
             while (view._data.includes(data) && data.tabs.length) view.removeTabFromGroup(data.tabs[0], undefined, { forUnsplit: true });
