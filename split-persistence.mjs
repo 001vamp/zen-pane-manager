@@ -38,6 +38,7 @@ export function decodeTree(saved, tabs, parent = null, prototypes = {}) {
 export function createSplitPersistence(win, origins) {
   const {SessionStore: session, gBrowser: browser, gZenViewSplitter: view} = win;
   const groups = new WeakMap(), restored = new Set(), deferred = new Map();
+  let needsRestoreScan = true, lastLayoutState = "";
   const live = tab => tab && tab.isConnected && !tab.closing;
   const parseRecord = raw => {
     try { return JSON.parse(raw); } catch { return INVALID; }
@@ -68,7 +69,17 @@ export function createSplitPersistence(win, origins) {
     }
     return protectedGroups;
   }
-  function save(records = scanRecords()) {
+  function layoutState() {
+    try {
+      return JSON.stringify(view._data.map(data => {
+        const tabs = data.tabs.filter(live);
+        return {tabs:tabs.map(tab => browser.tabs.indexOf(tab)), type:data.gridType, tree:encodeTree(data.layoutTree, tabs)};
+      }));
+    } catch {
+      return "";
+    }
+  }
+  function save(records = scanRecords(), state = layoutState()) {
     if (!session || view._sessionRestoring) return;
     const members = new Set(), pending = pendingProtectedGroups(records), raw = new Map(records.map(entry => [entry.tab, entry.raw]));
     for (const data of view._data) {
@@ -90,6 +101,7 @@ export function createSplitPersistence(win, origins) {
       if (validRecord(record) && pending.has(record.group)) continue;
       session.deleteCustomTabValue(tab, KEY);
     }
+    lastLayoutState = state;
   }
   function restore({retryDeferred = false, records = scanRecords()} = {}) {
     if (!session || view._sessionRestoring) return;
@@ -140,15 +152,24 @@ export function createSplitPersistence(win, origins) {
       if (view._data[view.currentView] === data) {view.removeSplitters(); view.applyGridLayout(tree);}
       restored.add(group); deferred.delete(group);
     }
+    needsRestoreScan = false;
   }
   function sync({retryDeferred = false} = {}) {
+    const state = layoutState();
+    const shouldRestore = needsRestoreScan || (retryDeferred && deferred.size);
+    if (!shouldRestore && state === lastLayoutState) return;
     const records = scanRecords();
-    restore({retryDeferred, records});
-    save(records);
+    if (shouldRestore) restore({retryDeferred, records});
+    save(records, layoutState());
   }
-  function clear({preserveHidden = false} = {}) {
+  function saveIfChanged() {
+    const state = layoutState();
+    if (state !== lastLayoutState) save(scanRecords(), state);
+  }
+  function clear() {
     if (!session) return;
-    for (const {tab} of scanRecords()) if (!preserveHidden || !tab.hidden) session.deleteCustomTabValue(tab, KEY);
+    for (const {tab} of scanRecords()) session.deleteCustomTabValue(tab, KEY);
+    lastLayoutState = layoutState();
   }
-  return {save, restore, sync, clear};
+  return {save, saveIfChanged, restore, sync, clear};
 }

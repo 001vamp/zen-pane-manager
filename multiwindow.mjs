@@ -1,4 +1,4 @@
-import { createSplitPersistence, encodeTree } from "./split-persistence.mjs";
+import { createSplitPersistence } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
 import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
@@ -71,23 +71,6 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   const floatingKey = 'pane-floating-v1';
   const session = win.SessionStore;
   const persistence = createSplitPersistence(win, origins);
-  let lastSplitLayoutState = "";
-  function splitLayoutState() {
-    try {
-      return JSON.stringify(view._data.map(data => {
-        const tabs = data.tabs.filter(tab => tab?.isConnected && !tab.closing);
-        return {tabs:tabs.map(tab => browser.tabs.indexOf(tab)), type:data.gridType, tree:encodeTree(data.layoutTree, tabs)};
-      }));
-    } catch {
-      return "";
-    }
-  }
-  function saveSplitLayoutIfChanged() {
-    const state = splitLayoutState();
-    if (state === lastSplitLayoutState) return;
-    persistence.save();
-    lastSplitLayoutState = state;
-  }
   function saveFloat(f) {
     if (!session || f.tab.closing) return;
     const value=JSON.stringify({version:1,rect:f.rect,headerPinned:Boolean(f.headerPinned)});
@@ -1209,13 +1192,14 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       || browser.selectedTab === hintTab)) hideEdgeHint();
     retryDeferredFrame ||= retryDeferred;
     if (frame || disposed) return;
-    frame = win.requestAnimationFrame(() => { const retry = retryDeferredFrame; frame = 0; retryDeferredFrame = false; persistence.sync({retryDeferred:retry}); recoverScrollings(); recoverAccordions(); recoverFloats(); applyFloat(); applyAccordion(); applyScrolling(); lastSplitLayoutState = splitLayoutState(); });
+    frame = win.requestAnimationFrame(() => { const retry = retryDeferredFrame; frame = 0; retryDeferredFrame = false; persistence.sync({retryDeferred:retry}); recoverScrollings(); recoverAccordions(); recoverFloats(); applyFloat(); applyAccordion(); applyScrolling(); });
   }
   function outside(event) { if (menu && !menu.contains(event.target)) closeMenu(); }
   function tabChanged() { closeMenu(); sync(); }
   function eventSync() { sync(); }
   function boundarySync() { sync(true); }
-  function markWindowClosing() { windowClosing = true; }
+  function saveSplitLayoutIfChanged() { persistence.saveIfChanged(); }
+  function markWindowClosing() { windowClosing = true; win.setTimeout?.(() => { if (!win.closed) windowClosing = false; }, 0); }
   function onAccordionShortcut(event) {
     const picker = doc.getElementById?.('pane-overlay');
     if (menu || (picker && !picker.hidden) || event.repeat || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording')) return;
@@ -1267,7 +1251,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     destroy() {
       const preserveSession = Boolean(origins.shuttingDown || win.closed || windowClosing);
       if (preserveSession) persistence.save();
-      else persistence.clear({preserveHidden:true});
+      else persistence.clear();
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; if (frame) win.cancelAnimationFrame(frame);

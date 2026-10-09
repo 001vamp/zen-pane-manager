@@ -13,9 +13,10 @@ class Branch extends Leaf {
 const values = new Map();
 const tab = id => ({id, isConnected:true, closing:false, hidden:false, pending:false, loads:0, hasAttribute(name) { return name === 'pending' && this.pending; }});
 function fixture(tabs) {
-  const win = {gBrowser:{tabs,selectedTab:tabs[0]},SessionStore:{
-    getCustomTabValue: tab=>values.get(tab.id) ?? '',setCustomTabValue:(tab,key,value)=>values.set(tab.id,value),deleteCustomTabValue:tab=>values.delete(tab.id),
-  }};
+  const win = {reads:0,gBrowser:{tabs,selectedTab:tabs[0]}};
+  win.SessionStore = {
+    getCustomTabValue: tab=>{win.reads++; return values.get(tab.id) ?? '';},setCustomTabValue:(tab,key,value)=>values.set(tab.id,value),deleteCustomTabValue:tab=>values.delete(tab.id),
+  };
   const view = {_data:[], currentView:-1, MAX_TABS:4, _tabToSplitNode:new WeakMap(), calls:0, activations:0,
     calculateLayoutTree: tabs => new Branch(tabs.map(tab=>new Leaf(tab,100/tabs.length))),
     splitTabs(tabs,type,initialIndex=0,options={}) {
@@ -66,15 +67,21 @@ assert.equal(incompleteHidden.view.calls,1,'incomplete hidden groups restore onc
 values.clear(); saved.forEach(([id,value])=>values.set(id,value));
 const clearing=fixture(['a','b','c'].map(tab));
 clearing.win.gBrowser.tabs[1].hidden = true;
-clearing.persistence.clear({preserveHidden:true});
-assert.equal(values.has('a'),false,'controller rebuild clears visible split records');
-assert.equal(values.has('b'),true,'controller rebuild preserves hidden deferred split records');
+clearing.persistence.clear();
+assert.equal(values.has('a'),false,'disable clears visible split records');
+assert.equal(values.has('b'),false,'disable clears hidden split records');
 values.clear(); saved.forEach(([id,value])=>values.set(id,value));
 const refused=fixture(['a','b','c'].map(tab));
 refused.view.splitTabs = () => {refused.view.calls++; return undefined;};
 refused.persistence.restore(); refused.persistence.restore(); refused.persistence.save();
 assert.equal(refused.view.calls,1,'failed splitTabs does not retry on every sync');
 assert.deepEqual([...values],saved,'splitTabs returning undefined keeps records pending');
+values.clear(); saved.forEach(([id,value])=>values.set(id,value));
+const idle=fixture(['a','b','c'].map(tab));
+idle.persistence.sync();
+idle.win.reads = 0;
+idle.persistence.sync();
+assert.equal(idle.win.reads,0,'idle sync skips SessionStore reads when no restore is pending and layout is unchanged');
 // A normal live sync must never replay a record written by this controller.
 tree.children[0].sizeInParent=42;
 original.persistence.restore();
