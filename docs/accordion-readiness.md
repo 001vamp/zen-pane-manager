@@ -2,6 +2,8 @@
 
 October 1, 2026. Local, uncommitted build.
 
+October 9, 2026 note: this review predates PR #6 (accordion drag-resize) and PR #7 (combined Scrolling). Scrolling now persists group/active tab/column widths, uses a snapshot overview, and is no longer labeled experimental. Treat the October 1 “no persistence/overview” and experimental-status claims as historical.
+
 Verdict: ready for owner beta testing, not yet verified for a production release.
 
 Automated coverage passes for navigation and wrapping, rapid switching/cancelled animations, reduced motion, hint delay/cleanup, pane removal and focus preservation, toolbar rebuilding, restore-to-tiles, session metadata recovery, and original native layout-tree preservation.

@@ -63,7 +63,7 @@ Floating placement is a temporary presentation of a native Zen split. Multiple t
 
 The latest working tree has automated regression coverage for layout-menu/scrolling arbitration, Escape cancellation, width preservation, pane removal, and replacement failure recovery. Those checks pass in fixtures. The complete settings page has previously loaded in native macOS Zen; that does not verify all current controls.
 
-The development target above remains the recorded target, not a claim of compatibility with every newer release. Current-build native macOS/Windows results must be recorded before a stable release. Scrolling remains experimental. Accordion and scrolling metadata are retained at browser shutdown; disabling Pane clears that presentation metadata and restores tracked tabs. Floating geometry/pins now have versioned local persistence. Fixture tests cover multiple panels, smaller bounds, pins, docking, invalid data, and disable cleanup; native restart verification remains required.
+The development target above remains the recorded target, not a claim of compatibility with every newer release. Current-build native macOS/Windows results must be recorded before a stable release. Scrolling, accordion, and floating recovery use their regular names; this is a label change, not recorded native proof. Accordion and scrolling metadata are retained at browser shutdown; disabling Pane clears that presentation metadata and restores tracked tabs. Floating geometry/pins now have versioned local persistence. Fixture tests cover multiple panels, smaller bounds, pins, docking, invalid data, and disable cleanup; native restart verification remains required.
 
 ### October 2 local verification
 

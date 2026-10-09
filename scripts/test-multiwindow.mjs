@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { fitRectangle, resizeRectangle, layoutTypes, modeLabels, isSupportedTab, tabWorkspace, normalizeMode, presentationModes, scrollingSizes, scrollingColumnWidth } from "../multiwindow.mjs";
 assert.deepEqual(layoutTypes, { right: "vsep", below: "hsep", grid: "grid" });
-assert.equal(modeLabels.scrolling, "Scrolling (experimental)");
+assert.equal(modeLabels.scrolling, "Scrolling");
 assert.equal(modeLabels.snapshot, undefined);
 assert.deepEqual(presentationModes,['accordion','scrolling']);
 assert.equal(normalizeMode('snapshot'),'scrolling');
 assert.equal(normalizeMode('scrolling'),'scrolling');
 assert.equal(normalizeMode('grid'),'grid');
+assert.equal(normalizeMode('experimental-scrolling'),'scrolling');
+assert.equal(normalizeMode('scrolling-experimental'),'scrolling');
+assert.equal(normalizeMode('experimental-accordion'),'accordion');
+assert.equal(normalizeMode('experimental-snapshot'),'scrolling');
 assert.deepEqual(scrollingSizes(1000.25,65,[800.125,null]),{
  viewport:1000.25,width:650.1625,widths:[800.125,650.1625],positions:[0,810.125],max:800.125 + 10 + 650.1625 - 1000.25
 });

@@ -42,4 +42,4 @@ export function conditionMatches(prefs, condition, definitions) {
   return prefs[getter](condition.property,fallback)===condition.value;
 }
 
-export const settingsSections = [['0','Open Pane'],['1','Layout navigation & accordion'],['scrolling','Scrolling (experimental)'],['2','Glass style'],['3','Appearance'],['4','Tab behavior'],['5','Custom glass']];
+export const settingsSections = [['0','Open Pane'],['1','Layout navigation & accordion'],['scrolling','Scrolling'],['2','Glass style'],['3','Appearance'],['4','Tab behavior'],['5','Custom glass']];

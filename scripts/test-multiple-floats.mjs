@@ -777,6 +777,23 @@ for (const oldMode of ['snapshot', 'scrolling']) {
   assert.equal(JSON.parse(savedScrollings.get(tabs[0])).mode,'scrolling','record rewritten to canonical ID');
   recovered.destroy();
 }
+data.tabs = [tabs[0],tabs[1],tabs[2]]; data.layoutTree=tree(data.tabs);
+for (const tab of tabs) tab.splitView=data.tabs.includes(tab);
+win.gBrowser.selectedTab=tabs[0];
+const experimentalId=createMultiwindow(win,options);
+experimentalId.arrange(tabs[0],'experimental-scrolling');
+assert.equal(container(tabs[0]).hasAttribute('pane-scrolling'),true,'IDs containing experimental still enter scrolling');
+const experimentalTabs=[...data.tabs];
+options.origins.shuttingDown=true; experimentalId.destroy(); options.origins.shuttingDown=false;
+for (const tab of experimentalTabs) {
+  const record=JSON.parse(savedScrollings.get(tab));
+  record.mode='experimental-scrolling';
+  savedScrollings.set(tab,JSON.stringify(record));
+}
+const experimentalRecovered=createMultiwindow(win,options); flush();
+assert.ok(experimentalRecovered.capturePresentation(data).scrolling,'saved experimental IDs restore scrolling');
+assert.equal(JSON.parse(savedScrollings.get(tabs[0])).mode,'scrolling','experimental ID rewrites to canonical scrolling');
+experimentalRecovered.destroy();
 data.tabs=[tabs[0],tabs[1],tabs[2]];data.layoutTree=tree(data.tabs);
 for (const tab of tabs) tab.splitView=data.tabs.includes(tab);
 const snapshotPrototype=createMultiwindow(win,{...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}});

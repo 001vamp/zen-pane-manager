@@ -12,7 +12,7 @@ Start with one tab or an existing split. Pick another open tab, choose a layout,
 
 This update adds a layout-menu shortcut, more consistent settings and toolbars, and better layout recovery. On Windows/Linux, press **Alt+Shift+L** while a split tab is selected. On Mac, use **Ctrl+Shift+L**. This changed because Option modifies letter keys before Pane can read them on real macOS.
 
-**This release also includes optional experimental features:** scrolling and saving floating positions/pins across restarts. They are available in the layout menu; updating does not switch an existing tiled split into scrolling. You can return to a tiled layout from that same menu. Current-release Windows and floating restart checks are still pending—please report reproducible problems with a diagnostic report.
+Scrolling and floating position/pin recovery are available in the layout menu; updating does not switch an existing tiled split into scrolling. You can return to a tiled layout from that same menu. Current-release Windows and floating restart checks are still pending—please report reproducible problems with a diagnostic report.
 
 To update an existing installation, use **Settings → Sine Mods → Check for Updates**, then fully quit and reopen Zen. The normal repository install now receives this version from `main`.
 
@@ -68,21 +68,21 @@ The close button returns the tab to the sidebar. It does not close the page. Use
 
 ![A floating tab with back, forward, pin, layout, close, and resize controls](docs/pane-current-floating.png)
 
-### Horizontal accordion (prototype)
+### Horizontal accordion
 
 In an existing split, open the layout menu and choose **Horizontal accordion**. One tab comes forward while narrow live edges of the other pages remain visible. Hover an edge for a small favicon and title hint, then click to switch tabs. Use **Option+Shift+Left/Right** on Mac or **Alt+Shift+Left/Right** on Windows or Linux to switch from the page. Use **Ctrl+Shift+Plus/Minus** on Mac or **Alt+Shift+Plus/Minus** on Windows/Linux to widen or narrow the expanded page. Navigation wraps at either end. When an edge has keyboard focus, plain **Left/Right**, **Home**, and **End** also work.
 
 In Pane’s settings, use **Change shortcut** to record layout navigation or accordion resize shortcuts, or **Disable** to turn one off. Duplicate shortcuts within Pane are flagged and inactive until corrected. Accordion uses soft shadows to separate tabs. Optional edge lines are off by default; adjust their thickness, color, and opacity in the appearance controls.
 
-Hover the top edge of the active page to reveal its title and controls. Use the arrows to switch tabs, the three-dot button to arrange them, or the grid button to **Restore tiled layout** with your previous divider sizes. Dock any floating tabs before entering accordion. Accordion is restored when Zen restores the split after a restart. Disabling Pane removes its presentation and restores tracked tabs to their original placement.
+Hover the top edge of the active page to reveal its title and controls. Use the arrows to switch tabs, the three-dot button to arrange them, or the grid button to **Restore tiled layout** with your previous divider sizes. Dock any floating tabs before entering accordion. Accordion is restored when Zen restores the split after a restart. A drag-resized expanded width is session-only and returns to the default after restart. Disabling Pane removes its presentation and restores tracked tabs to their original placement.
 
-### Experimental scrolling
+### Scrolling
 
-In an existing split, open the layout menu and choose **Scrolling (experimental)**. Your active page stays full width. Hold **Option+Shift** on Mac or **Alt+Shift** on Windows/Linux to reveal the columns, then use the wheel or two-finger trackpad scrolling. Release to expand the centered tab. **Escape** cancels and returns to the starting tab. Opening the layout menu cancels the gesture without committing another selection.
+In an existing split, open the layout menu and choose **Scrolling**. Your active page stays full width. Hold **Option+Shift** on Mac or **Alt+Shift** on Windows/Linux to reveal the columns, then use the wheel or two-finger trackpad scrolling. Release to expand the centered tab. **Escape** cancels and returns to the starting tab. Opening the layout menu cancels the gesture without committing another selection.
 
 While the columns are visible, drag a right edge to resize a tab. Double-click the edge or use its header reset button to restore the default width. You can change the modifier and default width in Pane settings. Individual width overrides survive changes to the default. **Reset all column widths** in the layout menu clears those overrides.
 
-This is an early feature. Scrolling layouts and custom column widths are restored when Zen restores the split. Please report problems with your OS, Zen version, and steps to reproduce.
+Scrolling layouts and custom column widths are restored when Zen restores the split. Please report problems with your OS, Zen version, and steps to reproduce.
 
 ### Pinned tabs, folders, and Essentials
 
@@ -118,7 +118,7 @@ Pane has been tested on **macOS and Windows**, including everyday use by the mai
 
 - Zen allows up to four tabs per split, including a floating tab.
 - Float up to three tabs in a split, with at least one tab left in the background. Each floating tab has its own position, size, and header pin. Floating tabs stay inside their Zen window.
-- Experimental floating session recovery saves positions, sizes, and header pins and restores them when Zen restores the split after a restart. Panels are fitted inside the current window. Docking a panel or disabling Pane clears its saved floating state.
+- Floating session recovery saves positions, sizes, and header pins and restores them when Zen restores the split after a restart. Panels are fitted inside the current window. Docking a panel or disabling Pane clears its saved floating state.
 - Pane uses Zen’s internal split API, which can change between releases.
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for more detail.
