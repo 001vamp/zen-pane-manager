@@ -103,4 +103,4 @@ Version 0.11.0 is prepared for the normal `main` update channel. Its README, cha
 
 ## Label graduation — October 9
 
-PR #6 (accordion drag-resize) and PR #7 (combined Scrolling) are on `main`. Picker, layout menu, and settings now say Scrolling and Horizontal accordion without experimental or prototype labels. Preference keys, `scrolling`/`accordion` IDs, `pane-scrolling-v1`, and the `snapshot` alias are unchanged. Saved IDs that contain `experimental` still restore and rewrite to the canonical ID. Native input, restart, and Windows gates remain open; this change is labels and docs only.
+PR #6 (accordion drag-resize) and PR #7 (combined Scrolling) are on `main`. Picker, layout menu, and settings now say Scrolling and Horizontal accordion without experimental or prototype labels. Preference keys, `scrolling`/`accordion` IDs, `pane-scrolling-v1`, and the `snapshot` alias are unchanged. Native input, restart, and Windows gates remain open; this change is labels and docs only.

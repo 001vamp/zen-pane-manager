@@ -57,15 +57,7 @@ export const presentationModes = ["accordion", "scrolling"];
 export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", scrolling: "Scrolling" };
 
 // Legacy callers and saved choices converge before validation or side effects.
-export const normalizeMode = mode => {
-  if (mode === "snapshot") return "scrolling";
-  if (typeof mode === "string" && mode.includes("experimental")) {
-    const known = ["scrolling", "accordion", "snapshot", "float", "right", "below", "grid", "replace"];
-    const match = known.find(id => mode.includes(id));
-    return match === "snapshot" ? "scrolling" : match ?? mode;
-  }
-  return mode;
-};
+export const normalizeMode = mode => mode === "snapshot" ? "scrolling" : mode;
 
 export const scrollingColumnWidth = (viewport, value) => Math.min(viewport, Math.max(Math.min(320, viewport), value));
 
