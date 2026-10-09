@@ -975,8 +975,11 @@ function destroy() {
   diagnosticLog("Pane runtime unloading");
   gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
   for (const [header, state] of toolbarReveals) {
-    clearTimeout(state.timer); state.abort.abort(); header.removeAttribute("data-pane-reveal");
-    for (const property of [...header.style]) if (property.startsWith("--pane-")) header.style.removeProperty(property);
+    clearTimeout(state.timer); state.abort.abort();
+    if (ownsInstance) {
+      header.removeAttribute("data-pane-reveal");
+      for (const property of [...header.style]) if (property.startsWith("--pane-")) header.style.removeProperty(property);
+    }
   }
   toolbarReveals.clear();
   renderGeneration++;

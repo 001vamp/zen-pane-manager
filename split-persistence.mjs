@@ -63,18 +63,18 @@ export function createSplitPersistence(win, origins) {
     }
     return grouped;
   }
-  function pendingProtectedGroups(records) {
+  function pendingProtectedGroups(grouped) {
     const protectedGroups = new Set();
-    for (const [group, entries] of groupPendingRecords(records)) {
+    for (const [group, entries] of grouped) {
       const count = entries[0].record.count;
       const slots = new Set(entries.map(entry => entry.record.index));
       if (entries.some(entry => entry.tab.hidden) || deferred.has(group) || (entries.length === count && slots.size === count && entries.every(entry => entry.record.count === count))) protectedGroups.add(group);
     }
     return protectedGroups;
   }
-  function recordsToKeepOnClear(records) {
-    const pending = pendingProtectedGroups(records), keep = new Set();
-    for (const entries of groupPendingRecords(records).values()) {
+  function recordsToKeepOnClear(grouped) {
+    const pending = pendingProtectedGroups(grouped), keep = new Set();
+    for (const entries of grouped.values()) {
       if (!pending.has(entries[0].record.group) || !entries.every(entry => entry.tab.hidden)) continue;
       for (const entry of entries) keep.add(entry.tab);
     }
@@ -92,7 +92,7 @@ export function createSplitPersistence(win, origins) {
   }
   function save(records = scanRecords(), state = layoutState()) {
     if (!session || view._sessionRestoring) return;
-    const members = new Set(), pending = pendingProtectedGroups(records), raw = new Map(records.map(entry => [entry.tab, entry.raw]));
+    const members = new Set(), pending = pendingProtectedGroups(groupPendingRecords(records)), raw = new Map(records.map(entry => [entry.tab, entry.raw]));
     for (const data of view._data) {
       const tabs = data.tabs.filter(live);
       if (tabs.length < 2) continue;
@@ -181,7 +181,7 @@ export function createSplitPersistence(win, origins) {
   function clear({preserveHidden = false} = {}) {
     if (!session) return;
     const records = scanRecords();
-    const keep = preserveHidden ? recordsToKeepOnClear(records) : new Set();
+    const keep = preserveHidden ? recordsToKeepOnClear(groupPendingRecords(records)) : new Set();
     for (const {tab} of records) if (!keep.has(tab)) session.deleteCustomTabValue(tab, KEY);
     lastLayoutState = layoutState();
   }

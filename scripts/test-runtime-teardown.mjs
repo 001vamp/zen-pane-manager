@@ -123,9 +123,14 @@ const stale = runPane({
 });
 assert.equal(stale.errors.length, 0, `runtime should initialize before stale teardown test: ${stale.errors.at(-1)?.[2]?.message}`);
 const staleDestroy = stale.window.__paneInstance.destroy;
+const sharedHeader = stale.doc.querySelector(".zen-view-splitter-header");
+sharedHeader.setAttribute("data-pane-reveal", "true");
+sharedHeader.style.setProperty("--pane-shared-test", "1");
 stale.window.__paneInstance = { destroy() {} };
 staleDestroy();
 assert.equal(destroyOptions?.detachOnly, true, "stale runtime uses detach-only multiwindow teardown");
+assert.equal(sharedHeader.getAttribute("data-pane-reveal"), "true", "stale runtime leaves shared reveal state alone");
+assert.equal(sharedHeader.style.getPropertyValue("--pane-shared-test"), "1", "stale runtime leaves live pane styles alone");
 assert.equal(splitRecords.size, 1, "stale runtime does not clear live split records");
 assert.equal(floatRecords.size, 1, "stale runtime does not clear live float records");
 

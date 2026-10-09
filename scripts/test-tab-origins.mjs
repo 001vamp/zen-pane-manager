@@ -30,56 +30,67 @@ class Element extends EventTarget {
 const tab = (id, pinned = false) => Object.assign(new Element(id), {
   pinned, closing:false, label:id, linkedBrowser:{focus(){}}, elementIndex:0, group:null,
 });
-const normalSection = new Element("normal");
-normalSection.setAttribute("zen-workspace-id", "w");
-const tabs = [tab("a", true), tab("b", false)];
-normalSection.append(...tabs);
-const values = new Map();
-let removedFromGroup = 0, timer = 0;
-const tabContainer = new EventTarget();
-const data = { tabs:[...tabs] };
-const win = new EventTarget();
-Object.assign(win, {
-  closed:false,
-  document:{
-    createElementNS:() => new Element(),
-    getElementById:id => id === normalSection.id ? normalSection : null,
-    querySelectorAll:selector => selector === ".zen-workspace-pinned-tabs-section" || selector === ".zen-workspace-normal-tabs-section" ? [normalSection] : [],
-  },
-  gBrowser:{
-    tabs, tabContainer, selectedTab:tabs[0],
-    pinTab(tab) { tab.pinned = true; },
-    unpinTab(tab) { tab.pinned = false; },
-    ungroupTab(){},
-    moveTabToExistingGroup(){},
-    zenHandleTabMove(tab, move) { move(); },
-  },
-  gZenViewSplitter:{
-    _data:[data],
-    removeTabFromGroup(tab) { removedFromGroup++; data.tabs = data.tabs.filter(member => member !== tab); },
-  },
-  gZenWorkspaces:{ activeWorkspace:"w", getEssentialsSection:() => normalSection },
-  gZenPinnedTabManager:{ removeEssentials(){}, onTabIconChanged(){} },
-  SessionStore:{
-    setCustomTabValue:(tab, key, value) => values.set(`${tab.id}:${key}`, value),
-    getCustomTabValue:(tab, key) => values.get(`${tab.id}:${key}`) ?? "",
-    deleteCustomTabValue:(tab, key) => values.delete(`${tab.id}:${key}`),
-  },
-  Services:{ obs:{ addObserver(){}, removeObserver(){} } },
-  setTimeout(fn) { timer += 1; return timer; },
-  clearTimeout(){},
-});
 
-const origins = createTabOrigins(win);
-origins.begin(tabs);
-origins.end();
-assert.ok(values.get("a:pane-original-tab-v1"), "origin record is saved for pinned tab");
-assert.ok(values.get("b:pane-original-tab-v1"), "origin record is saved for companion tab");
-origins.destroy({detachOnly:true});
-assert.equal(removedFromGroup, 0, "detach-only origins teardown does not unsplit live groups");
-assert.deepEqual(data.tabs, tabs, "detach-only origins teardown leaves split membership intact");
-assert.ok(values.get("a:pane-original-tab-v1"), "detach-only origins teardown keeps pinned origin record");
-assert.ok(values.get("b:pane-original-tab-v1"), "detach-only origins teardown keeps companion origin record");
-assert.equal((tabContainer.listeners.get("TabClose") ?? []).length, 0, "detach-only origins teardown removes tab listeners");
+function fixture() {
+  const normalSection = new Element("normal");
+  normalSection.setAttribute("zen-workspace-id", "w");
+  const tabs = [tab("a", true), tab("b", false)];
+  normalSection.append(...tabs);
+  const values = new Map();
+  let removedFromGroup = 0, timer = 0;
+  const tabContainer = new EventTarget();
+  const data = { tabs:[...tabs] };
+  const win = new EventTarget();
+  Object.assign(win, {
+    closed:false,
+    document:{
+      createElementNS:() => new Element(),
+      getElementById:id => id === normalSection.id ? normalSection : null,
+      querySelectorAll:selector => selector === ".zen-workspace-pinned-tabs-section" || selector === ".zen-workspace-normal-tabs-section" ? [normalSection] : [],
+    },
+    gBrowser:{
+      tabs, tabContainer, selectedTab:tabs[0],
+      pinTab(tab) { tab.pinned = true; },
+      unpinTab(tab) { tab.pinned = false; },
+      ungroupTab(){},
+      moveTabToExistingGroup(){},
+      zenHandleTabMove(tab, move) { move(); },
+    },
+    gZenViewSplitter:{
+      _data:[data],
+      removeTabFromGroup(tab) { removedFromGroup++; data.tabs = data.tabs.filter(member => member !== tab); },
+    },
+    gZenWorkspaces:{ activeWorkspace:"w", getEssentialsSection:() => normalSection },
+    gZenPinnedTabManager:{ removeEssentials(){}, onTabIconChanged(){} },
+    SessionStore:{
+      setCustomTabValue:(tab, key, value) => values.set(`${tab.id}:${key}`, value),
+      getCustomTabValue:(tab, key) => values.get(`${tab.id}:${key}`) ?? "",
+      deleteCustomTabValue:(tab, key) => values.delete(`${tab.id}:${key}`),
+    },
+    Services:{ obs:{ addObserver(){}, removeObserver(){} } },
+    setTimeout(fn) { timer += 1; return timer; },
+    clearTimeout(){},
+  });
+  const origins = createTabOrigins(win);
+  origins.begin(tabs);
+  origins.end();
+  assert.ok(values.get("a:pane-original-tab-v1"), "origin record is saved for pinned tab");
+  assert.ok(values.get("b:pane-original-tab-v1"), "origin record is saved for companion tab");
+  return {origins, tabs, values, data, tabContainer, removedFromGroup:() => removedFromGroup};
+}
+
+const detached = fixture();
+detached.origins.destroy({detachOnly:true});
+assert.equal(detached.removedFromGroup(), 0, "detach-only origins teardown does not unsplit live groups");
+assert.deepEqual(detached.data.tabs, detached.tabs, "detach-only origins teardown leaves split membership intact");
+assert.ok(detached.values.get("a:pane-original-tab-v1"), "detach-only origins teardown keeps pinned origin record");
+assert.ok(detached.values.get("b:pane-original-tab-v1"), "detach-only origins teardown keeps companion origin record");
+assert.equal((detached.tabContainer.listeners.get("TabClose") ?? []).length, 0, "detach-only origins teardown removes tab listeners");
+
+const owned = fixture();
+owned.origins.destroy();
+assert.ok(owned.removedFromGroup() > 0, "owning origins teardown unsplits tracked groups");
+assert.equal(owned.values.get("a:pane-original-tab-v1"), undefined, "owning origins teardown removes pinned origin record");
+assert.equal(owned.values.get("b:pane-original-tab-v1"), undefined, "owning origins teardown removes companion origin record");
 
 console.log("Tab origins detach-only teardown passed.");
