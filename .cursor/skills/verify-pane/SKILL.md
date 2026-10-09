@@ -49,7 +49,7 @@ Run picker, menu and every layout recipe from both a solo tab and an existing sp
 
 ## Evidence
 
-The helper saves command output, exit results and revision in `/tmp/pane-proof.*`; evidence survives cleanup. Add native evidence there: action transcript, before/after screenshots, profile/build identity, recipe ID, expected and observed state, and failures/skips. Capture real input plus resulting state. For restart proof, capture pre-quit geometry/tab group/pins and the same state after the owned process exits and a fresh PID starts. Reopen settings to prove saved values. Fixtures use mocked Zen APIs and prove logic only. Do not mark split memory passed on this baseline: PR #2 is separate and not present at f9d43ba. Its recipe is an acceptance gate for that implementation.
+The helper saves command output, exit results and revision in `/tmp/pane-proof.*`; evidence survives cleanup. Add native evidence there: action transcript, before/after screenshots, profile/build identity, Zen version, Sine version when available, recipe ID, expected and observed state, and failures/skips. Capture real input plus resulting state. For restart proof, capture pre-quit presentation state and the same state after the owned process exits and a fresh PID starts. Reopen settings to prove saved values. Fixtures use mocked Zen APIs and prove logic only. Native restart recipes cover Pane-managed state that Zen does not restore by itself.
 
 ## Cleanup
 

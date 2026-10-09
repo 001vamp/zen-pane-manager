@@ -14,7 +14,7 @@ Picker #pane-open-modes [data-mode="float"]; existing split toolbar three-dot me
 
 Preconditions: SKILL.md doctor passes for the owned throwaway profile; seed A/B/C/D. Run the fixture helper first.
 
-From solo A, open picker, choose the mode and B using real input; require B appears in a movable panel over the split. Repeat on an existing A/B split adding C, then D. Through the layout menu, arrange the selected split with the same choice. Drag dividers, replace B via picker and require divider geometry preserved. Return B to a normal tab, then Unsplit; require pages and sidebar origins retained. Keep a typed draft, page scroll and history while changing layouts; require page identity/state retained.
+From solo A, open picker, choose the mode and B using real input; require B appears in a movable panel over A. Repeat from an existing A/B split by floating C, then D. Through the layout menu, arrange the selected split with the same choice. Move and resize each floating panel, toggle its pin state, replace one floating tab via picker, then dock it back; require pages and sidebar origins retained. Keep a typed draft, page scroll and history while moving, pinning and docking floats; require page identity/state retained.
 
 Capture the action transcript and before/after screenshots under the helper's evidence directory. Record each entry point separately.
 

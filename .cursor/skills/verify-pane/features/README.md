@@ -5,9 +5,9 @@ Use [SKILL.md](../SKILL.md) for isolation, launch, doctor, evidence and cleanup.
 | Feature | Automatic evidence in npm test | Native acceptance recipe |
 | --- | --- | --- |
 | Picker | Markup, replacement and add/join logic | [picker](picker.md) |
-| macOS layout menu | Shortcut defaults/parser/conflicts | [layout-menu](layout-menu.md) |
+| Layout menu | Shortcut defaults/parser/conflicts | [layout-menu](layout-menu.md) |
 | Settings | Bounds/schema and keybindings | [settings](settings.md) |
-| Split and floating restart memory | Mock floating SessionStore; split restart unproven | [restart-memory](restart-memory.md) |
+| Pane restart memory | Mock presentation restore; full restart unproven | [restart-memory](restart-memory.md) |
 | Split right | Mock layout/presentation/geometry logic | [split-right](split-right.md) |
 | Split below | Mock layout/presentation/geometry logic | [split-below](split-below.md) |
 | Grid | Mock layout/presentation/geometry logic | [grid](grid.md) |
@@ -16,4 +16,4 @@ Use [SKILL.md](../SKILL.md) for isolation, launch, doctor, evidence and cleanup.
 | Scrolling | Mock layout/presentation/geometry logic | [scrolling](scrolling.md) |
 | Floating | Mock layout/presentation/geometry logic | [floating](floating.md) |
 
-The automatic routine also runs icons, update notices, diagnostics, schema validation and syntax checks. It does not launch Zen. The split-memory recipe intentionally covers work arriving in a separate PR. Record revision, profile, versions, feature IDs, entry points and PASS/FAIL/NOT RUN in each proof. Keep artifacts after teardown. Do not treat internal controller calls or a screenshot alone as user-path proof.
+The automatic routine also runs icons, update notices, diagnostics, schema validation and syntax checks. It does not launch Zen. Restart recipes intentionally cover full-process persistence that fixtures cannot prove. Record revision, profile, Zen/Sine versions, feature IDs, entry points and PASS/FAIL/NOT RUN in each proof. Keep artifacts after teardown. Do not treat internal controller calls or a screenshot alone as user-path proof.

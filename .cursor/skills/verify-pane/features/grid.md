@@ -14,7 +14,7 @@ Picker #pane-open-modes [data-mode="grid"]; existing split toolbar three-dot men
 
 Preconditions: SKILL.md doctor passes for the owned throwaway profile; seed A/B/C/D. Run the fixture helper first.
 
-From solo A, open picker, choose the mode and B using real input; require A/B/C occupy distinct grid cells. Repeat on an existing A/B split adding C, then D. Through the layout menu, arrange the selected split with the same choice. Drag dividers, replace B via picker and require divider geometry preserved. Return B to a normal tab, then Unsplit; require pages and sidebar origins retained. Keep a typed draft, page scroll and history while changing layouts; require page identity/state retained.
+From solo A, open picker, choose the mode and B using real input; require A and B occupy distinct grid cells. Repeat on an existing A/B split adding C, then D, and require the four pages occupy separate cells. Through the layout menu, arrange the selected split with the same choice. Replace one grid cell via picker, then return one cell to a normal tab and Unsplit; require the remaining pages and sidebar origins retained. Keep a typed draft, page scroll and history while changing layouts; require page identity/state retained.
 
 Capture the action transcript and before/after screenshots under the helper's evidence directory. Record each entry point separately.
 
