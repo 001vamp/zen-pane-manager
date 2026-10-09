@@ -271,6 +271,8 @@ rebuiltRight.remove();
 controller.sync(); flush();
 assert.equal(rebuiltRight.capturedPointer, null, 'removing the strip itself ends its drag');
 assert.ok(accordionResize('right'), 'removing the strip itself rebuilds a visible resize target');
+rebuiltRight.emit('pointerdown', {button:0, pointerId:17, clientX:500});
+assert.equal(rebuiltRight.capturedPointer, null, 'removed targets cannot start another drag');
 const countChangeRight = accordionResize('right');
 countChangeRight.emit('pointerdown', {button:0, pointerId:16, clientX:500});
 countChangeRight.emit('pointermove', {pointerId:16, clientX:492});
