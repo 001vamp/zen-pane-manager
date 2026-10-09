@@ -1,3 +1,4 @@
+import { createSplitPersistence } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
 import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
@@ -69,6 +70,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   const scrollingKey = 'pane-scrolling-v1';
   const floatingKey = 'pane-floating-v1';
   const session = win.SessionStore;
+  const persistence = createSplitPersistence(win, origins);
   function saveFloat(f) {
     if (!session || f.tab.closing) return;
     const value=JSON.stringify({version:1,rect:f.rect,headerPinned:Boolean(f.headerPinned)});
@@ -144,7 +146,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   }
   const backgrounds = new WeakMap();
   let topLayer = 20;
-  let menu = null, menuTab = null, frame = 0, disposed = false;
+  let menu = null, menuTab = null, frame = 0, disposed = false, retryDeferredFrame = false, windowClosing = false;
   let edgeHint = null;
   let hintTimer = null, hintTab = null;
   const reducedMotion = win.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -1185,14 +1187,19 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     menu.style.top = `${Math.max(8, Math.min(rect.top + 32, win.innerHeight - menu.offsetHeight - 8))}px`;
     (menu.querySelector('[data-mode][aria-pressed="true"]') || menu.querySelector("[data-mode]")).focus();
   }
-  function sync() {
+  function sync(retryDeferred = false) {
     if (hintTab && (hintTab.closing || !hintTab.isConnected || groupFor(hintTab) !== view._data[view.currentView]
       || browser.selectedTab === hintTab)) hideEdgeHint();
+    retryDeferredFrame ||= retryDeferred;
     if (frame || disposed) return;
-    frame = win.requestAnimationFrame(() => { frame = 0; recoverScrollings(); recoverAccordions(); recoverFloats(); applyFloat(); applyAccordion(); applyScrolling(); });
+    frame = win.requestAnimationFrame(() => { const retry = retryDeferredFrame; frame = 0; retryDeferredFrame = false; persistence.sync({retryDeferred:retry}); recoverScrollings(); recoverAccordions(); recoverFloats(); applyFloat(); applyAccordion(); applyScrolling(); });
   }
   function outside(event) { if (menu && !menu.contains(event.target)) closeMenu(); }
   function tabChanged() { closeMenu(); sync(); }
+  function eventSync() { sync(); }
+  function boundarySync() { persistence.armRestoreScan(); sync(true); }
+  function saveSplitLayoutIfChanged() { persistence.saveIfChanged(); }
+  function markWindowClosing() { windowClosing = true; win.setTimeout?.(() => { if (!win.closed) windowClosing = false; }, 0); }
   function onAccordionShortcut(event) {
     const picker = doc.getElementById?.('pane-overlay');
     if (menu || (picker && !picker.hidden) || event.repeat || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording')) return;
@@ -1223,40 +1230,60 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (reducedMotion.matches) for (const state of [...accordions.values(), ...scrollings.values()]) { state.animation?.cancel(); state.animation = null; }
   }
   reducedMotion?.addEventListener('change', motionChanged);
-  win.addEventListener("ZenViewSplitter:SplitViewActivated", sync);
+  win.addEventListener("ZenViewSplitter:SplitViewActivated", eventSync);
+  win.addEventListener("ZenWorkspacesUIUpdate", boundarySync);
+  win.addEventListener("ZenWorkspaceDataChanged", boundarySync);
   win.addEventListener("resize", onResize);
+  win.addEventListener("close", markWindowClosing);
+  win.addEventListener("SSWindowClosing", markWindowClosing);
   doc.addEventListener("mousedown", outside, true);
-  for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
-  win.addEventListener('SSWindowStateReady', sync);
-  browser.tabContainer.addEventListener('SSTabRestored', sync);
+  for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit", "ZenSplitViewTabsSplit"]) browser.tabContainer.addEventListener(name, tabChanged);
+  win.addEventListener('SSWindowStateReady', boundarySync);
+  browser.tabContainer.addEventListener('SSTabRestored', boundarySync);
+  browser.tabContainer.addEventListener('TabShow', boundarySync);
+  const shutdownObserver = {observe() {persistence.save();}};
+  win.Services?.obs?.addObserver(shutdownObserver, "quit-application-granted");
+  win.addEventListener("mouseup", saveSplitLayoutIfChanged);
   sync();
   return {
     add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins, accordionStep, scrollStep,
     capturePresentation, restorePresentation,
     get floatingTabs() { return [...floats.keys()]; },
-    destroy() {
+    destroy(options = {}) {
+      if (disposed) return;
+      options ??= {};
+      const preserveSession = Boolean(origins.shuttingDown || win.closed || windowClosing);
+      if (preserveSession) persistence.save();
+      else persistence.clear({preserveHidden:true});
+      win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
+      win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
       closeMenu();
       hideEdgeHint();
-      for (const data of [...accordions.keys()]) clearAccordion(data, true, Boolean(origins.shuttingDown || win.closed));
-      for (const data of [...scrollings.keys()]) clearScrolling(data, true, Boolean(origins.shuttingDown || win.closed));
-      clearFloat(true,null,Boolean(origins.shuttingDown || win.closed)); origins.destroy();
-      if (session && !origins.shuttingDown && !win.closed) {
+      for (const data of [...accordions.keys()]) clearAccordion(data, true, preserveSession);
+      for (const data of [...scrollings.keys()]) clearScrolling(data, true, preserveSession);
+      clearFloat(true,null,preserveSession); origins.destroy();
+      if (session && !preserveSession) {
         for (const tab of browser.tabs) if (!tab.closing) session.deleteCustomTabValue(tab,floatingKey);
       }
       win.removeEventListener("keydown", onScrollingModifier, true);
       win.removeEventListener("keyup", onScrollingModifier, true);
       win.removeEventListener("blur", onScrollingModifier);
       win.removeEventListener("wheel", onScrollingWheel, true);
-      win.removeEventListener('SSWindowStateReady', sync);
-      browser.tabContainer.removeEventListener('SSTabRestored', sync);
-      win.removeEventListener("ZenViewSplitter:SplitViewActivated", sync);
+      win.removeEventListener('SSWindowStateReady', boundarySync);
+      browser.tabContainer.removeEventListener('SSTabRestored', boundarySync);
+      browser.tabContainer.removeEventListener('TabShow', boundarySync);
+      win.removeEventListener("ZenViewSplitter:SplitViewActivated", eventSync);
+      win.removeEventListener("ZenWorkspacesUIUpdate", boundarySync);
+      win.removeEventListener("ZenWorkspaceDataChanged", boundarySync);
       win.removeEventListener("resize", onResize);
+      win.removeEventListener("close", markWindowClosing);
+      win.removeEventListener("SSWindowClosing", markWindowClosing);
       win.removeEventListener("keydown", onAccordionShortcut, true);
       win.removeEventListener("blur", hideEdgeHint);
       reducedMotion?.removeEventListener('change', motionChanged);
       doc.removeEventListener("mousedown", outside, true);
-      for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit"]) browser.tabContainer.removeEventListener(name, tabChanged);
+      for (const name of ["TabSelect", "TabClose", "TabAttrModified", "ZenTabRemovedFromSplit", "ZenSplitViewTabsSplit"]) browser.tabContainer.removeEventListener(name, tabChanged);
     },
   };
 }

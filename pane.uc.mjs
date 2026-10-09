@@ -12,10 +12,11 @@ const root = document.documentElement;
 const INSTANCE_KEY = "__paneInstance";
 const DIAGNOSTICS_KEY = "__paneDiagnostics";
 const diagnosticLog = (event, details = {}) => window[DIAGNOSTICS_KEY]?.log?.(event, details);
+let destroyed = false;
 
 // Sine can reload a user script without restarting the browser. Tear down a
 // previous v0.3+ instance and remove any orphaned UI from older releases.
-window[INSTANCE_KEY]?.destroy?.();
+window[INSTANCE_KEY]?.destroy?.({reload:true});
 document.getElementById("pane-overlay")?.remove();
 document.getElementById("pane-toast")?.remove();
 document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
@@ -966,7 +967,10 @@ const historyProgress = {
   onStateChange() { updateHistoryControls(window); },
 };
 
-function destroy() {
+function destroy(options = {}) {
+  options ??= {};
+  if (destroyed || (window[INSTANCE_KEY] && window[INSTANCE_KEY].destroy !== destroy)) return;
+  destroyed = true;
   diagnosticLog("Pane runtime unloading");
   gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
   for (const [header, state] of toolbarReveals) {
@@ -975,7 +979,7 @@ function destroy() {
   }
   toolbarReveals.clear();
   renderGeneration++;
-  multiwindow?.destroy();
+  multiwindow?.destroy(options);
   clearTimeout(updateNoticeTimer);
   updateNotice?.remove();
   updateNotice = null;

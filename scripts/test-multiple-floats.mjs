@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createMultiwindow, presentationModes } from '../multiwindow.mjs';
+import { encodeTree } from '../split-persistence.mjs';
 
 // Minimal browser-chrome fixture exercising the controller with real DOM-like events.
 class Node {
@@ -44,21 +45,23 @@ const tabs = Array.from({length:5}, (_,i) => {
   return tab;
 });
 const tree = (tabs, type = 'grid') => ({ type, children: tabs.map(tab => ({ tab })) });
+const layoutSizes = node => [node.sizeInParent, ...(node.children ?? []).flatMap(layoutSizes)].filter(size => size !== undefined);
 const data = {tabs:[tabs[0]], gridType:'vsep', layoutTree:tree([tabs[0]])};
 let lastLayout;
+let splitCalls = 0;
 const view = {
   _data:[data], currentView:0, MAX_TABS:4, _tabToSplitNode:new Map(),
   tabBrowserPanel:{getBoundingClientRect:()=>({width:1200,height:900})},
   calculateLayoutTree(tabs,type) { return {...tree(tabs,type), sizeInParent:50}; },
   removeSplitters(){}, applyGridLayout(t){lastLayout=t;},
   activateSplitView(d){this.currentView=this._data.indexOf(d);},
-  splitTabs([target,incoming]) {data.tabs.push(incoming); incoming.splitView=true; data.layoutTree=tree(data.tabs); return data;},
+  splitTabs([target,incoming]) {splitCalls++; data.tabs.push(incoming); incoming.splitView=true; data.layoutTree=tree(data.tabs); return data;},
   removeTabFromGroup(tab) {data.tabs=data.tabs.filter(t=>t!==tab);tab.splitView=false;data.layoutTree=tree(data.tabs);},
 };
 const win = new Node(doc); let queued;
 const timers = new Map(); let timerId = 0;
 const motion = new Node(doc); motion.matches = false;
-Object.assign(win, {document:doc, AbortController, gZenViewSplitter:view,
+Object.assign(win, {document:doc, AbortController, navigator:{platform:'Win32'}, gZenViewSplitter:view,
   gBrowser:{tabs,selectedTab:tabs[0],tabContainer:new Node(doc)},
   requestAnimationFrame:fn => { queued=fn; return 1; }, cancelAnimationFrame(){queued=null;},
   setTimeout:fn => { timers.set(++timerId,fn); return timerId; }, clearTimeout:id => timers.delete(id),
@@ -217,7 +220,7 @@ controller.arrange(tabs[3],'tiles');
 win.emit('keydown',shortcut);
 assert.equal(win.gBrowser.selectedTab,tabs[0],'accordion shortcuts do not act in tiled layouts');
 assert.equal(lastLayout,tiledTree,'returning to tiles restores the same tree');
-assert.equal(tiledTree.children[0].sizeInParent,36,'divider size survives accordion');
+assert.deepEqual(layoutSizes(tiledTree),[36,50],'every divider size survives accordion');
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length,0);
 assert.equal(doc.querySelectorAll('.pane-accordion-bar').length,0);
 assert.ok(data.tabs.every(t=>!t.linkedBrowser.hasAttribute('inert')),'tile restoration restores page interactivity');
@@ -279,17 +282,70 @@ assert.ok(tabs.every(tab=>!container(tab).hasAttribute('--pane-accordion-line-le
 const savedLayouts = new Map();
 const savedScrollings = new Map();
 const savedFloats = new Map();
-const sessionValues = key => key==='pane-floating-v1' ? savedFloats : key==='pane-scrolling-v1' ? savedScrollings : savedLayouts;
+const savedSplits = new Map();
+const sessionValues = key => key==='pane-split-v1' ? savedSplits : key==='pane-floating-v1' ? savedFloats : key==='pane-scrolling-v1' ? savedScrollings : savedLayouts;
 win.SessionStore = {
   getCustomTabValue: (tab,key) => sessionValues(key).get(tab) ?? '',
   setCustomTabValue: (tab, key, value) => sessionValues(key).set(tab, value),
   deleteCustomTabValue: (tab,key) => sessionValues(key).delete(tab),
 };
 const options = {notify(){},chooseTab(){},appearance(){},origins:{begin(){},end(){},destroy(){}}};
+const hiddenUnloadController = createMultiwindow(win, options); flush();
+const reloadTree = {children:[{tab:0,sizeInParent:50},{tab:1,sizeInParent:50}]};
+savedSplits.clear();
+for (const [index, tab] of [tabs[3], tabs[4]].entries()) savedSplits.set(tab, JSON.stringify({version:1,group:'reload-hidden',count:2,type:'grid',index,tree:reloadTree}));
+tabs[3].hidden = tabs[4].hidden = true;
+hiddenUnloadController.destroy();
+assert.equal(savedSplits.size,2,'real unload preserves hidden pending split records');
+hiddenUnloadController.destroy();
+assert.equal(savedSplits.size,2,'double destroy is a no-op for preserved hidden records');
+tabs[3].hidden = tabs[4].hidden = false;
+const hiddenRestoreBefore = splitCalls;
+const hiddenRestoreController = createMultiwindow(win, options);
+win.emit('SSTabRestored'); flush();
+assert.equal(splitCalls,hiddenRestoreBefore + 1,'hidden pending records restore when shown after unload');
+hiddenRestoreController.destroy();
+data.tabs = [tabs[0], tabs[1]]; data.layoutTree = tree(data.tabs); data.gridType = 'vsep';
+for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+savedSplits.clear(); tabs[4].hidden = false;
+const nullController = createMultiwindow(win, options); flush();
+nullController.destroy(null);
+assert.equal(savedSplits.size,0,'destroy(null) uses real unload cleanup for visible records');
+data.tabs = [tabs[0]]; data.layoutTree = tree(data.tabs); data.gridType = 'vsep';
+for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+const visibleReinitBefore = splitCalls;
+const visibleReinit = createMultiwindow(win, options); flush();
+assert.equal(splitCalls,visibleReinitBefore,'re-init after visible unload and native unsplit does not re-split');
+visibleReinit.destroy();
+data.tabs = [tabs[0], tabs[1]]; data.layoutTree = tree(data.tabs); data.gridType = 'vsep';
+for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+const mouseupController = createMultiwindow(win, options); flush();
+const hiddenTree = {children:[{tab:0,sizeInParent:50},{tab:1,sizeInParent:50}]};
+for (const [index, tab] of [tabs[3], tabs[4]].entries()) savedSplits.set(tab, JSON.stringify({version:1,group:'hidden',count:2,type:'grid',index,tree:hiddenTree}));
+tabs[4].hidden = true;
+const beforeMouseupSplits = splitCalls;
+win.emit('mouseup'); flush();
+assert.equal(splitCalls,beforeMouseupSplits,'mouseup only saves changed layout state and never runs split restore');
+mouseupController.destroy();
+assert.deepEqual([...savedSplits.keys()],[tabs[4]],'real unload clears visible records and keeps hidden pending records');
+savedSplits.clear();
+tabs[4].hidden = false;
+const closingController = createMultiwindow(win, options); flush();
+assert.ok(savedSplits.size > 0, 'active controller has split metadata to preserve on close');
+win.emit('SSWindowClosing');
+closingController.destroy();
+assert.ok(savedSplits.size > 0, 'window close shortcut preserves split recovery metadata');
+const cancelledCloseController = createMultiwindow(win, options); flush();
+win.emit('close');
+const closeReset = [...timers.entries()].at(-1);
+timers.delete(closeReset[0]); closeReset[1]();
+cancelledCloseController.destroy();
+assert.equal(savedSplits.size,0,'cancelled close resets the close flag before disable cleanup');
 const beforeRestart = createMultiwindow(win, options);
 beforeRestart.arrange(tabs[0], 'accordion');
 assert.equal(savedLayouts.size, 2, 'accordion is saved on its member tabs');
 const preservedTree = data.layoutTree;
+const preservedEncodedTree = encodeTree(data.layoutTree,data.tabs);
 options.origins.shuttingDown=true; beforeRestart.destroy(); options.origins.shuttingDown=false;
 assert.equal(savedLayouts.size, 2, 'unload preserves restart metadata');
 view._sessionRestoring = true;
@@ -298,7 +354,8 @@ assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'wait for
 view._sessionRestoring = false;
 win.emit('SSWindowStateReady'); flush();
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 2, 'restore accordion after restart');
-assert.equal(data.layoutTree, preservedTree, 'restoration keeps the native layout tree');
+assert.equal(data.layoutTree, preservedTree, 'restart keeps Zen native layout nodes');
+assert.deepEqual(encodeTree(data.layoutTree,data.tabs), preservedEncodedTree, 'restart keeps every native divider size');
 afterRestart.arrange(tabs[0], 'tiles');
 assert.equal(savedLayouts.size, 0, 'explicit return to tiles clears saved accordion');
 afterRestart.destroy();
@@ -437,6 +494,9 @@ console.log('Multiple floats and accordion: navigation, state preservation, limi
 assert.equal(savedScrollings.size,3,'scrolling metadata survives unload');
 const restoredScrolling=createMultiwindow(win,{...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}}); flush();
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length,3,'scrolling returns automatically after restart');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'),'800px','custom column width round-trips through SessionStore');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
 restoredScrolling.arrange(tabs[0],'tiles');
 assert.equal(savedScrollings.size,0,'explicit tiles clears scrolling persistence');
 restoredScrolling.destroy();
@@ -524,3 +584,19 @@ for (const mode of ['right', 'below', 'grid', ...presentationModes, 'float']) {
   }
 }
 console.log('Picker layouts: add and join preserve pages and apply every layout.');
+
+// Persist the actual tree produced by PR #1's join path, but do not overwrite
+// Zen's native session tree when Zen already restored the group.
+savedSplits.clear(); savedScrollings.clear(); savedLayouts.clear(); savedFloats.clear();
+resetCustomTree();
+win.gBrowser.selectedTab=tabs[2];
+const savingJoin=createMultiwindow(win,options); flush();
+savingJoin.join(data,tabs[4],'right'); flush();
+const joinedTree=encodeTree(data.layoutTree,data.tabs);
+assert.equal(joinedTree.children[0].children[1].sizeInParent,70);
+options.origins.shuttingDown=true; savingJoin.destroy(); options.origins.shuttingDown=false;
+assert.deepEqual(JSON.parse(savedSplits.get(tabs[0])).tree,joinedTree,'saved layout uses the live joined tree and its preserved sizes');
+const nativeDefaultTree = data.layoutTree = tree(data.tabs);
+const recoveringJoin=createMultiwindow(win,options); flush();
+assert.equal(data.layoutTree,nativeDefaultTree,'native-restored split trees are not replaced by Pane fallback data');
+recoveringJoin.destroy();
