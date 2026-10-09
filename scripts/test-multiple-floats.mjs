@@ -45,15 +45,17 @@ const tabs = Array.from({length:5}, (_,i) => {
   return tab;
 });
 const tree = (tabs, type = 'grid') => ({ type, children: tabs.map(tab => ({ tab })) });
+const layoutSizes = node => [node.sizeInParent, ...(node.children ?? []).flatMap(layoutSizes)].filter(size => size !== undefined);
 const data = {tabs:[tabs[0]], gridType:'vsep', layoutTree:tree([tabs[0]])};
 let lastLayout;
+let splitCalls = 0;
 const view = {
   _data:[data], currentView:0, MAX_TABS:4, _tabToSplitNode:new Map(),
   tabBrowserPanel:{getBoundingClientRect:()=>({width:1200,height:900})},
   calculateLayoutTree(tabs,type) { return {...tree(tabs,type), sizeInParent:50}; },
   removeSplitters(){}, applyGridLayout(t){lastLayout=t;},
   activateSplitView(d){this.currentView=this._data.indexOf(d);},
-  splitTabs([target,incoming]) {data.tabs.push(incoming); incoming.splitView=true; data.layoutTree=tree(data.tabs); return data;},
+  splitTabs([target,incoming]) {splitCalls++; data.tabs.push(incoming); incoming.splitView=true; data.layoutTree=tree(data.tabs); return data;},
   removeTabFromGroup(tab) {data.tabs=data.tabs.filter(t=>t!==tab);tab.splitView=false;data.layoutTree=tree(data.tabs);},
 };
 const win = new Node(doc); let queued;
@@ -218,7 +220,7 @@ controller.arrange(tabs[3],'tiles');
 win.emit('keydown',shortcut);
 assert.equal(win.gBrowser.selectedTab,tabs[0],'accordion shortcuts do not act in tiled layouts');
 assert.equal(lastLayout,tiledTree,'returning to tiles restores the same tree');
-assert.equal(tiledTree.children[0].sizeInParent,36,'divider size survives accordion');
+assert.deepEqual(layoutSizes(tiledTree),[36,50],'every divider size survives accordion');
 assert.equal(doc.querySelectorAll('.pane-accordion-handle').length,0);
 assert.equal(doc.querySelectorAll('.pane-accordion-bar').length,0);
 assert.ok(data.tabs.every(t=>!t.linkedBrowser.hasAttribute('inert')),'tile restoration restores page interactivity');
@@ -288,6 +290,14 @@ win.SessionStore = {
   deleteCustomTabValue: (tab,key) => sessionValues(key).delete(tab),
 };
 const options = {notify(){},chooseTab(){},appearance(){},origins:{begin(){},end(){},destroy(){}}};
+const mouseupController = createMultiwindow(win, options); flush();
+const hiddenTree = {children:[{tab:0,sizeInParent:50},{tab:1,sizeInParent:50}]};
+for (const [index, tab] of [tabs[3], tabs[4]].entries()) savedSplits.set(tab, JSON.stringify({version:1,group:'hidden',count:2,type:'grid',index,tree:hiddenTree}));
+const beforeMouseupSplits = splitCalls;
+win.emit('mouseup'); flush();
+assert.equal(splitCalls,beforeMouseupSplits,'mouseup only saves changed layout state and never runs split restore');
+mouseupController.destroy();
+assert.equal(savedSplits.size,0,'disable clears saved split recovery metadata');
 const beforeRestart = createMultiwindow(win, options);
 beforeRestart.arrange(tabs[0], 'accordion');
 assert.equal(savedLayouts.size, 2, 'accordion is saved on its member tabs');

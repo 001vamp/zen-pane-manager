@@ -1,4 +1,4 @@
-import { createSplitPersistence } from "./split-persistence.mjs";
+import { createSplitPersistence, encodeTree } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
 import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
@@ -71,6 +71,23 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   const floatingKey = 'pane-floating-v1';
   const session = win.SessionStore;
   const persistence = createSplitPersistence(win, origins);
+  let lastSplitLayoutState = "";
+  function splitLayoutState() {
+    try {
+      return JSON.stringify(view._data.map(data => {
+        const tabs = data.tabs.filter(tab => tab?.isConnected && !tab.closing);
+        return {tabs:tabs.map(tab => browser.tabs.indexOf(tab)), type:data.gridType, tree:encodeTree(data.layoutTree, tabs)};
+      }));
+    } catch {
+      return "";
+    }
+  }
+  function saveSplitLayoutIfChanged() {
+    const state = splitLayoutState();
+    if (state === lastSplitLayoutState) return;
+    persistence.save();
+    lastSplitLayoutState = state;
+  }
   function saveFloat(f) {
     if (!session || f.tab.closing) return;
     const value=JSON.stringify({version:1,rect:f.rect,headerPinned:Boolean(f.headerPinned)});
@@ -1191,7 +1208,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (hintTab && (hintTab.closing || !hintTab.isConnected || groupFor(hintTab) !== view._data[view.currentView]
       || browser.selectedTab === hintTab)) hideEdgeHint();
     if (frame || disposed) return;
-    frame = win.requestAnimationFrame(() => { frame = 0; persistence.restore(); recoverScrollings(); recoverAccordions(); recoverFloats(); applyFloat(); applyAccordion(); applyScrolling(); persistence.save(); });
+    frame = win.requestAnimationFrame(() => { frame = 0; persistence.restore(); recoverScrollings(); recoverAccordions(); recoverFloats(); applyFloat(); applyAccordion(); applyScrolling(); persistence.save(); lastSplitLayoutState = splitLayoutState(); });
   }
   function outside(event) { if (menu && !menu.contains(event.target)) closeMenu(); }
   function tabChanged() { closeMenu(); sync(); }
@@ -1233,16 +1250,17 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   browser.tabContainer.addEventListener('SSTabRestored', sync);
   const shutdownObserver = {observe() {persistence.save();}};
   win.Services?.obs?.addObserver(shutdownObserver, "quit-application-granted");
-  win.addEventListener("mouseup", sync);
+  win.addEventListener("mouseup", saveSplitLayoutIfChanged);
   sync();
   return {
     add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins, accordionStep, scrollStep,
     capturePresentation, restorePresentation,
     get floatingTabs() { return [...floats.keys()]; },
     destroy() {
-      persistence.save();
+      if (origins.shuttingDown || win.closed) persistence.save();
+      else persistence.clear();
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
-      win.removeEventListener("mouseup", sync);
+      win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
       closeMenu();
       hideEdgeHint();
