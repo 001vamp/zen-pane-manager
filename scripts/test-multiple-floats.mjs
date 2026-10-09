@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createMultiwindow } from '../multiwindow.mjs';
+import { createMultiwindow, presentationModes } from '../multiwindow.mjs';
 
 // Minimal browser-chrome fixture exercising the controller with real DOM-like events.
 class Node {
@@ -43,13 +43,14 @@ const tabs = Array.from({length:5}, (_,i) => {
   tab.linkedBrowser = new Node(doc,'browser'); container.append(tab.linkedBrowser);
   return tab;
 });
-const tree = tabs => ({ children: tabs.map(tab => ({ tab })) });
+const tree = (tabs, type = 'grid') => ({ type, children: tabs.map(tab => ({ tab })) });
 const data = {tabs:[tabs[0]], gridType:'vsep', layoutTree:tree([tabs[0]])};
 let lastLayout;
 const view = {
   _data:[data], currentView:0, MAX_TABS:4, _tabToSplitNode:new Map(),
   tabBrowserPanel:{getBoundingClientRect:()=>({width:1200,height:900})},
-  calculateLayoutTree:tree, removeSplitters(){}, applyGridLayout(t){lastLayout=t;},
+  calculateLayoutTree(tabs,type) { return {...tree(tabs,type), sizeInParent:50}; },
+  removeSplitters(){}, applyGridLayout(t){lastLayout=t;},
   activateSplitView(d){this.currentView=this._data.indexOf(d);},
   splitTabs([target,incoming]) {data.tabs.push(incoming); incoming.splitView=true; data.layoutTree=tree(data.tabs); return data;},
   removeTabFromGroup(tab) {data.tabs=data.tabs.filter(t=>t!==tab);tab.splitView=false;data.layoutTree=tree(data.tabs);},
@@ -115,6 +116,46 @@ assert.ok(memberTabs.every((tab,i)=>!tab.splitView && tab.linkedBrowser===member
 assert.throws(()=>controller.unsplit({tabs:memberTabs}),/no longer available/);
 data.tabs = [tabs[0]];
 data.layoutTree = tree(data.tabs);
+const customTree = () => ({
+  children: [
+    { sizeInParent: 62, children: [{ tab: tabs[0], sizeInParent: 30 }, { tab: tabs[2], sizeInParent: 70 }] },
+    { tab: tabs[3], sizeInParent: 38 },
+  ],
+});
+const resetCustomTree = () => {
+  data.tabs = [tabs[0], tabs[2], tabs[3]];
+  data.gridType = 'vsep';
+  data.layoutTree = customTree();
+  for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+  tabs[4].splitView = false;
+};
+resetCustomTree();
+win.gBrowser.selectedTab = tabs[2];
+controller.join(data, tabs[4], 'right');
+assert.equal(data.gridType, 'vsep', 'joining right preserves the existing group type');
+assert.equal(data.layoutTree.children[0].sizeInParent, 62, 'joining right preserves the resized nested branch');
+assert.equal(data.layoutTree.children[1].sizeInParent, 38, 'joining right preserves sibling size');
+assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining right preserves existing leaf size');
+assert.equal(data.layoutTree.children[0].children[1].sizeInParent, 70, 'joining right keeps the selected leaf size over calculated defaults');
+assert.equal(data.layoutTree.children[0].children[1].type, 'vsep', 'joining right splits the selected leaf horizontally');
+assert.deepEqual(data.layoutTree.children[0].children[1].children.map(n => n.tab), [tabs[2], tabs[4]]);
+assert.equal(data.layoutTree.children[0].parent, data.layoutTree, 'joining right restores parent links on preserved branches');
+assert.equal(data.layoutTree.children[0].children[1].parent, data.layoutTree.children[0], 'joining right parents the inserted branch');
+assert.equal(data.layoutTree.children[0].children[1].children[0].parent, data.layoutTree.children[0].children[1], 'joining right parents inserted leaves');
+resetCustomTree();
+win.gBrowser.selectedTab = tabs[0];
+controller.join(data, tabs[4], 'below');
+assert.equal(data.gridType, 'vsep', 'joining below preserves the existing group type');
+assert.equal(data.layoutTree.children[0].sizeInParent, 62, 'joining below preserves the resized nested branch');
+assert.equal(data.layoutTree.children[1].sizeInParent, 38, 'joining below preserves sibling size');
+assert.equal(data.layoutTree.children[0].children[1].sizeInParent, 70, 'joining below preserves existing leaf size');
+assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining below keeps the target leaf size over calculated defaults');
+assert.equal(data.layoutTree.children[0].children[0].type, 'hsep', 'joining below splits the target leaf vertically');
+assert.deepEqual(data.layoutTree.children[0].children[0].children.map(n => n.tab), [tabs[0], tabs[4]]);
+data.tabs = [tabs[0]];
+data.gridType = 'vsep';
+data.layoutTree = tree(data.tabs);
+for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
 controller.add(tabs[0],tabs[2],'right');
 controller.add(tabs[0],tabs[3],'below');
 data.layoutTree.children[0].sizeInParent = 36;
@@ -269,6 +310,11 @@ const scrolling = createMultiwindow(win, {...options,prefs:{...prefs,getIntPref:
 win.emit('keydown',{key:'l',altKey:true,shiftKey:true});
 assert.ok(doc.querySelector('.pane-layout-menu'),'layout shortcut opens menu in a tiled split');
 scrolling.closeMenu();
+win.navigator = {platform:'MacIntel'};
+win.emit('keydown',{key:'l',code:'KeyL',ctrlKey:true,shiftKey:true,view:{navigator:{platform:''}}});
+assert.ok(doc.querySelector('.pane-layout-menu'),'Mac Ctrl+Shift+L opens the layout menu');
+scrolling.closeMenu();
+win.navigator = {platform:'Win32'};
 win.emit('keydown',{key:'l',altKey:true,shiftKey:true,target:{ownerDocument:{documentElement:{hasAttribute:()=>true}}}});
 assert.equal(doc.querySelector('.pane-layout-menu'),null,'shortcut recording does not open a layout menu');
 scrolling.arrange(tabs[0], 'scrolling');
@@ -376,9 +422,13 @@ scrolling.arrange(tabs[0], 'tiles');
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0);
 scrolling.arrange(tabs[0], 'scrolling');
 win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+container(tabs[0]).querySelector('.pane-scrolling-resize').emit('keydown',{key:'ArrowRight'});
 scrolling.arrange(tabs[2],'normal');
 assert.equal(container(tabs[0]).hasAttribute('pane-scrolling'),true,'remaining scrolling split keeps its presentation');
-scrolling.add(tabs[0],tabs[2],'grid');
+scrolling.add(tabs[0],tabs[2],'scrolling');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'),'800px','adding in scrolling mode preserves custom widths');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
 options.origins.shuttingDown=true; scrolling.destroy(); options.origins.shuttingDown=false;
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0, 'unload cleans scrolling headers');
 assert.equal((win.listeners.get('wheel') ?? []).length, 0, 'unload removes wheel interception');
@@ -450,3 +500,27 @@ assert.equal(invalidFloats.floatingTabs.length,0,'invalid and future schema reco
 assert.equal(savedFloats.size,0,'invalid floating metadata is discarded');
 invalidFloats.destroy();
 console.log('Floating sessions: multiple panels, pins, smaller bounds, original pages, docking and disable passed.');
+
+// Picker modes use the same add/join controller as ordinary tile choices.
+for (const mode of ['right', 'below', 'grid', ...presentationModes, 'float']) {
+  for (const joining of [false, true]) {
+    data.tabs = [tabs[0], tabs[1]];
+    data.layoutTree = tree(data.tabs); data.gridType = 'vsep'; view.currentView = 0;
+    for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+    win.gBrowser.selectedTab = tabs[0];
+    const pages = data.tabs.map(tab => tab.linkedBrowser);
+    const hub = createMultiwindow(win, options); flush();
+    if (joining) hub.join(data, tabs[2], mode);
+    else hub.add(tabs[0], tabs[2], mode);
+    assert.ok(data.tabs.includes(tabs[2]), `${mode} adds incoming tab`);
+    assert.deepEqual(data.tabs.slice(0, 2).map(tab => tab.linkedBrowser), pages, `${mode} preserves existing pages`);
+    const presentation = hub.capturePresentation(data);
+    if (mode === 'accordion') assert.equal(presentation.accordion, tabs[2]);
+    if (['snapshot', 'scrolling'].includes(mode)) assert.equal(presentation.scrolling.snapshot, mode === 'snapshot');
+    if (mode === 'float') assert.ok(hub.floatingTabs.includes(tabs[2]));
+    if (mode === 'grid') assert.equal(data.gridType, 'grid');
+    if (['right', 'below'].includes(mode)) assert.equal(data.gridType, 'vsep');
+    hub.destroy();
+  }
+}
+console.log('Picker layouts: add and join preserve pages and apply every layout.');

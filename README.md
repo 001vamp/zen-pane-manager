@@ -10,7 +10,7 @@ Start with one tab or an existing split. Pick another open tab, choose a layout,
 
 ## What's new in 0.11.0
 
-This update adds a layout-menu shortcut, more consistent settings and toolbars, and better layout recovery. On Windows/Linux, press **Alt+Shift+L** while a split tab is selected. On Mac, use **Option+Shift+L**.
+This update adds a layout-menu shortcut, more consistent settings and toolbars, and better layout recovery. On Windows/Linux, press **Alt+Shift+L** while a split tab is selected. On Mac, use **Ctrl+Shift+L**. This changed because Option modifies letter keys before Pane can read them on real macOS.
 
 **This release also includes optional experimental features:** scrolling, snapshot scrolling, and saving floating positions/pins across restarts. They are available in the layout menu; updating does not switch an existing tiled split into scrolling. You can return to a tiled layout from that same menu. Current-release Windows and floating restart checks are still pending—please report reproducible problems with a diagnostic report.
 
@@ -54,7 +54,7 @@ Choose **Unsplit** on a split card to separate the whole group. Every page stays
 
 The toolbar appears briefly when you switch panes. Move your pointer to the **top center of the pane** to bring it back. It hides when you move away and stays visible while you use its controls with the keyboard.
 
-Use it to open the picker, go back or forward, rearrange the pane, or remove it from the split. The **three-dot menu** lets you change layouts or add another tab. Press **Option+Shift+L** on Mac or **Alt+Shift+L** on Windows/Linux to open the selected split’s layout menu. The shortcut is customizable. Choose **Always visible** in settings if you prefer to keep toolbars open; floating headers also have a per-pane pin.
+Use it to open the picker, go back or forward, rearrange the pane, or remove it from the split. The **three-dot menu** lets you change layouts or add another tab. Press **Ctrl+Shift+L** on Mac or **Alt+Shift+L** on Windows/Linux to open the selected split’s layout menu. The Mac default changed because Option modifies letter keys before Pane can read them on real macOS. The shortcut is customizable. Choose **Always visible** in settings if you prefer to keep toolbars open; floating headers also have a per-pane pin.
 
 ![Pane’s layout menu with split right, split below, grid, floating, and normal tab options](docs/pane-current-arrange.png)
 

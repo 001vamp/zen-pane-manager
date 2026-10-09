@@ -29,3 +29,16 @@ assert.match(run('rollback').messages.at(-1),/could not fully restore/,'failed r
 assert.equal(run('prepare').ended,0,'failed preparation does not end an unstarted transaction');
 assert.match(run(null).messages.at(-1),/Now showing/);
 console.log('Replacement: early mutations, rollback failures and origin lifecycle passed.');
+
+const openCandidateSource=source.slice(source.indexOf('function openCandidate'),source.indexOf('function buildPicker'));
+{
+  const targetTab={label:'current'}, group={tabs:[]};
+  let joined=null, closed=false;
+  const context={targetTab,group,openMode:'below',multiwindow:{join:(joinedGroup,incoming,mode)=>{joined={joinedGroup,incoming,mode};}},closePicker:()=>{closed=true;},showToast:message=>{throw new Error(message);}};
+  vm.runInNewContext(openCandidateSource+'\nopenCandidate({kind:"split",group});',context);
+  assert.deepEqual(joined,{joinedGroup:group,incoming:targetTab,mode:'below'},'split picker activation uses the selected layout mode');
+  assert.equal(closed,true);
+}
+assert.ok(source.includes('item.addEventListener("click", () => { if (!full) openCandidate(candidate); });'),'clicking a split candidate does not force grid');
+assert.ok(source.includes('openCandidate(candidate, event.shiftKey ? "float" : null);'),'pressing Enter on a split candidate does not force grid');
+console.log('Picker split activation preserves the selected layout mode.');

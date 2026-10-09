@@ -93,7 +93,7 @@ Keep page state and divider geometry, local-only operation, keyboard access, exp
 ## October 5 checkpoint
 
 - Committed and pushed the reliability/settings/documentation pass as `f59cd52` to `custom-keybindings`.
-- Verified Option+Shift+L opens the existing split layout menu in native macOS Zen 1.22.3b, and Escape closes it. Controller coverage also checks overview cancellation and recording suppression.
+- Verified the layout-menu shortcut opens the existing split layout menu in native macOS Zen 1.22.3b, and Escape closes it. The Mac default is now Ctrl+Shift+L because Option modifies letter keys before Pane can read them on real macOS. Controller coverage also checks overview cancellation and recording suppression.
 - Phase 4 has local floating-session implementation: versioned per-tab geometry and pin records, delayed recovery until native session restoration, bounded panels, original page instances, and docking/disable cleanup. The automated suite covers these cases. Native floating restart, protected-tab placement, and Windows verification are still release gates.
 - Phase 5 remains: consolidate one responsibility at a time, beginning with session presentation state. No broad controller rewrite is planned.
 

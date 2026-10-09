@@ -31,11 +31,10 @@ export function bindingFromEvent(event) {
   return parseBinding([event.ctrlKey && 'Ctrl', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Command', key].filter(Boolean).join('+'));
 }
 
-export function matchesBinding(event, binding) {
+export function matchesBinding(event, binding, platform = event.view?.navigator?.platform || globalThis.navigator?.platform || '') {
   if (!binding || event.repeat || event.isComposing || (event.target?.closest?.('[data-pane-recording]') || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording'))) return false;
   // Real macOS Option events report AltGraph, unlike WebDriver's synthetic Alt.
   // Keep rejecting Windows/Linux AltGr text entry without rejecting Mac shortcuts.
-  const platform = event.view?.navigator?.platform ?? globalThis.navigator?.platform ?? '';
   if (event.getModifierState?.('AltGraph') && !/Mac/i.test(platform)) return false;
   if (['ctrlKey', 'altKey', 'shiftKey', 'metaKey'].some(key => Boolean(event[key]) !== binding[key])) return false;
   // Option changes event.key on macOS (Option+R produces ®). Match the
@@ -80,8 +79,12 @@ export const layoutShortcuts = [
   // Preference keys remain unchanged for existing installations.
   { key: 'accordion-previous', direction: -1, label: 'Previous tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Left' },
   { key: 'accordion-next', direction: 1, label: 'Next tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Right' },
-  { key: 'layout-menu', label: 'Open split layout menu', value: 'Auto', defaultBinding: 'Alt+Shift+L' },
+  { key: 'layout-menu', label: 'Open split layout menu', value: 'Auto', defaultBinding: 'Alt+Shift+L', macDefaultBinding: 'Ctrl+Shift+L' },
 ];
+
+function defaultLayoutBinding(setting, platform = currentPlatform()) {
+  return /Mac/i.test(platform) ? (setting.macDefaultBinding ?? setting.defaultBinding) : setting.defaultBinding;
+}
 
 export function shortcutLabel(binding, platform = currentPlatform()) {
   if (!binding) return 'Disabled';
@@ -94,7 +97,7 @@ export function layoutBindings(prefs, platform = currentPlatform()) {
   const records = layoutShortcuts.map(setting => {
     const value = prefs?.getStringPref?.(`mod.pane.${setting.key}`, 'Auto') ?? 'Auto';
     const disabled = !value.trim() || /^disabled$/i.test(value.trim());
-    const binding = disabled ? null : parseBinding(/^auto$/i.test(value.trim()) ? setting.defaultBinding : value);
+    const binding = disabled ? null : parseBinding(/^auto$/i.test(value.trim()) ? defaultLayoutBinding(setting, platform) : value);
     return { ...setting, binding, error: !disabled && !binding ? 'Use a shortcut such as Alt+Shift+Left, Auto, or Disabled.' : '' };
   });
   const reserved = [{ label: 'the picker', binding: pickerBinding(prefs ?? {}, platform) }];

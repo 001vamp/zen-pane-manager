@@ -52,6 +52,8 @@ values.set('mod.pane.quick-start-seen','quick-start-2026-10');
 context.showUpdateNotice();
 assert.equal(attached,5,'0.11.0 reaches users who already acknowledged the previous main update');
 assert.equal(context.missedUpdates('quick-start-2026-10')[0].id,'pane-0.11.0');
+assert.match(context.missedUpdates('quick-start-2026-10')[0].message,/Ctrl\+Shift\+L on Mac/);
+assert.match(context.missedUpdates('quick-start-2026-10')[0].message,/Option modifies letter keys/);
 assert.match(context.missedUpdates('quick-start-2026-10')[0].message,/experimental and optional/);
 assert.match(source, /clearTimeout\(updateNoticeTimer\)/);
 assert.match(source, /updateNotice\?\.remove\(\)/);

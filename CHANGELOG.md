@@ -4,7 +4,7 @@ All notable changes to Pane are documented here.
 
 ## 0.11.0 — 2026-10-05
 
-- Open the selected split's layout menu with Option+Shift+L on Mac or Alt+Shift+L on Windows/Linux. Record a different shortcut in settings.
+- Open the selected split's layout menu with Ctrl+Shift+L on Mac or Alt+Shift+L on Windows/Linux. The Mac default changed because Option modifies letter keys before Pane can read them on real macOS. Record a different shortcut in settings.
 - Keep layout presentation and focus when replacing or removing panes. Failed swaps now report whether recovery succeeded.
 - Cancel scrolling overview with Escape or by opening the layout menu. Preserve custom column widths through layout changes.
 - Add section resets, shortcut recording warnings, and the same controls in both settings entry points.
