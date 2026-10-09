@@ -364,6 +364,7 @@ assert.equal(doc.querySelectorAll('.pane-accordion-handle').length, 0, 'tiles st
 finalRestart.destroy();
 // First scrolling prototype: stable native pages, modifier-gated wheel and cleanup.
 const scrolling = createMultiwindow(win, {...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}});
+win.navigator = {platform:'Win32'};
 win.emit('keydown',{key:'l',altKey:true,shiftKey:true});
 assert.ok(doc.querySelector('.pane-layout-menu'),'layout shortcut opens menu in a tiled split');
 scrolling.closeMenu();

@@ -10,7 +10,10 @@ node_modules/
 local-work/
 output/
 .playwright-cli/
-.cursor/
+.cursor/*
+!.cursor/skills/
+.cursor/skills/*
+!.cursor/skills/verify-pane/
 .dex/
 pane-reddit-update/
 docs/promo-assets/
