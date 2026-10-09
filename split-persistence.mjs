@@ -54,10 +54,10 @@ export function createSplitPersistence(win, origins) {
     }
     return records;
   }
-  function groupRecords(records, {pendingOnly = false} = {}) {
+  function groupPendingRecords(records) {
     const grouped = new Map();
     for (const entry of records) {
-      if (!validRecord(entry.record) || (pendingOnly && restored.has(entry.record.group))) continue;
+      if (!validRecord(entry.record) || restored.has(entry.record.group)) continue;
       const entries = grouped.get(entry.record.group) ?? [];
       entries.push(entry); grouped.set(entry.record.group, entries);
     }
@@ -65,7 +65,7 @@ export function createSplitPersistence(win, origins) {
   }
   function pendingProtectedGroups(records) {
     const protectedGroups = new Set();
-    for (const [group, entries] of groupRecords(records, {pendingOnly:true})) {
+    for (const [group, entries] of groupPendingRecords(records)) {
       const count = entries[0].record.count;
       const slots = new Set(entries.map(entry => entry.record.index));
       if (entries.some(entry => entry.tab.hidden) || deferred.has(group) || (entries.length === count && slots.size === count && entries.every(entry => entry.record.count === count))) protectedGroups.add(group);
@@ -74,7 +74,7 @@ export function createSplitPersistence(win, origins) {
   }
   function recordsToKeepOnClear(records) {
     const pending = pendingProtectedGroups(records), keep = new Set();
-    for (const entries of groupRecords(records, {pendingOnly:true}).values()) {
+    for (const entries of groupPendingRecords(records).values()) {
       if (!pending.has(entries[0].record.group) || !entries.every(entry => entry.tab.hidden)) continue;
       for (const entry of entries) keep.add(entry.tab);
     }

@@ -1267,7 +1267,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         for (const data of [...scrollings.keys()]) clearScrolling(data, true, preserveSession);
         clearFloat(true,null,preserveSession);
       }
-      origins.destroy();
+      // A stale runtime must only unplug callbacks. Its old presentation DOM is
+      // safer left alone because the live owner may be using the same split data.
+      origins.destroy({detachOnly});
       if (session && !preserveSession && !detachOnly) {
         for (const tab of browser.tabs) if (!tab.closing) session.deleteCustomTabValue(tab,floatingKey);
       }
