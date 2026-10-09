@@ -165,9 +165,8 @@ Still: search + tab list. Modes become a compact rail under search.
 
 **Keys (search focused):**
 
-- `Ctrl+Shift+[` / `Ctrl+Shift+]` cycle modes (same chord on Mac, Windows, and Linux: Control+Shift, not Option/Alt, not Command). Works with an empty or non-empty query.
-- `[` / `]` cycle modes only when the query is empty.
-- No digit chords. Typing `1Password` must type.
+- `Ctrl+Shift+[` / `Ctrl+Shift+]` cycle modes. Match the **physical** keys: `event.code` is `BracketLeft` / `BracketRight`, with `ctrlKey && shiftKey && !altKey && !metaKey`. Do not match `event.key === '['` — with Shift held that is `{` / `}` on US. Works with an empty or non-empty query.
+- Printable keys always type. No bare `[` / `]`, no digit chords (`1Password` types).
 - ↑↓ and Enter stay “move in the list / do it.”
 - Tab moves focus to the next control. Escape stages unchanged.
 
@@ -214,35 +213,59 @@ Commands
 
 **Empty query, solo tab:** same idea, default verb is Split right; Existing splits are rows (`Join “A + B”`, `Unsplit “A + B”`).
 
-**Typing:** filter tabs by title/host *and* verbs by name (`grid`, `float`, `accordion`, `unsplit`). Ranking: exact verb names first if the query is short and matches a layout, then recent tabs, then the rest.
+**Typing:** filter tabs by title/host (substring). A **verb row is listed only when the query is empty or equals that verb’s name exactly** (case-insensitive whole word: `grid`, `float`, `accordion`, `unsplit`, …). Prefixes do not count: `acc` must not rank Accordion above an Accounts tab, and Accordion must not appear for `acc` at all.
 
 **Keys:**
 
 | Key | Action |
 | --- | --- |
-| Type | Filter. Letters and digits are never chords (`1Password` types). |
+| Type | Filter. Letters, digits, and brackets always type (`1Password`, `[Draft]`). |
 | ↑ / ↓ | Move the selected row. While peek is open, move among peek actions instead. |
 | Enter | Run that row’s default, or the selected peek action. Destination row → current default layout. Verb row → that verb on the current tab. Group row → join with current default. |
-| Shift+Enter | Toggle **peek** on the selected destination or group row (Replace, Right, Below, Float, More…). This **replaces** today’s Shift+Enter = join as Floating. |
-| Tab / Shift+Tab | Next / previous control. Search, default-layout chip, results, Show all, settings, diagnostics, close. Never peek. |
+| Shift+Enter | Toggle **peek** on a destination or group row (Replace, Right, Below, Float, More…). No-op on a verb row. This **replaces** today’s Shift+Enter = join as Floating. |
+| Tab / Shift+Tab | Next / previous control. Search, default-layout chip, results, Show all, settings, diagnostics, close. Never peek. Closes peek first if it was open. |
 | ← / → | Move the caret in search. Never peek, never change layout. |
-| Ctrl+Shift+[ / Ctrl+Shift+] | Cycle the **default layout** chip. Works with an empty or non-empty query. Control+Shift on every platform — not Option+arrows (Mac word-jump), not Alt+arrows (browser Back/Forward), not Ctrl+arrows (Windows word-jump). |
-| [ / ] | Cycle default layout **only when the query is empty**. |
-| Escape | Close peek → clear query → close hub. Refocus the page. |
+| Ctrl+Shift+[ / Ctrl+Shift+] | Cycle the **default layout** chip. Match `code === 'BracketLeft' \| 'BracketRight'` with Control+Shift and **no** Alt/Meta. Not Option+arrows, not Alt+arrows, not Ctrl+arrows, not `key === '['`. |
+| Escape | Close peek if open (stay in the list). Else clear query. Else close hub. Refocus the page. |
 | Layout-menu shortcut | Open this same overlay with query empty and the list scoped to verbs for the current tab (`scope: 'arrange'`). No destination rows. |
+
+**Physical brackets, not characters.** On a US layout Shift turns `[` into `{`, so the reducer must use `event.code`. AltGr on Windows is Ctrl+Alt; `!altKey` keeps that from cycling. On layouts where `[` / `]` need AltGr (German, Nordic, and others) this chord cannot be typed — **non-US layouts are out of scope for the native gate**; the chip click and chevron menu are the fallback.
+
+**Peek transitions** (search stays focused; reducer state `peek: null | { row, actionIndex }`):
+
+| From | Input | To |
+| --- | --- | --- |
+| Peek closed, destination or group selected | Shift+Enter | Peek open, first action selected |
+| Peek closed, verb selected | Shift+Enter | No-op |
+| Peek open | Shift+Enter | Peek closed, same row selected |
+| Peek open | Escape | Peek closed. Query and hub unchanged |
+| Peek open | Enter | Run that peek action, close hub |
+| Peek open | ↑ / ↓ | Move among peek actions (wrap). List selection unchanged |
+| Peek open | printable / paste | Peek closed, then the text goes into search |
+| Peek open | Tab / Shift+Tab | Peek closed, then next/previous control |
+| Peek open | Ctrl+Shift+BracketLeft/Right | Peek closed, then cycle default layout |
+| Peek open | click a peek action | Run it, close hub |
+| Peek open | click another result row | Peek closed, that row selected (do not activate) |
+| Peek open | click the layout chip / chevron | Peek closed, then chip/menu handles the click |
+| Peek open | click backdrop | Close hub (same as today) |
+
+Escape is the only key that **only** leaves peek. ↑/↓ do not return to the main list while peek is open.
+
+**A11y:** search is a `combobox`; results are a `listbox`; the selected row is `aria-activedescendant` on the input. Peek is a **second listbox** (not buttons inside an `option` — that was problem #5). While peek is open, `aria-activedescendant` points at the selected peek action.
 
 **Removed in C (call out in CHANGELOG and `picker.md`):**
 
 - Split-card **Shift+Enter → Floating**. Replacement: Shift+Enter opens peek, then choose Floating (or set the default-layout chip to Floating and press Enter).
 - Nested Add / Floating / Unsplit buttons on split cards. Replacement: group rows + peek / default chip / Unsplit as its own verb row.
+- **Unsplit keeps the picker open.** Replacement: Unsplit closes the hub, same as every other activating row. Reopen to unsplit another group.
 
-**Close the hub:** every activating row closes it, including Unsplit (today Unsplit keeps the picker open). Copy diagnostics is the exception: toast, hub stays. Open settings closes because it navigates away.
+**Close the hub:** every activating row closes it, including Unsplit. Copy diagnostics is the exception: toast, hub stays. Open settings closes because it navigates away.
 
 The swap-header button still opens the hub anchored, default = Replace.
 
 **Good:** one glass, one shortcut family, one focus rule. Matches “picker as hub.” Layout menu stops being a second product. Search can find “accordion” without a ninth chip. Scales when a later layout appears: it is a row, not a chip.
 
-**Bad:** ranking can surprise people (`grid` matching a tab titled “Grid notes”). Bigger behavior change; needs careful empty states. Power users who liked clicking a fat Replace chip need a visible default-layout chip so the mode is never invisible.
+**Bad:** an exact query `grid` ranks the Grid verb above a tab titled “Grid notes” — that is intentional; prefixes like `gr` must not. Bigger behavior change; needs careful empty states. Power users who liked clicking a fat Replace chip need a visible default-layout chip so the mode is never invisible.
 
 **Use if:** Pane’s main keyboard object should be this overlay, and the layout menu should become a view of it.
 
@@ -254,7 +277,7 @@ The swap-header button still opens the hub anchored, default = Replace.
 
 Do **not** build a freeform Spotlight that runs arbitrary commands. Rows are a closed set: destinations we already allow, plus the arrange verbs the layout menu already has. Same eligibility, same limits, same rollback.
 
-Default-layout chip (`Ctrl+Shift+[` / `Ctrl+Shift+]`) keeps the fast path: type `notes`, Enter, done. Peek (`Shift+Enter`) is the safe path when you are not sure. Tab still reaches close and settings. Layout-menu shortcut is the arrange-only view of the same widget, so Mac `Ctrl+Shift+L` does not disappear.
+Default-layout chip (`Ctrl+Shift+[` / `Ctrl+Shift+]`, physical `BracketLeft`/`BracketRight`) keeps the fast path: type `notes`, Enter, done. Peek (`Shift+Enter`) is the safe path when you are not sure. Tab still reaches close and settings. Layout-menu shortcut is the arrange-only view of the same widget, so Mac `Ctrl+Shift+L` does not disappear.
 
 **Out of scope for this item**
 
@@ -326,37 +349,42 @@ Also:
 
 - `filterDestinations(list, query)`
 - `defaultMode({ inSplit })`
-- `activatePlan(kind, mode, shiftKey)` — returns `{ op: 'replace'|'add'|'join'|'unsplit'|'arrange', mode }` without touching Zen. `shiftKey` still means “join as Floating” **in this PR only**, because the live dialog has not changed yet.
+- `activatePlan({ kind, mode })` — returns `{ op: 'replace'|'add'|'join'|'unsplit'|'arrange', mode }` without touching Zen. **No `shiftKey`.** Float is just `mode: 'float'`. Key meaning lives only in the reducer.
 
-Wire `openCandidate` to the plan. **No visual change.**
+Wire `openCandidate` to the plan. **No visual change.** Callers pass an explicit `mode`. Until PR2, the DOM handler may still branch on Shift at the edge (`mode: event.shiftKey ? 'float' : openMode`). After PR2 it only executes the reducer’s `{ type, mode }` and never reads Shift. The model never sees Shift.
 
-Also in this PR (or the same file if it stays tiny): a pure `arrangeOptions({ groupSize, currentMode, presentation })` exported from `multiwindow.mjs` (or a tiny shared module both files import). It returns the layout-menu rows with today’s rules (accordion/scrolling/snapshot only when `groupSize >= 2`, `tiles` only when presentation is accordion/scrolling, current-mode flag). `openMenu` renders that list; it does not build it inline. The hub will reuse it in PR4 so the “arrange-scope equals the layout menu” test compares one source.
+Put a pure `arrangeOptions({ groupSize, currentMode, presentation })` in a tiny **`layout-options.mjs`**. `multiwindow.mjs` and `picker-model.mjs` both import it. Do **not** export it from `multiwindow.mjs` — Node fixtures should not load the browser-facing controller. It returns the layout-menu rows with today’s rules (accordion/scrolling/snapshot only when `groupSize >= 2`, `tiles` only when presentation is accordion/scrolling, current-mode flag). `openMenu` renders that list; it does not build it inline. The hub will reuse it in PR4 so the “arrange-scope equals the layout menu” test compares one source.
 
-**Tests:** table-driven Node fixtures for eligibility (solo vs in-split, other-split tabs excluded, workspace, empty tabs), substring filter, default mode, split-card Enter vs Shift+Enter vs Replace-means-grid. `arrangeOptions` tables for 1 / 2 / 4 panes and each presentation. Move the source-slicing checks in `test-replacement.mjs` onto the plan object. A fixture that imports the model in Node must not touch `globalThis.gBrowser` or `Services`.
+**Tests:** table-driven Node fixtures for eligibility (solo vs in-split, other-split tabs excluded, workspace, empty tabs), substring filter, default mode, `activatePlan({ kind: 'split', mode: 'float' })` vs `mode: 'grid'`. `arrangeOptions` tables for 1 / 2 / 4 panes and each presentation. Move the source-slicing checks in `test-replacement.mjs` onto the plan object. A fixture that imports the model in Node must not touch `globalThis.gBrowser` or `Services`.
 
 **Why first:** every later UI needs this, and it locks the rules we must not break.
 
 ### PR 2 — Keyboard controller for the current dialog
 
-A small `picker-keys.mjs`: given `{ query, expanded, selectedIndex, mode, rowKind, key, ctrlKey, shiftKey }`, return the next state or an action. Still a pure reducer: no DOM, no `gBrowser`.
+A small `picker-keys.mjs`: given `{ query, expanded, selectedIndex, mode, rowKind, key, code, ctrlKey, shiftKey, altKey, metaKey }`, return the next state or an action. Still a pure reducer: no DOM, no `gBrowser`. Cycle-layout is:
+
+```text
+ctrlKey && shiftKey && !altKey && !metaKey &&
+  (code === 'BracketLeft' || code === 'BracketRight')
+```
 
 Map it onto today’s DOM:
 
-- `Ctrl+Shift+[` / `Ctrl+Shift+]` cycle `openMode` even while the query is non-empty.
-- `[` / `]` cycle `openMode` only when the query is empty.
+- That chord cycles `openMode` even while the query is non-empty. Match `code`, not `key`.
+- **No** bare `[` / `]`, even on an empty query. Printable keys always type (`[Draft]`, `[WIP]`).
 - **No** `1`–`8` mode shortcuts. The first keystroke of `1Password`, `2048`, or `9to5Mac` must go into search.
 - **No** Alt/Option+arrows (Mac word-jump; Windows/Linux browser Back/Forward).
 - **No** Tab or Left/Right as mode/peek keys. Tab stays in the existing focus trap; arrows stay caret movement.
 - Do not yet remove the chip bar — selected mode just follows the controller so we can see it work.
-- Shift+Enter still means join-as-Floating in this PR (current dialog). Peek mapping lands in PR4 with the removal note.
+- Shift+Enter: the reducer returns `{ type: 'activate', mode: 'float' }` in this PR only. The handler runs `activatePlan` with that mode and does not read `event.shiftKey`. Peek mapping lands in PR4; `activatePlan` does not change.
 
-**Tests:** `Ctrl+Shift+]` on a solo tab **skips Replace** and walks the visible modes. Non-empty query: letters and digits do not change mode; `[` types rather than cycling. Empty query: `[` / `]` do cycle. Escape still three-stage. Enter payload matches PR 1.
+**Tests:** event `{ code: 'BracketRight', key: '}', ctrlKey: true, shiftKey: true }` on a solo tab **skips Replace** and walks the visible modes. Same chord with `altKey: true` (AltGr) does **not** cycle. `{ key: '[' }` with no modifiers types. Non-empty query: letters and digits do not change mode. Escape still three-stage. Enter payload is `{ kind, mode }` matching PR 1.
 
-**Native (Jasiel):** picker.md plus real OS `Ctrl+Shift+[` / `Ctrl+Shift+]` while search is focused; confirm Option+arrows still move by word on Mac and Alt+Left still is Back on Windows when the hub is open with a non-empty query (those keys must not be `preventDefault`ed).
+**Native (Jasiel):** picker.md plus real OS Control+Shift+physical-`]` while search is focused; confirm Option+arrows still move by word on Mac and Alt+Left still is Back on Windows (those keys must not be `preventDefault`ed). **Non-US layouts (AltGr brackets) are out of scope** for this gate; chip/chevron remain.
 
 ### PR 3 — Collapse the chip bar to one default-layout chip
 
-UI: one chip next to the count (`Replace ▸` / `Split right ▸`). Click or `Ctrl+Shift+[` / `Ctrl+Shift+]` to cycle. Click-chevron opens a short menu of layouts (the old chips, as a list). Arrange current becomes the first list row when `inSplit`. Help footer always shows `↑↓` `Enter` `Ctrl+Shift+[/] layout` `Esc`.
+UI: one chip next to the count (`Replace ▸` / `Split right ▸`). Click or Control+Shift+physical-`[`/`]` to cycle. Click-chevron opens a short menu of layouts (the old chips, as a list). Arrange current becomes the first list row when `inSplit`. Help footer: `↑↓` `Enter` plus the chord — on macOS render `⌃⇧[` / `⌃⇧]` so nobody reaches for Command; elsewhere `Ctrl+Shift+[` / `Ctrl+Shift+]`. Then `Esc`.
 
 Keep `#pane-open-modes` as an implementation detail or replace with a `[data-mode]` chip so the verify recipe can be updated in the same PR.
 
@@ -383,27 +411,27 @@ Add command rows to the same list:
 - accordion handle on the active tab
 - scrolling header **more**
 
-Opening arrange-scope must run the same **side effects as `openMenu` today**: cancel scrolling overview, drop the snapshot overlay, then show the hub. Measure the anchor *before* tearing down the overlay so the dialog is not placed at `0,0` (the scrolling-card menu bug).
+Opening arrange-scope must run the same **side effects as `openMenu` today**: cancel scrolling overview, drop the snapshot overlay, then show the hub. Read the anchor rect **before** teardown so the dialog is not placed at `0,0` (the scrolling-card menu bug).
 
-Arrange-scope rows come from the shared `arrangeOptions(...)` extracted in PR1, not a second copy. Search placeholder: “Arrange this tab…”. `#pane-layout-menu` can stay for one release as a fallback behind a pref, default off once fixtures pass — or delete in this PR if Jasiel prefers one surface immediately (open question).
+Arrange-scope rows come from `layout-options.mjs` `arrangeOptions(...)`, not a second copy. Search placeholder: “Arrange this tab…”. `#pane-layout-menu` can stay for one release as a fallback behind a pref, default off once fixtures pass — or delete in this PR if Jasiel prefers one surface immediately (open question).
 
-**Shift+Enter:** from this PR on, it peeks. It no longer joins as Floating. Document in CHANGELOG and `picker.md`.
+**Shift+Enter:** from this PR on, the reducer maps it to peek (see the transition table in §3C). It no longer activates Floating. `activatePlan` is unchanged. Document in CHANGELOG and `picker.md`.
 
-**Tests:** arrange-scope list **is** `arrangeOptions` for that tab (right/below/grid/float/accordion/scrolling/snapshot/normal/tiles/add). Choosing a verb does not call `add()`. Join/unsplit still hit the existing controller methods (extend `test-multiple-floats.mjs`). `Shift+Enter` opens peek without activating; Enter on peek “Floating” joins as float. Unsplit **closes** the hub. A test that `createMultiwindow` is constructed with `openHub` and that `multiwindow.mjs` source does not import `pane.uc.mjs`. Fixture: open arrange-scope from a scrolling-card **more** button after overview teardown and assert the hub is not at `0,0`.
+**Tests:** arrange-scope list **is** `arrangeOptions` for that tab (right/below/grid/float/accordion/scrolling/snapshot/normal/tiles/add). Choosing a verb does not call `add()`. Join/unsplit still hit the existing controller methods (extend `test-multiple-floats.mjs`). Reducer cases for every peek transition in §3C. Unsplit **closes** the hub. `createMultiwindow` is constructed with `openHub`; `multiwindow.mjs` source does not import `pane.uc.mjs`. **Ordering fixture (not pixel position):** injected mocks, `getBoundingClientRect` on the anchor is called **before** `cancelOverview` / snapshot teardown. Fixtures still do not build the overlay. Placement (`not 0,0`) is native-only.
 
 **Do not** change replace/add rollback in this PR. Keep calling `arrange()` rather than re-deriving divider sizes.
 
 ### PR 5 — Search verbs and ranking
 
-Query filters destinations and verbs. Short exact layout names (`grid`, `float`, `accordion`) rank above tabs. Update empty-state copy. Drop “Show all” if the list is one scrolling column with a reasonable recent cap (keep the pref as “rows before the fold” or retire it — open question).
+Query filters destination rows by substring. Verb rows appear only on an **exact** name match (`grid`, `float`, `accordion`, `unsplit`, …), then rank above tabs. Prefixes never promote a verb. Update empty-state copy. Drop “Show all” if the list is one scrolling column with a reasonable recent cap (keep the pref as “rows before the fold” or retire it — open question).
 
-**Tests:** `filterHub(query)` ranking tables. Query `grid` with a tab titled “Grid notes” still shows the tab, below the Grid verb. Escape clears query before close.
+**Tests:** `filterHub(query)` ranking tables. Query `grid` with a tab titled “Grid notes”: Grid verb first, then the tab. Queries `acc`, `gr`, and `flo` with tabs “Accounts” / “Grid notes” / “Float plan”: the matching **tab stays first**; no Accordion/Grid/Floating verb is listed. Escape clears query before close.
 
 **Privacy:** still no titles in diagnostics. Previews: only for visible destination rows, still in-memory, still dropped on close (generation counter stays).
 
 ### PR 6 — Docs, skill, screenshots
 
-README, CHANGELOG (including **Shift+Enter no longer floats**; peek instead), picker.md + layout-menu.md (every arrange entry point now “opens the hub in arrange scope”). Stale `pane-current-picker.png` / arrange screenshot. `COMPATIBILITY.md` narrow-picker line.
+README, CHANGELOG ( **Shift+Enter no longer floats**; peek instead; **Unsplit now closes the hub** ), picker.md + layout-menu.md (every arrange entry point now “opens the hub in arrange scope”). Stale `pane-current-picker.png` / arrange screenshot. `COMPATIBILITY.md` narrow-picker line. Mac help footer uses `⌃⇧[` / `⌃⇧]`.
 
 No user-visible behavior in this PR if PR 4–5 already landed.
 
@@ -426,10 +454,10 @@ If C feels too far after PR2, stop and re-evaluate with Jasiel. PR1–2 are usef
 `npm test` plus new Node files. No Zen.
 
 - Eligibility and filter (PR 1, 5). Model fixtures pass `{ tabs, groups, recentFirst }` — no `gBrowser` / `Services`.
-- `arrangeOptions` tables shared by menu and hub (PR 1, 4).
-- Key state machine (PR 2–4): arrows (caret vs list), Enter, `Ctrl+Shift+[`/`]`, empty-query `[`/`]`, digits type, Tab = next control, Shift+Enter = Float until PR4 then peek, Escape stages, empty vs non-empty query.
-- Activation plans hit `replace` / `add` / `join` / `unsplit` / `arrange` only — mock those five. Keep existing rollback tests.
-- Markup contracts for the chip and row roles (`listbox` + `option`, or `list` + `row` — pick one and test it). Nested buttons on split cards should be gone by PR 4.
+- `arrangeOptions` tables from `layout-options.mjs` (PR 1, 4).
+- Key state machine (PR 2–4): `code` BracketLeft/Right + Ctrl+Shift, `{`/`}` key still cycles, AltGr does not, bare `[` types, digits type, Tab = next control, Shift+Enter = `{ type: 'activate', mode: 'float' }` until PR4 then peek transitions, Escape stages.
+- `activatePlan({ kind, mode })` only — no `shiftKey`. Keep existing rollback tests.
+- Markup: combobox + listbox + `aria-activedescendant`; peek is a nested listbox, not controls inside an option. Nested buttons on split cards should be gone by PR 4.
 - Reduced-motion class/attribute still set from prefs/CSS.
 
 ### Native (Jasiel, throwaway profile only)
@@ -441,13 +469,14 @@ Update `features/picker.md` and `features/layout-menu.md`:
 - Both old picker entry points plus **every** arrange entry: shortcut, split three-dot, picker Arrange, floating header, accordion more + active handle, scrolling header.
 - Solo and existing split; 2 and 4 panes; narrow width.
 - Search title and host; arrows; Enter; mouse click.
-- Default-layout cycle with **real** OS `Ctrl+Shift+[` / `Ctrl+Shift+]`, not synthetic keydown.
+- Default-layout cycle with **real** OS Control+Shift+physical `[` / `]`, not synthetic keydown. Footer shows `⌃⇧[` / `⌃⇧]` on Mac.
 - Confirm Option+←/→ still word-jumps in search on Mac; Alt+← is still Back on Windows when a query is present.
-- Type `1Password` — must filter, not change mode.
-- Tab reaches settings, diagnostics, and close. Shift+Enter peeks (after PR4); it does not float.
-- Arrange-scope: accordion / scrolling / restore tiles / unsplit / return to normal. Opening it from a scrolling overview cancels the overview first.
+- Type `1Password` and `[Draft]` — must filter, not change mode.
+- Tab reaches settings, diagnostics, and close. Shift+Enter peeks (after PR4); it does not float. Escape from peek returns to the list.
+- Arrange-scope: accordion / scrolling / restore tiles / unsplit / return to normal. Opening it from a scrolling overview cancels the overview first; from a scrolling-card **more** button the hub is **not** at `0,0`.
 - Escape stages; focus returns to the page.
 - Replacement still keeps divider sizes; unsplit keeps origins and **closes** the hub.
+- Non-US AltGr-bracket layouts: NOT RUN unless Jasiel opts in; chip/chevron is the fallback.
 - Seed pinned / Essential / folder tabs as in the skill.
 
 Record PASS / FAIL / NOT RUN per entry point.
@@ -460,7 +489,7 @@ Record PASS / FAIL / NOT RUN per entry point.
 
 2. **Default Enter in a split:** keep Replace, or last-used layout? Recommendation: keep Replace. Last-used surprises people who just want to swap a page.
 
-3. **Letter or digit chords (`g` for grid, `1`–`8` for modes):** never, or only when the query is empty? Recommendation: **never**. `Ctrl+Shift+[`/`]` + peek is enough; letters and digits belong to search. Empty-query `g` or `1` still bites IME and titles like `1Password`.
+3. **Letter, digit, or bare-bracket chords:** never. Recommendation: **never**. Control+Shift+physical-brackets + peek is enough; printable keys always type. Empty-query `g`, `1`, or `[` still bites IME and titles like `1Password` / `[Draft]`.
 
 4. **Join from inside a split:** today you cannot. Should a hub row “Join another split” appear when you are already split (Zen limit allowing)? Recommendation: yes, as an explicit row, not mixed into Recent. Needs a product yes/no.
 
@@ -472,7 +501,7 @@ Record PASS / FAIL / NOT RUN per entry point.
 
 8. **Anchored vs centered:** keep header-button anchored, shortcut centered? Recommendation: yes. Hub should not change placement prefs.
 
-9. **Record in-hub keys as prefs?** `Ctrl+Shift+[`/`]` and Shift+Enter-as-peek vs leaving them hard-coded like ↑↓ Enter Esc. Recommendation: **do not record them**. They are overlay keys, not Pane app shortcuts. Recording them collides with the search field and with accordion resize (`Ctrl+Shift+Plus/Minus`). Empty-query `[`/`]` stay as undocumented-for-prefs aliases.
+9. **Record in-hub keys as prefs?** Control+Shift+brackets and Shift+Enter-as-peek vs leaving them hard-coded like ↑↓ Enter Esc. Recommendation: **do not record them**. They are overlay keys, not Pane app shortcuts. Recording them collides with the search field and with accordion resize (`Ctrl+Shift+Plus/Minus`).
 
 10. **Name in the UI:** keep the heading “Replace or arrange this pane” / “Open a tab alongside this one”, or one heading “Pane”? Recommendation: one heading **Pane**, context line still “Currently showing …”. Two headings were covering for two jobs; the hub is one job.
 
@@ -483,7 +512,10 @@ Record PASS / FAIL / NOT RUN per entry point.
 | File | Role |
 | --- | --- |
 | `pane.uc.mjs` | Overlay DOM, open/close, replace transaction, shortcut toggle. Owns the hub; passes `openHub` into `createMultiwindow`. |
-| `multiwindow.mjs` | `add` / `join` / `unsplit` / `arrange` / `openMenu`. Exports pure `arrangeOptions`. Does **not** import `pane.uc.mjs`. |
+| `picker-model.mjs` | Pure eligibility, filter, `defaultMode`, `activatePlan({ kind, mode })`. |
+| `picker-keys.mjs` | Pure key reducer (`code` + modifiers). |
+| `layout-options.mjs` | Pure `arrangeOptions`. Imported by `multiwindow.mjs` and the hub. |
+| `multiwindow.mjs` | `add` / `join` / `unsplit` / `arrange` / `openMenu`. Does **not** import `pane.uc.mjs`. |
 | `chrome.css` | Overlay, chips, results, layout menu. |
 | `keybindings.mjs` | Entry shortcuts only (open picker, layout menu, accordion, diagnostics). In-hub keys stay hard-coded; see question 9. |
 | `appearance.mjs` / `preferences.json` | Width, recent-count, compact, position, dim, help. |
@@ -504,3 +536,4 @@ This PR adds only `docs/picker-redesign.md`.
 | 2026-10-09 | Later roadmap items (undo, named layouts, settings export/import) map onto hub verbs / scopes / entry types. They do not change PR1–6. No implementation until Jasiel picks a direction. |
 | 2026-10-09 | Item 8 confirmed: keyboard-first; picker is the one place to find a tab, choose a layout, and move between panes. |
 | 2026-10-09 | Review of PR #8: default-layout cycle is `Ctrl+Shift+[`/`]` (plus empty-query `[`/`]`); peek is `Shift+Enter`; Tab stays next-control; no digit chords; `openHub` callback + pure `arrangeOptions`; PR1 takes plain data only; Shift+Enter-as-Float is a documented removal in PR4; Unsplit closes the hub. |
+| 2026-10-09 | Re-review: match `event.code` BracketLeft/Right; drop bare `[`/`]`; verbs rank on exact name only; peek transition table; PR4 position check is native, fixture only asserts rect-before-teardown order; `activatePlan` has no `shiftKey`; `arrangeOptions` lives in `layout-options.mjs`; Unsplit-closes is a CHANGELOG removal; combobox+listbox+`aria-activedescendant`; Mac footer `⌃⇧[`. |
