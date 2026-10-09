@@ -64,6 +64,8 @@ values.set('mod.pane.last-update-notice','pane-0.11.0');
 values.set('mod.pane.quick-start-seen','quick-start-2026-10');
 context.showUpdateNotice();
 assert.equal(attached,6,'graduation card reaches users who already acknowledged 0.11.0');
+assert.match(source, /skipOnFreshInstall:\s*true/);
+assert.match(source, /update\.skipOnFreshInstall && guideNeeded/);
 assert.equal(context.missedUpdates('pane-0.11.0')[0].id,'layout-labels-2026-10');
 assert.match(context.missedUpdates('pane-0.11.0')[0].message,/Scrolling is no longer marked experimental/);
 assert.doesNotMatch(context.missedUpdates('pane-0.11.0')[0].message,/Horizontal accordion/);
