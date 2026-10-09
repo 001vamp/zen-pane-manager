@@ -39,32 +39,38 @@ export function createSplitPersistence(win, origins) {
   const {SessionStore: session, gBrowser: browser, gZenViewSplitter: view} = win;
   const groups = new WeakMap(), restored = new Set(), deferred = new Map();
   const live = tab => tab && tab.isConnected && !tab.closing;
-  const readRecord = tab => {
-    const raw = session.getCustomTabValue(tab, KEY);
-    if (!raw) return undefined;
+  const parseRecord = raw => {
     try { return JSON.parse(raw); } catch { return INVALID; }
   };
   const validRecord = record => record?.version === 1 && typeof record.group === 'string' && Number.isInteger(record.count) && record.count >= 2 && record.count <= view.MAX_TABS && Number.isInteger(record.index) && record.index >= 0 && record.index < record.count && ['vsep','hsep','grid'].includes(record.type);
-  function pendingCompleteGroups() {
-    const pending = new Map();
+  function scanRecords() {
+    const records = [];
+    if (!session) return records;
     for (const tab of browser.tabs) {
       if (!live(tab)) continue;
-      const record = readRecord(tab);
+      const raw = session.getCustomTabValue(tab, KEY);
+      if (raw) records.push({tab, raw, record:parseRecord(raw)});
+    }
+    return records;
+  }
+  function pendingProtectedGroups(records) {
+    const pending = new Map();
+    for (const {tab, record} of records) {
       if (record === INVALID || !validRecord(record) || restored.has(record.group)) continue;
       const entries = pending.get(record.group) ?? [];
       entries.push({tab, record}); pending.set(record.group, entries);
     }
-    const complete = new Set();
+    const protectedGroups = new Set();
     for (const [group, entries] of pending) {
       const count = entries[0].record.count;
       const slots = new Set(entries.map(entry => entry.record.index));
-      if (entries.length === count && slots.size === count && entries.every(entry => entry.record.count === count)) complete.add(group);
+      if (entries.some(entry => entry.tab.hidden) || deferred.has(group) || (entries.length === count && slots.size === count && entries.every(entry => entry.record.count === count))) protectedGroups.add(group);
     }
-    return complete;
+    return protectedGroups;
   }
-  function save() {
+  function save(records = scanRecords()) {
     if (!session || view._sessionRestoring) return;
-    const members = new Set(), pending = pendingCompleteGroups();
+    const members = new Set(), pending = pendingProtectedGroups(records), raw = new Map(records.map(entry => [entry.tab, entry.raw]));
     for (const data of view._data) {
       const tabs = data.tabs.filter(live);
       if (tabs.length < 2) continue;
@@ -75,25 +81,20 @@ export function createSplitPersistence(win, origins) {
       tabs.forEach((tab, index) => {
         members.add(tab);
         const value = JSON.stringify({...record, index});
-        if (session.getCustomTabValue(tab, KEY) !== value) session.setCustomTabValue(tab, KEY, value);
+        if (raw.get(tab) !== value) session.setCustomTabValue(tab, KEY, value);
       });
     }
-    for (const tab of browser.tabs) {
-      if (!live(tab) || members.has(tab)) continue;
-      const record = readRecord(tab);
-      if (record === undefined) continue;
+    for (const {tab, record} of records) {
+      if (members.has(tab)) continue;
       if (record === INVALID) {session.deleteCustomTabValue(tab, KEY); continue;}
       if (validRecord(record) && pending.has(record.group)) continue;
       session.deleteCustomTabValue(tab, KEY);
     }
   }
-  function restore({retryDeferred = false} = {}) {
+  function restore({retryDeferred = false, records = scanRecords()} = {}) {
     if (!session || view._sessionRestoring) return;
     const pending = new Map();
-    for (const tab of browser.tabs) {
-      if (!live(tab)) continue;
-      let record = readRecord(tab);
-      if (record === undefined) continue;
+    for (const {tab, record} of records) {
       if (record === INVALID) {session.deleteCustomTabValue(tab, KEY); continue;}
       if (!validRecord(record)) {
         session.deleteCustomTabValue(tab, KEY); continue;
@@ -108,16 +109,7 @@ export function createSplitPersistence(win, origins) {
       const record = entries[0].record, tabs = Array(record.count).fill(null);
       for (const entry of entries) tabs[entry.record.index] = entry.tab;
       const members = tabs.filter(Boolean);
-      const prototypes = {};
-      if (members.length >= 2) {
-        const inspect = node => {
-          prototypes[node.children ? "branch" : "leaf"] = Object.getPrototypeOf(node);
-          node.children?.forEach(inspect);
-        };
-        inspect(view.calculateLayoutTree(members, record.type));
-      }
-      const tree = decodeTree(record.tree, tabs, null, prototypes);
-      if (members.length < 2 || !tree) continue;
+      if (members.length < 2) continue;
       let data = view._data.find(data => members.every(tab => data.tabs.includes(tab)) && data.tabs.length === members.length);
       if (data) {
         groups.set(data, group); restored.add(group); deferred.delete(group);
@@ -126,8 +118,16 @@ export function createSplitPersistence(win, origins) {
       }
       // Do not steal tabs from a different native group.
       if (members.some(tab => view._data.some(data => data.tabs.includes(tab))) || members.some(tab => tab.hidden)) {
-        deferred.set(group, attempts + 1); continue;
+        deferred.set(group, attempts); continue;
       }
+      const prototypes = {};
+      const inspect = node => {
+        prototypes[node.children ? "branch" : "leaf"] = Object.getPrototypeOf(node);
+        node.children?.forEach(inspect);
+      };
+      inspect(view.calculateLayoutTree(members, record.type));
+      const tree = decodeTree(record.tree, tabs, null, prototypes);
+      if (!tree) continue;
       if (!data) {
         origins.begin(members);
         try {data = view.splitTabs(members, record.type, -1, {activate:false});} catch (error) {data = null;} finally {origins.end();}
@@ -141,9 +141,14 @@ export function createSplitPersistence(win, origins) {
       restored.add(group); deferred.delete(group);
     }
   }
-  function clear() {
-    if (!session) return;
-    for (const tab of browser.tabs) if (live(tab)) session.deleteCustomTabValue(tab, KEY);
+  function sync({retryDeferred = false} = {}) {
+    const records = scanRecords();
+    restore({retryDeferred, records});
+    save(records);
   }
-  return {save, restore, clear};
+  function clear({preserveHidden = false} = {}) {
+    if (!session) return;
+    for (const {tab} of scanRecords()) if (!preserveHidden || !tab.hidden) session.deleteCustomTabValue(tab, KEY);
+  }
+  return {save, restore, sync, clear};
 }
