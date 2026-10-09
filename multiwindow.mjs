@@ -371,7 +371,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         let handle = state.handles.get(container);
         if (!handle || !container.querySelector(".pane-accordion-bar")?.contains(handle) || !container.querySelector(".pane-accordion-controls")
           || !container.querySelector(".pane-accordion-resize-left") || !container.querySelector(".pane-accordion-resize-right")) {
-          if (state.resizeDrag && container.contains(state.resizeDrag.target)) finishAccordionResize(state);
+          if (state.resizeDrag) finishAccordionResize(state);
           container.querySelector(".pane-accordion-bar")?.remove();
           container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
           handle = button("", () => {
