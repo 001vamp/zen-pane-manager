@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { settingsSections } from "../appearance.mjs";
 import { fitRectangle, resizeRectangle, layoutTypes, modeLabels, isSupportedTab, tabWorkspace, normalizeMode, presentationModes, scrollingSizes, scrollingColumnWidth } from "../multiwindow.mjs";
 assert.deepEqual(layoutTypes, { right: "vsep", below: "hsep", grid: "grid" });
-assert.equal(modeLabels.scrolling, "Scrolling (experimental)");
+assert.equal(modeLabels.scrolling, "Scrolling");
 assert.equal(modeLabels.snapshot, undefined);
+const menuSource = readFileSync(new URL("../multiwindow.mjs", import.meta.url), "utf8");
+assert.match(menuSource, /\["scrolling", modeLabels\.scrolling,/);
+assert.match(menuSource, /\["accordion", modeLabels\.accordion,/);
+const preferenceLabels = JSON.parse(readFileSync(new URL("../preferences.json", import.meta.url), "utf8")).map(item => item.label).filter(Boolean);
+for (const [name, label] of [...Object.entries(modeLabels), ...settingsSections, ...preferenceLabels.map(label => ["preferences", label])]) {
+  assert.doesNotMatch(label, /experimental/i, `${name} must not ship an experimental label`);
+}
 assert.deepEqual(presentationModes,['accordion','scrolling']);
 assert.equal(normalizeMode('snapshot'),'scrolling');
 assert.equal(normalizeMode('scrolling'),'scrolling');

@@ -2,6 +2,8 @@
 
 October 2, 2026. Scope: the current source, uncommitted diff, recent Git history, settings, tests, and release documentation. This was a code/documentation review, not a new native browser test run.
 
+October 9, 2026 note: after PR #6 and PR #7 landed, current picker/menu/settings labels no longer say experimental. Native input/restart/Windows gates described below remain open; see ROADMAP’s October 9 checkpoint.
+
 ## Follow-up implementation
 
 The original findings below are retained as the review record. A subsequent local pass addressed detach/replacement presentation, early replacement failures, rollback messaging, shutdown/disable distinction, toolbar/settings cleanup, named shortcut actions, section resets, warning confirmation, and stale documentation. Automated regression tests pass. Native macOS settings warning/record/cancel/default flows were checked; the broader cross-platform release gates remain open.

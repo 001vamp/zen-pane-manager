@@ -2,6 +2,10 @@
 
 All notable changes to Pane are documented here.
 
+## Unreleased
+
+- Remove experimental and prototype labels from Scrolling, Horizontal accordion, and settings. Saved layout IDs and preference keys are unchanged.
+
 ## 0.11.0 — 2026-10-05
 
 - Open the selected split's layout menu with Ctrl+Shift+L on Mac or Alt+Shift+L on Windows/Linux. The Mac default changed because Option modifies letter keys before Pane can read them on real macOS. Record a different shortcut in settings.

@@ -568,6 +568,10 @@ assert.ok(doc.querySelector('.pane-layout-menu'),'layout shortcut opens menu in 
 const layoutChoices=doc.querySelector('.pane-layout-menu').querySelectorAll('[data-mode]').map(node=>node.dataset.mode);
 assert.equal(layoutChoices.filter(mode=>mode==='scrolling').length,1,'menu has one scrolling choice');
 assert.equal(layoutChoices.includes('snapshot'),false);
+assert.equal(doc.querySelectorAll('.pane-layout-label').some(node => node.textContent === modeLabels.scrolling), true);
+for (const label of doc.querySelectorAll('.pane-layout-label')) {
+  assert.doesNotMatch(label.textContent, /experimental/i, label.textContent);
+}
 assert.equal(Object.keys(modeLabels).filter(mode=>['snapshot','scrolling'].includes(mode)).length,1,'picker has one scrolling choice');
 scrolling.closeMenu();
 win.navigator = {platform:'MacIntel'};
