@@ -269,6 +269,11 @@ const scrolling = createMultiwindow(win, {...options,prefs:{...prefs,getIntPref:
 win.emit('keydown',{key:'l',altKey:true,shiftKey:true});
 assert.ok(doc.querySelector('.pane-layout-menu'),'layout shortcut opens menu in a tiled split');
 scrolling.closeMenu();
+win.navigator = {platform:'MacIntel'};
+win.emit('keydown',{key:'Ò',code:'KeyL',altKey:true,shiftKey:true,getModifierState:()=>true,view:{navigator:{platform:''}}});
+assert.ok(doc.querySelector('.pane-layout-menu'),'Mac Option+Shift+L works with an empty event platform');
+scrolling.closeMenu();
+win.navigator = {platform:'Win32'};
 win.emit('keydown',{key:'l',altKey:true,shiftKey:true,target:{ownerDocument:{documentElement:{hasAttribute:()=>true}}}});
 assert.equal(doc.querySelector('.pane-layout-menu'),null,'shortcut recording does not open a layout menu');
 scrolling.arrange(tabs[0], 'scrolling');
@@ -450,3 +455,26 @@ assert.equal(invalidFloats.floatingTabs.length,0,'invalid and future schema reco
 assert.equal(savedFloats.size,0,'invalid floating metadata is discarded');
 invalidFloats.destroy();
 console.log('Floating sessions: multiple panels, pins, smaller bounds, original pages, docking and disable passed.');
+
+// Picker modes use the same add/join controller as ordinary tile choices.
+for (const mode of ['right', 'below', 'grid', 'accordion', 'snapshot', 'scrolling', 'float']) {
+  for (const joining of [false, true]) {
+    data.tabs = [tabs[0], tabs[1]];
+    data.layoutTree = tree(data.tabs); data.gridType = 'vsep'; view.currentView = 0;
+    for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+    win.gBrowser.selectedTab = tabs[0];
+    const pages = data.tabs.map(tab => tab.linkedBrowser);
+    const hub = createMultiwindow(win, options); flush();
+    if (joining) hub.join(data, tabs[2], mode);
+    else hub.add(tabs[0], tabs[2], mode);
+    assert.ok(data.tabs.includes(tabs[2]), `${mode} adds incoming tab`);
+    assert.deepEqual(data.tabs.slice(0, 2).map(tab => tab.linkedBrowser), pages, `${mode} preserves existing pages`);
+    const presentation = hub.capturePresentation(data);
+    if (mode === 'accordion') assert.equal(presentation.accordion, tabs[2]);
+    if (['snapshot', 'scrolling'].includes(mode)) assert.equal(presentation.scrolling.snapshot, mode === 'snapshot');
+    if (mode === 'float') assert.ok(hub.floatingTabs.includes(tabs[2]));
+    if (['right', 'below', 'grid'].includes(mode)) assert.equal(data.gridType, {right:'vsep', below:'hsep', grid:'grid'}[mode]);
+    hub.destroy();
+  }
+}
+console.log('Picker layouts: add and join preserve pages and apply every layout.');

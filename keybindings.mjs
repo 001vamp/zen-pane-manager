@@ -31,11 +31,10 @@ export function bindingFromEvent(event) {
   return parseBinding([event.ctrlKey && 'Ctrl', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Command', key].filter(Boolean).join('+'));
 }
 
-export function matchesBinding(event, binding) {
+export function matchesBinding(event, binding, platform = event.view?.navigator?.platform || globalThis.navigator?.platform || '') {
   if (!binding || event.repeat || event.isComposing || (event.target?.closest?.('[data-pane-recording]') || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording'))) return false;
   // Real macOS Option events report AltGraph, unlike WebDriver's synthetic Alt.
   // Keep rejecting Windows/Linux AltGr text entry without rejecting Mac shortcuts.
-  const platform = event.view?.navigator?.platform ?? globalThis.navigator?.platform ?? '';
   if (event.getModifierState?.('AltGraph') && !/Mac/i.test(platform)) return false;
   if (['ctrlKey', 'altKey', 'shiftKey', 'metaKey'].some(key => Boolean(event[key]) !== binding[key])) return false;
   // Option changes event.key on macOS (Option+R produces ®). Match the

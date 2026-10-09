@@ -64,3 +64,8 @@ assert.equal(accordionBindings(prefs({}))[2].binding.label,'Alt+Shift+L');
 assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Disabled'}))[2].binding,null);
 assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+F8'}))[2].binding.label,'Ctrl+F8');
 assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Alt+Shift+Right'}))[2].error,/Already used/);
+
+const optionLayoutEvent = event({key:'Ò',code:'KeyL',ctrlKey:false,shiftKey:true,getModifierState:()=>true,view:{navigator:{platform:''}}});
+assert.ok(matchesBinding(optionLayoutEvent,parseBinding('Alt+Shift+L'),'MacIntel'));
+assert.ok(!matchesBinding(optionLayoutEvent,parseBinding('Alt+Shift+L'),'Win32'));
+assert.ok(!matchesBinding(optionLayoutEvent,parseBinding('Alt+Shift+L'),'Linux x86_64'));

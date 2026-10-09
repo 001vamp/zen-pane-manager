@@ -240,7 +240,7 @@ function selectResult(index) {
   });
   items[selectedIndex]?.scrollIntoView({ block: "nearest" });
   if (filtered[selectedIndex]?.kind === "split") {
-    document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Add</span><span><kbd>Shift</kbd>+<kbd>Enter</kbd> Floating</span><span><kbd>Esc</kbd> Cancel</span>`;
+    document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${openMode === "replace" ? "Add" : modeLabels[openMode]}</span><span><kbd>Shift</kbd>+<kbd>Enter</kbd> Floating</span><span><kbd>Esc</kbd> Cancel</span>`;
   } else {
     document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[openMode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
   }
@@ -461,7 +461,7 @@ function setMode(mode) {
 function openCandidate(tab, requestedMode = null) {
   if (tab.kind === "split") {
     const current = targetTab;
-    const mode = requestedMode || (openMode === "float" ? "float" : "grid");
+    const mode = requestedMode || (openMode === "replace" ? "grid" : openMode);
     try {
       multiwindow.join(tab.group, current, mode);
       closePicker(false);
@@ -577,6 +577,16 @@ function buildPicker() {
     button.querySelector(".pane-svg").classList.add("pane-mode-check");
     button.addEventListener("click", () => setMode(mode)); modeBar.append(button);
   }
+  const arrangeCurrent = document.createElement("button");
+  arrangeCurrent.id = "pane-arrange-current";
+  arrangeCurrent.type = "button";
+  arrangeCurrent.textContent = "Arrange current pane…";
+  arrangeCurrent.addEventListener("click", () => {
+    const tab = targetTab;
+    closePicker(false);
+    multiwindow.openMenu(tab);
+  });
+  modeBar.append(arrangeCurrent);
   dialog.append(header, searchWrap, modeBar, sectionHeader, results, expandButton, help);
   overlay.appendChild(dialog);
   root.appendChild(overlay);
@@ -671,6 +681,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   candidates = eligibleTabs(tab, data);
   openMode = requestedMode || (inSplit ? "replace" : "right");
   modeBar.querySelector('[data-mode="replace"]').hidden = !inSplit;
+  document.getElementById("pane-arrange-current").hidden = !inSplit;
   heading.textContent = inSplit ? "Replace or arrange this pane" : "Open a tab alongside this one";
   results.setAttribute("aria-label", "Available open tabs");
   context.textContent = `Currently showing ${tabTitle(tab)}`;
