@@ -319,6 +319,14 @@ assert.equal(splitCalls,visibleReinitBefore,'re-init after visible unload and na
 visibleReinit.destroy();
 data.tabs = [tabs[0], tabs[1]]; data.layoutTree = tree(data.tabs); data.gridType = 'vsep';
 for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
+savedSplits.clear(); savedFloats.clear();
+const detachController = createMultiwindow(win, options); flush();
+savedFloats.set(tabs[1], JSON.stringify({version:1,rect:{x:10,y:10,width:300,height:200},headerPinned:false}));
+assert.ok(savedSplits.size > 0, 'active controller has split metadata before stale detach');
+detachController.destroy({detachOnly:true});
+assert.ok(savedSplits.size > 0, 'stale detach leaves live split records alone');
+assert.equal(savedFloats.size,1,'stale detach leaves live float records alone');
+assert.deepEqual(data.tabs,[tabs[0],tabs[1]],'stale detach does not mutate the live split group');
 const mouseupController = createMultiwindow(win, options); flush();
 const hiddenTree = {children:[{tab:0,sizeInParent:50},{tab:1,sizeInParent:50}]};
 for (const [index, tab] of [tabs[3], tabs[4]].entries()) savedSplits.set(tab, JSON.stringify({version:1,group:'hidden',count:2,type:'grid',index,tree:hiddenTree}));

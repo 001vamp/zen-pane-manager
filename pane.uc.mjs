@@ -969,7 +969,8 @@ const historyProgress = {
 
 function destroy() {
   if (destroyed) return;
-  const ownsInstance = window[INSTANCE_KEY]?.destroy === destroy;
+  const instance = window[INSTANCE_KEY];
+  const ownsInstance = !instance || instance.destroy === destroy;
   destroyed = true;
   diagnosticLog("Pane runtime unloading");
   gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
@@ -979,7 +980,7 @@ function destroy() {
   }
   toolbarReveals.clear();
   renderGeneration++;
-  multiwindow?.destroy();
+  multiwindow?.destroy(ownsInstance ? undefined : {detachOnly:true});
   clearTimeout(updateNoticeTimer);
   updateNotice?.remove();
   updateNotice = null;
@@ -999,7 +1000,7 @@ function destroy() {
     document.querySelectorAll(".pane-button,.pane-layout-button,.pane-history-button").forEach(button => button.remove());
     root.removeAttribute("pane-ready");
     root.removeAttribute("pane-toolbar-always");
-    delete window[INSTANCE_KEY];
+    if (window[INSTANCE_KEY]?.destroy === destroy) delete window[INSTANCE_KEY];
   }
 }
 
