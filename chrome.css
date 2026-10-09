@@ -917,7 +917,7 @@
 /* Experimental scrolling keeps each native page at a useful, stable width. */
 #tabbrowser-tabpanels:has(> .browserSidebarContainer[pane-scrolling]) { overflow:hidden !important; }
 .browserSidebarContainer[pane-scrolling][zen-split] {
-  position:absolute !important; inset:0 auto 0 var(--pane-scrolling-x) !important;
+  position:absolute !important; inset:0 auto 0 0 !important;
   width:var(--pane-scrolling-width) !important; height:100% !important;
   min-width:0 !important; min-height:0 !important; overflow:hidden !important;
   border:0 !important; border-radius:10px !important; transition:none !important;
@@ -935,7 +935,7 @@
 }
 /* A forgiving reveal area and delayed dismissal keep controls reachable. */
 .pane-scrolling-reveal { position:absolute; top:0; left:50%; transform:translateX(-50%); width:min(560px,100%); height:18px; z-index:9; }
-.browserSidebarContainer[pane-scrolling]:not([pane-scrolling-overview]) > .pane-scrolling-header {
+.browserSidebarContainer[pane-scrolling] > .pane-scrolling-header {
   transform:translate(-50%,-12px); opacity:0; pointer-events:none;
   transition:transform 160ms ease-out, opacity 120ms ease-out;
 }
@@ -943,7 +943,6 @@
 .browserSidebarContainer[pane-scrolling] > .pane-scrolling-header:focus-within {
   transform:translateX(-50%); opacity:1; pointer-events:auto;
 }
-.browserSidebarContainer[pane-scrolling-overview] > .pane-scrolling-reveal { pointer-events:none; }
 @media (prefers-reduced-motion:reduce) {
   .browserSidebarContainer[pane-scrolling] > .pane-scrolling-header { transition:none !important; }
 }
@@ -956,27 +955,18 @@
 .pane-scrolling-resize { position:absolute; top:32px; bottom:0; right:0; width:8px; z-index:10; cursor:ew-resize; touch-action:none; }
 .pane-scrolling-resize:hover, .pane-scrolling-resize:focus-visible { background:var(--pane-accent); opacity:.5; }
 
-/* Shields keep modified gestures out of remote webpage processes. */
+/* Hidden live pages stay mounted so the selected page can stay full width. */
 .browserSidebarContainer[pane-scrolling-hidden] { visibility:hidden !important; pointer-events:none !important; }
-.pane-scrolling-shield { display:none; position:absolute; inset:0; z-index:7; background:transparent; }
-.browserSidebarContainer[pane-scrolling-overview] > .pane-scrolling-shield { display:block; }
-.browserSidebarContainer[pane-scrolling]:not([pane-scrolling-overview]) > .pane-scrolling-resize { display:none; }
-
 
 .pane-scrolling-resize { border-radius:3px; }
 .pane-scrolling-resize:focus-visible { outline:2px solid var(--pane-accent); outline-offset:-2px; }
 
-.browserSidebarContainer[pane-scrolling-overview][pane-scrolling-landing] {
-  box-shadow:inset 0 0 0 2px var(--pane-accent), 0 4px 22px #0005;
-}
 .browserSidebarContainer[pane-scrolling-landing] > .pane-scrolling-header {
   border-color:color-mix(in srgb,var(--pane-accent) 65%,var(--pane-line));
   box-shadow:0 0 0 2px color-mix(in srgb,var(--pane-accent) 22%,transparent),0 5px 18px #0003;
 }
 .pane-scrolling-landing-label { display:none; font:10px system-ui; white-space:nowrap; padding:3px 6px; border-radius:5px; background:var(--pane-fill); }
 .browserSidebarContainer[pane-scrolling-landing] .pane-scrolling-landing-label { display:block; }
-
-.pane-scrolling-handoff { position:fixed; z-index:2147483000; background:light-dark(#f4f4f7,#18181c); pointer-events:auto; }
 
 /* Snapshot surfaces use the scrolling columns' styling without resizing live pages. */
 .pane-snapshot-overview { position:fixed; z-index:2147483000; overflow:hidden; background:light-dark(#f4f4f7,#18181c); }
