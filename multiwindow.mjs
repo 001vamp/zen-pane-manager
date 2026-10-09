@@ -1,6 +1,6 @@
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-phases123";
+import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 

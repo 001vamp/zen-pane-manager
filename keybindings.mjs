@@ -79,11 +79,11 @@ export const layoutShortcuts = [
   // Preference keys remain unchanged for existing installations.
   { key: 'accordion-previous', direction: -1, label: 'Previous tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Left' },
   { key: 'accordion-next', direction: 1, label: 'Next tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Right' },
-  { key: 'layout-menu', label: 'Open split layout menu', value: 'Auto', defaultBinding: 'Alt+Shift+L' },
+  { key: 'layout-menu', label: 'Open split layout menu', value: 'Auto', defaultBinding: 'Alt+Shift+L', macDefaultBinding: 'Ctrl+Shift+L' },
 ];
 
 function defaultLayoutBinding(setting, platform = currentPlatform()) {
-  return setting.key === 'layout-menu' && /Mac/i.test(platform) ? 'Ctrl+Shift+L' : setting.defaultBinding;
+  return /Mac/i.test(platform) ? (setting.macDefaultBinding ?? setting.defaultBinding) : setting.defaultBinding;
 }
 
 export function shortcutLabel(binding, platform = currentPlatform()) {

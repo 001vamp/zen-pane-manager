@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, shortcutLabel } from '../keybindings.mjs';
+import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel } from '../keybindings.mjs';
 const event = overrides => ({key:'r', code:'KeyR',ctrlKey:true,altKey:true,shiftKey:false,metaKey:false,...overrides});
 const defaultBinding = pickerBinding({getIntPref:()=>0}, 'MacIntel');
 assert.equal(defaultBinding.label,'Ctrl+Alt+R');
@@ -63,6 +63,7 @@ assert.equal(customHold.altKey, false);
 assert.equal(scrollingModifiers({getIntPref:()=>3,getStringPref:()=> 'garbage'}), null);
 
 assert.equal(accordionBindings(prefs({}),'MacIntel')[2].binding.label,'Ctrl+Shift+L');
+assert.equal(accordionShortcuts.find(shortcut=>shortcut.key==='layout-menu').macDefaultBinding,'Ctrl+Shift+L');
 assert.equal(accordionBindings(prefs({}),'Win32')[2].binding.label,'Alt+Shift+L');
 assert.equal(accordionBindings(prefs({}),'Linux x86_64')[2].binding.label,'Alt+Shift+L');
 assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Disabled'}))[2].binding,null);

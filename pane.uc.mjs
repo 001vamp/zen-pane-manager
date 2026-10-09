@@ -1,7 +1,7 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-phases123";
-import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-phases123";
-import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-phases123";
+import { createMultiwindow, modeLabels, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-macos-shortcut";
+import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-macos-shortcut";
+import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -145,7 +145,7 @@ function showToast(message, kind = "info") {
 const UPDATE_NOTICES = [
   { id: "accordion-motion-2026-10", title: "Accordion tabs", message: "Keep one page expanded and switch through the others from their edges, with smoother motion and keyboard navigation." },
   { id: "quick-start-2026-10", title: "A quick start for everyone", message: "The guide below covers splitting, floating, accordion, and putting tabs back." },
-  { id: "pane-0.11.0", title: "Pane 0.11.0", message: "Open the layout menu with Option+Shift+L on Mac or Alt+Shift+L on Windows/Linux. Settings and layout recovery are more consistent. Scrolling, snapshot scrolling, and floating position/pin recovery are experimental and optional; use the layout menu to return to tiles." },
+  { id: "pane-0.11.0", title: "Pane 0.11.0", message: "Open the layout menu with Ctrl+Shift+L on Mac or Alt+Shift+L on Windows/Linux. This changed because Option modifies letter keys before Pane can read them on real macOS. Settings and layout recovery are more consistent. Scrolling, snapshot scrolling, and floating position/pin recovery are experimental and optional; use the layout menu to return to tiles." },
 ];
 const QUICK_START_ID = "quick-start-2026-10";
 
