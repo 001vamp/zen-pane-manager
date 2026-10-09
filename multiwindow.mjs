@@ -175,7 +175,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function button(label, callback, className = "") {
     const b = el("button", className, label);
     b.type = "button"; b.addEventListener("click", event => {
-      event.preventDefault(); event.stopPropagation(); callback();
+      event.preventDefault(); event.stopPropagation(); callback(event);
     });
     return b;
   }
@@ -275,9 +275,22 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     drag?.target.removeAttribute("data-dragging");
     if (drag?.target.hasPointerCapture?.(drag.pointerId)) drag.target.releasePointerCapture(drag.pointerId);
   }
+  function consumeAccordionResizePress(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  function resizeAccordionByShortcut(data, state, direction) {
+    const width = view.tabBrowserPanel.getBoundingClientRect().width;
+    if (!(width > 0)) return false;
+    const current = accordionSizes(width, data.tabs.length, state.expandedRatio * width).expanded;
+    state.expandedRatio = accordionSizes(width, data.tabs.length, current + direction * width * 0.05).expanded / width;
+    applyAccordion();
+    return true;
+  }
   function accordionResizeHandle(data, state, side) {
     const target = el("div", `pane-accordion-resize pane-accordion-resize-${side}`);
     target.setAttribute("title", "Drag to resize the expanded tab");
+    for (const name of ["pointerdown", "mousedown", "click"]) target.addEventListener(name, consumeAccordionResizePress, { capture:true });
     target.addEventListener("pointerdown", event => {
       const tab = state.active;
       if (event.button !== 0 || !target.isConnected) return;
@@ -296,7 +309,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         memberCount:data.tabs.length };
       target.setAttribute("data-dragging", "");
       target.setPointerCapture?.(event.pointerId);
-    });
+    }, { capture:true });
     target.addEventListener("pointermove", event => {
       const drag = state.resizeDrag;
       if (!drag || drag.target !== target || drag.pointerId !== event.pointerId) return;
@@ -374,7 +387,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
           if (state.resizeDrag) finishAccordionResize(state);
           container.querySelector(".pane-accordion-bar")?.remove();
           container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
-          handle = button("", () => {
+          handle = button("", event => {
+            if (event.target?.closest?.(".pane-accordion-resize")) return;
             hideEdgeHint();
             if (tab === state.active) { openMenu(tab, handle); return; }
             browser.selectedTab = tab; state.active = tab; applyAccordion(); tab.linkedBrowser.focus();
@@ -1289,10 +1303,17 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       openMenu(browser.selectedTab);
       return;
     }
-    if (!accordions.has(data) && !scrollings.has(data)) return;
+    const accordion = accordions.get(data), scrolling = scrollings.get(data);
+    if (!accordion && !scrolling) return;
+    if (bindings[index].resize) {
+      if (!accordion) return;
+      event.preventDefault(); event.stopPropagation();
+      if (resizeAccordionByShortcut(data, accordion, bindings[index].resize)) browser.selectedTab.linkedBrowser.focus();
+      return;
+    }
     event.preventDefault(); event.stopPropagation();
     if (scrollings.get(data)?.cancelled) return;
-    if (scrollings.has(data)) scrollStep(data, bindings[index].direction);
+    if (scrolling) scrollStep(data, bindings[index].direction);
     else accordionStep(data, bindings[index].direction);
   }
   win.addEventListener("keydown", onScrollingModifier, true);

@@ -17,7 +17,7 @@ export function parseBinding(value) {
   if (!last || modifiers[last]) return null;
   binding.key = names[last] ?? (/^f([1-9]|1\d|2[0-4])$/.test(last) ? last.toUpperCase() : [...last].length === 1 ? last : null);
   if (!binding.key) return null;
-  binding.label = [binding.ctrlKey && 'Ctrl', binding.altKey && 'Alt', binding.shiftKey && 'Shift', binding.metaKey && 'Command', binding.key === ' ' ? 'Space' : binding.key === '+' ? 'Plus' : binding.key.length === 1 ? binding.key.toUpperCase() : binding.key].filter(Boolean).join('+');
+  binding.label = [binding.ctrlKey && 'Ctrl', binding.altKey && 'Alt', binding.shiftKey && 'Shift', binding.metaKey && 'Command', binding.key === ' ' ? 'Space' : binding.key === '+' ? 'Plus' : binding.key === '-' ? 'Minus' : binding.key.length === 1 ? binding.key.toUpperCase() : binding.key].filter(Boolean).join('+');
   return binding;
 }
 
@@ -80,6 +80,8 @@ export const layoutShortcuts = [
   { key: 'accordion-previous', direction: -1, label: 'Previous tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Left' },
   { key: 'accordion-next', direction: 1, label: 'Next tab in layout', value: 'Auto', defaultBinding: 'Alt+Shift+Right' },
   { key: 'layout-menu', label: 'Open split layout menu', value: 'Auto', defaultBinding: 'Alt+Shift+L', macDefaultBinding: 'Ctrl+Shift+L' },
+  { key: 'accordion-widen', resize: 1, label: 'Widen expanded accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Plus', macDefaultBinding: 'Ctrl+Shift+Plus' },
+  { key: 'accordion-narrow', resize: -1, label: 'Narrow expanded accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Minus', macDefaultBinding: 'Ctrl+Shift+Minus' },
 ];
 
 function defaultLayoutBinding(setting, platform = currentPlatform()) {

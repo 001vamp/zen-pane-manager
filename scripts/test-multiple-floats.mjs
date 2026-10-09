@@ -98,6 +98,17 @@ const container = tab => tab.linkedBrowser.parent;
 const header = tab => container(tab).querySelector('.pane-float-header');
 const accordionResize = side => doc.querySelectorAll(`.pane-accordion-resize-${side}`).find(node => !node.hidden);
 const flush = () => {const fn=queued;queued=null;fn?.();};
+const guardedPress = (node, name, fallback) => {
+  let prevented = false, stopped = false;
+  node.emit(name, {
+    button:0, pointerId:41, clientX:500,
+    preventDefault(){ prevented = true; },
+    stopPropagation(){ stopped = true; },
+    stopImmediatePropagation(){ stopped = true; },
+  });
+  if (!stopped) fallback?.();
+  return { prevented, stopped };
+};
 controller.add(tabs[0],tabs[1],'float');
 const originalBrowser = tabs[1].linkedBrowser;
 const before = container(tabs[1]).getAttribute('--pane-float-x');
@@ -198,6 +209,17 @@ assert.equal(container(tabs[0]).getAttribute('--pane-accordion-right'),'88px','b
 assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'),'44px');
 const resizeRight = accordionResize('right');
 assert.equal(resizeRight.hidden, false);
+for (const name of ['pointerdown', 'mousedown', 'click']) {
+  const beforePress = win.gBrowser.selectedTab;
+  const press = guardedPress(resizeRight, name, () => { win.gBrowser.selectedTab = tabs[3]; });
+  assert.equal(press.prevented, true, `${name} on resize target is prevented`);
+  assert.equal(press.stopped, true, `${name} on resize target cannot reach strip selection`);
+  assert.equal(win.gBrowser.selectedTab, beforePress, `${name} on resize target does not switch tabs`);
+  if (name === 'pointerdown') {
+    assert.equal(resizeRight.capturedPointer, 41, 'resize target captures the pointer before drag');
+    resizeRight.emit('pointercancel', {pointerId:41});
+  }
+}
 resizeRight.emit('pointerdown', {button:2, pointerId:7, clientX:500});
 resizeRight.emit('pointermove', {pointerId:7, clientX:520}); flush();
 assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), '44px', 'secondary button does not resize');
@@ -327,6 +349,20 @@ assert.equal(win.gBrowser.selectedTab,tabs[3],'disabled navigation does not swit
 shortcutPrefs.set('mod.pane.accordion-next','Ctrl+F8');
 win.emit('keydown',{key:'F8',ctrlKey:true});
 assert.equal(win.gBrowser.selectedTab,tabs[0],'custom shortcuts update without reloading');
+shortcutPrefs.clear();
+const shortcutRightBefore = parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right'));
+win.emit('keydown',{key:'+',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+const shortcutRightWider = parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right'));
+assert.ok(shortcutRightWider < shortcutRightBefore, 'widen shortcut expands the active accordion tab');
+win.emit('keydown',{key:'-',code:'Minus',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), shortcutRightBefore);
+for (let i = 0; i < 30; i++) win.emit('keydown',{key:'-',code:'Minus',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 880);
+for (let i = 0; i < 30; i++) win.emit('keydown',{key:'+',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 64);
+shortcutPrefs.set('mod.pane.accordion-widen','Disabled');
+win.emit('keydown',{key:'+',code:'Equal',altKey:true,shiftKey:true,ctrlKey:false,metaKey:false});
+near(parseFloat(container(tabs[0]).getAttribute('--pane-accordion-right')), 64, 'disabled resize shortcut does not resize');
 shortcutPrefs.clear();
 container(tabs[0]).querySelector('.pane-accordion-bar').remove();
 controller.sync(); flush();
