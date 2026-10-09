@@ -34,6 +34,8 @@
     3px 0 12px light-dark(rgb(0 0 0 / .14), rgb(0 0 0 / .38));
 }
 .browserSidebarContainer[pane-accordion] > .zen-view-splitter-header-container { display: none !important; }
+:root #tabbrowser-tabpanels[zen-split-view] > .browserSidebarContainer[pane-accordion-active][zen-split],
+.browserSidebarContainer[pane-accordion-active][zen-split] { overflow: visible !important; }
 .browserSidebarContainer[pane-accordion]::after {
   content: ""; position: absolute; inset: 10px 0; z-index: 6; pointer-events: none;
   box-sizing: border-box; border-radius: 0;
@@ -1025,7 +1027,7 @@
 }
 .pane-accordion-resize[hidden] { display: none !important; }
 .pane-accordion-resize-left { left: 0; }
-.pane-accordion-resize-right { right: 0; }
+.pane-accordion-resize-right { right: -8px; }
 .pane-accordion-resize:hover, .pane-accordion-resize[data-dragging] {
   background: var(--pane-hover);
 }

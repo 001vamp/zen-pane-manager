@@ -279,26 +279,29 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const target = el("div", `pane-accordion-resize pane-accordion-resize-${side}`);
     target.setAttribute("title", "Drag to resize the expanded tab");
     target.addEventListener("pointerdown", event => {
-      if (event.button !== 0 || state.active !== tab) return;
+      if (event.button !== 0 || state.active !== tab || !target.isConnected) return;
       const index = data.tabs.indexOf(tab);
+      if (index < 0 || accordions.get(data) !== state) return;
       const neighbors = side === "left" ? index : data.tabs.length - index - 1;
       if (!neighbors) return;
       event.preventDefault(); event.stopPropagation(); hideEdgeHint();
       finishAccordionResize(state);
       const width = view.tabBrowserPanel.getBoundingClientRect().width;
+      if (!(width > 0)) return;
       state.resizeDrag = { target, tab, pointerId:event.pointerId, x:event.clientX,
-        expanded:accordionSizes(width, data.tabs.length, state.expandedWidth).expanded,
+        expanded:accordionSizes(width, data.tabs.length, state.expandedRatio * width).expanded,
         scale:(side === "left" ? -1 : 1) * (data.tabs.length - 1) / neighbors };
       target.setAttribute("data-dragging", "");
-      target.setPointerCapture(event.pointerId);
+      target.setPointerCapture?.(event.pointerId);
     });
     target.addEventListener("pointermove", event => {
       const drag = state.resizeDrag;
       if (!drag || drag.target !== target || drag.pointerId !== event.pointerId) return;
       if (state.active !== drag.tab) { finishAccordionResize(state); return; }
       const width = view.tabBrowserPanel.getBoundingClientRect().width;
-      state.expandedWidth = accordionSizes(width, data.tabs.length,
-        drag.expanded + (event.clientX - drag.x) * drag.scale).expanded;
+      if (!(width > 0)) { finishAccordionResize(state); return; }
+      state.expandedRatio = accordionSizes(width, data.tabs.length,
+        drag.expanded + (event.clientX - drag.x) * drag.scale).expanded / width;
       if (!state.resizeFrame) state.resizeFrame = win.requestAnimationFrame(() => {
         state.resizeFrame = 0;
         if (accordions.get(data) === state) applyAccordion();
@@ -313,9 +316,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function applyAccordion() {
     for (const [data, state] of [...accordions]) {
       if (!view._data.includes(data) || data.tabs.length < 2) { clearAccordion(data); continue; }
+      if (state.resizeDrag && !state.resizeDrag.target.isConnected) finishAccordionResize(state);
       const containers = data.tabs.map(containerFor);
       for (const [container, handle] of [...state.handles]) {
         if (!containers.includes(container)) {
+          if (state.resizeDrag && container.contains(state.resizeDrag.target)) finishAccordionResize(state);
           handle.remove(); state.handles.delete(container);
           container.querySelector(".pane-accordion-bar")?.remove();
           container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
@@ -341,7 +346,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       // Presentation only: leave Zen's tree and divider sizes untouched.
       view.removeSplitters();
       const width = view.tabBrowserPanel.getBoundingClientRect().width;
-      const { strip } = accordionSizes(width, data.tabs.length, state.expandedWidth);
+      const { strip } = accordionSizes(width, data.tabs.length, state.expandedRatio * width);
       for (let i = 0; i < data.tabs.length; i++) {
         const tab = data.tabs[i], container = containers[i];
         if (!container) continue;
@@ -361,7 +366,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         container.style.setProperty("--pane-accordion-line-left", i < activeIndex || (active && i > 0) ? "var(--pane-accordion-border-width)" : "0px");
         container.style.setProperty("--pane-accordion-line-right", i > activeIndex || (active && i < data.tabs.length - 1) ? "var(--pane-accordion-border-width)" : "0px");
         let handle = state.handles.get(container);
-        if (!handle || !container.querySelector(".pane-accordion-bar")?.contains(handle) || !container.querySelector(".pane-accordion-controls")) {
+        if (!handle || !container.querySelector(".pane-accordion-bar")?.contains(handle) || !container.querySelector(".pane-accordion-controls")
+          || !container.querySelector(".pane-accordion-resize-left") || !container.querySelector(".pane-accordion-resize-right")) {
+          if (state.resizeDrag && container.contains(state.resizeDrag.target)) finishAccordionResize(state);
           container.querySelector(".pane-accordion-bar")?.remove();
           container.querySelectorAll(".pane-accordion-resize").forEach(node => node.remove());
           handle = button("", () => {

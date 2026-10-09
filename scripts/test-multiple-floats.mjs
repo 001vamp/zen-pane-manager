@@ -54,6 +54,8 @@ class Node {
   removeEventListener(name, fn) { this.listeners.set(name,(this.listeners.get(name) ?? []).filter(f => f !== fn)); }
   emit(name, props = {}) { for (const fn of this.listeners.get(name) ?? []) fn({ target:this, preventDefault(){}, stopPropagation(){}, ...props }); }
   setPointerCapture(id) { this.capturedPointer = id; }
+  hasPointerCapture(id) { return this.capturedPointer === id; }
+  releasePointerCapture(id) { assert.equal(this.capturedPointer, id); this.capturedPointer = null; }
   focus() { this.ownerDocument.activeElement = this; }
   animate(keyframes,options) { const animation = {keyframes,options,cancel(){this.cancelled=true;}}; this.animations.push(animation); return animation; }
 }
@@ -221,6 +223,60 @@ resizeLeft.emit('pointercancel', {pointerId:9});
 assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), '44px', 'left drag shrinks and cancellation flushes');
 resizeLeft.emit('pointermove', {pointerId:9, clientX:900}); flush();
 assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), '44px', 'cancel ends the drag');
+
+// Uneven neighbors: the active pane has one strip to its left and two to its right.
+controller.join(data, tabs[1], 'right');
+controller.arrange(tabs[2], 'accordion');
+const fourPaneTree = data.layoutTree;
+const fourRight = container(tabs[2]).querySelector('.pane-accordion-resize-right');
+fourRight.emit('pointerdown', {button:0, pointerId:10, clientX:500});
+fourRight.emit('pointermove', {pointerId:10, clientX:484}); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 52);
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-right')), 104);
+fourRight.emit('pointerup', {pointerId:10});
+const fourLeft = container(tabs[2]).querySelector('.pane-accordion-resize-left');
+fourLeft.emit('pointerdown', {button:0, pointerId:11, clientX:500});
+fourLeft.emit('pointermove', {pointerId:11, clientX:508}); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 60);
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-right')), 120);
+fourLeft.emit('pointerup', {pointerId:11});
+assert.equal(data.layoutTree, fourPaneTree, 'resizing preserves the native four-pane tree');
+const panelBounds = view.tabBrowserPanel.getBoundingClientRect;
+view.tabBrowserPanel.getBoundingClientRect = () => ({width:2400, height:900});
+controller.sync(); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 120);
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-right')), 240);
+view.tabBrowserPanel.getBoundingClientRect = panelBounds;
+controller.sync(); flush();
+
+fourRight.emit('pointerdown', {button:0, pointerId:12, clientX:500});
+fourRight.emit('pointermove', {pointerId:12, clientX:492});
+container(tabs[2]).querySelector('.pane-accordion-bar').remove();
+controller.sync(); flush();
+assert.equal(fourRight.hasAttribute('data-dragging'), false, 'rebuilding ends the old drag');
+assert.equal(fourRight.capturedPointer, null, 'rebuilding releases pointer capture');
+const rebuiltRight = container(tabs[2]).querySelector('.pane-accordion-resize-right');
+assert.notEqual(rebuiltRight, fourRight);
+const rebuiltWidth = container(tabs[2]).getAttribute('--pane-accordion-left');
+fourRight.emit('pointermove', {pointerId:12, clientX:900}); flush();
+assert.equal(container(tabs[2]).getAttribute('--pane-accordion-left'), rebuiltWidth, 'old target cannot continue resizing');
+fourRight.emit('pointerdown', {button:0, pointerId:14, clientX:500});
+assert.equal(fourRight.capturedPointer, null, 'removed targets cannot start another drag');
+rebuiltRight.emit('pointerdown', {button:0, pointerId:13, clientX:500});
+rebuiltRight.emit('pointermove', {pointerId:13, clientX:516}); flush();
+near(parseFloat(container(tabs[2]).getAttribute('--pane-accordion-left')), 56);
+rebuiltRight.emit('pointerup', {pointerId:13});
+// Missing strips are rebuilt rather than dereferenced during layout.
+rebuiltRight.emit('pointerdown', {button:0, pointerId:15, clientX:500});
+rebuiltRight.remove();
+controller.sync(); flush();
+assert.equal(rebuiltRight.capturedPointer, null, 'removing the strip itself ends its drag');
+assert.ok(container(tabs[2]).querySelector('.pane-accordion-resize-right'));
+controller.arrange(tabs[2], 'tiles');
+data.tabs = data.tabs.filter(tab => tab !== tabs[1]);
+tabs[1].splitView = false;
+data.layoutTree = tiledTree;
+controller.arrange(tabs[2], 'accordion');
 const hoverHandle = container(tabs[0]).querySelector('.pane-accordion-handle');
 hoverHandle.emit('pointerenter',{clientX:20,clientY:50});
 assert.equal(doc.querySelector('.pane-accordion-edge-hint'),null,'hint waits before appearing');
