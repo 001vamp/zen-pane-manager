@@ -275,11 +275,12 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     drag?.target.removeAttribute("data-dragging");
     if (drag?.target.hasPointerCapture?.(drag.pointerId)) drag.target.releasePointerCapture(drag.pointerId);
   }
-  function accordionResizeHandle(data, state, tab, side) {
+  function accordionResizeHandle(data, state, side) {
     const target = el("div", `pane-accordion-resize pane-accordion-resize-${side}`);
     target.setAttribute("title", "Drag to resize the expanded tab");
     target.addEventListener("pointerdown", event => {
-      if (event.button !== 0 || state.active !== tab || !target.isConnected) return;
+      const tab = state.active;
+      if (event.button !== 0 || !target.isConnected) return;
       const index = data.tabs.indexOf(tab);
       if (index < 0 || accordions.get(data) !== state) return;
       const neighbors = side === "left" ? index : data.tabs.length - index - 1;
@@ -290,14 +291,16 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       if (!(width > 0)) return;
       state.resizeDrag = { target, tab, pointerId:event.pointerId, x:event.clientX,
         expanded:accordionSizes(width, data.tabs.length, state.expandedRatio * width).expanded,
-        scale:(side === "left" ? -1 : 1) * (data.tabs.length - 1) / neighbors };
+        // A handle beside one neighbor moves the expanded width across every strip on that side.
+        scale:(side === "left" ? -1 : 1) * (data.tabs.length - 1) / neighbors,
+        memberCount:data.tabs.length };
       target.setAttribute("data-dragging", "");
       target.setPointerCapture?.(event.pointerId);
     });
     target.addEventListener("pointermove", event => {
       const drag = state.resizeDrag;
       if (!drag || drag.target !== target || drag.pointerId !== event.pointerId) return;
-      if (state.active !== drag.tab) { finishAccordionResize(state); return; }
+      if (state.active !== drag.tab || data.tabs.length !== drag.memberCount) { finishAccordionResize(state); return; }
       const width = view.tabBrowserPanel.getBoundingClientRect().width;
       if (!(width > 0)) { finishAccordionResize(state); return; }
       state.expandedRatio = accordionSizes(width, data.tabs.length,
@@ -316,7 +319,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function applyAccordion() {
     for (const [data, state] of [...accordions]) {
       if (!view._data.includes(data) || data.tabs.length < 2) { clearAccordion(data); continue; }
-      if (state.resizeDrag && !state.resizeDrag.target.isConnected) finishAccordionResize(state);
+      if (state.resizeDrag && (!state.resizeDrag.target.isConnected || data.tabs.length !== state.resizeDrag.memberCount)) finishAccordionResize(state);
       const containers = data.tabs.map(containerFor);
       for (const [container, handle] of [...state.handles]) {
         if (!containers.includes(container)) {
@@ -397,11 +400,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
             controls.append(control);
           }
           bar.append(handle, controls);
-          container.append(bar, accordionResizeHandle(data, state, tab, "left"), accordionResizeHandle(data, state, tab, "right"));
+          container.append(bar, accordionResizeHandle(data, state, "left"), accordionResizeHandle(data, state, "right"));
           state.handles.set(container, handle);
         }
-        container.querySelector(".pane-accordion-resize-left").hidden = !active || i === 0;
-        container.querySelector(".pane-accordion-resize-right").hidden = !active || i === data.tabs.length - 1;
+        container.querySelector(".pane-accordion-resize-left").hidden = i !== activeIndex - 1;
+        container.querySelector(".pane-accordion-resize-right").hidden = i !== activeIndex + 1;
         handle.textContent = tab.label;
         handle.removeAttribute("title");
         handle.setAttribute("aria-label", `${tab.label}. ${active ? "Click to arrange. " : ""}Use Left and Right to switch tabs`);
