@@ -85,7 +85,7 @@ Thumbnails use in-memory `PageThumbs.captureToCanvas` (see `PRIVACY.md`). A gene
 
 ### The other surface: layout menu
 
-`#pane-layout-menu` is a second dialog. It rearranges the **current** tab: right / below / grid / float / accordion / scrolling / snapshot / return to normal / restore tiles / add another tab. Arrows and Enter work because every row is a focused button.
+`#pane-layout-menu` is a second dialog. On **main** it rearranges the **current** tab: right / below / grid / float / accordion / scrolling / return to normal / restore tiles / **Reset all column widths** (scrolling only) / add another tab. No snapshot row (`normalizeMode` maps leftover `snapshot` to `scrolling`). Arrows and Enter work because every row is a focused button. Arrange-scope must match that list.
 
 Every `openMenu(tab, anchor)` call site today:
 
@@ -212,36 +212,40 @@ Commands
 
 **Empty query, solo tab:** same idea, default verb is Split right; Existing splits are rows (`Join “A + B”`, `Unsplit “A + B”`).
 
-**Two-tab verbs on a solo tab:** today’s layout menu still lists Split right, Split below, Grid, and Floating when you are not in a split. `arrange()` then calls `chooseTab` (opens the picker) for right/below, and for grid when the group has fewer than three tabs. Floating on a true solo tab still needs a background pane. The hub must not open itself from inside itself.
+**Two-tab verbs on a solo tab:** main’s layout menu still lists Split right, Split below, Grid, and Floating when you are not in a split. `arrange()` then calls `chooseTab` (opens the picker) for right/below, and for grid when the group has fewer than three tabs. Floating on a true solo tab **throws today**; the hub instead asks for a destination (CHANGELOG). The hub must not open itself from inside itself.
 
 On Enter (or click) of a two-tab verb while `groupSize < 2` (and Grid while `groupSize < 3`): **stay in the same overlay**. Switch from arrange-scope to destination rows in place, set the default-layout chip to that verb, and do not close or reopen. Then Enter on a tab runs `add`/`join` with that mode.
 
 `arrangeOptions` rows carry `needsDestination`. The **reducer** returns `{ type: 'needDestination', mode }`. `activatePlan` never sees this and never returns it (it has no `groupSize`). `add()` is not called without a target.
 
-Escape from `needDestination` (narrowest first): if the query is non-empty, **clear it and stay on destination rows**. Next Escape leaves `needDestination` (back to arrange-scope verbs) and **restores the previous default-layout chip**. Does not close the hub.
+Escape from `needDestination` (narrowest first): if the query is non-empty, **clear it and stay on destination rows**. Next Escape leaves `needDestination` (back to arrange-scope verbs) and restores `pending.previousMode` onto the default-layout chip. Does not close the hub.
 
-`arrangeOptions({ groupSize: 1 })`: right, below, grid, float — all `needsDestination: true`. **Hide** Return to a normal tab. No accordion/scrolling/snapshot/tiles.
+`arrangeOptions({ groupSize: 1 })`: right, below, grid, float — all `needsDestination: true`. **Hide** Return to a normal tab. No accordion/scrolling/tiles/reset.
 
-`arrangeOptions({ groupSize: 2 })`: right/below/float have `needsDestination: false`; **Grid has `needsDestination: true`** (Zen needs a third tab); accordion/scrolling/snapshot have `needsDestination: false`.
+`arrangeOptions({ groupSize: 2 })`: right/below/float have `needsDestination: false`; **Grid has `needsDestination: true`** (Zen needs a third tab); accordion/scrolling have `needsDestination: false`. **Reset all column widths** only when `presentation === 'scrolling'` (`needsDestination: false`). No snapshot row.
+
+**Float on a solo tab is a behavior change.** Today `arrange(tab, 'float')` calls `floatTab`, which throws “Choose another tab to float alongside this one”. The hub instead uses `needsDestination: true` and stays open for a target. Call that out in CHANGELOG; do not describe it as today’s rule. At `groupSize: 2` with one pane already floating, `floatTab` still throws “Keep one tab in the background before floating another”. A verb that throws follows today’s `run()`: **close the hub, then toast**. Do not leave the overlay open on that failure.
 
 **Typing:** filter tabs by title/host (substring). A verb row is listed only when the query is empty **or the trimmed, lower-cased query equals one of that verb’s keywords**. Not a whole-word-in-a-phrase match: `grid notes` does not list Grid. Trailing space is trimmed, so `grid ` does.
 
 Keywords (complete):
 
-| Verb | Keywords |
-| --- | --- |
-| Replace | `replace` |
-| Split right | `right` |
-| Split below | `below` |
-| Add to grid / Grid | `grid` |
-| Floating | `float`, `floating` |
-| Horizontal accordion | `accordion` |
-| Snapshot scrolling | `snapshot` |
-| Scrolling | `scrolling` |
-| Unsplit | `unsplit` |
-| Restore tiled layout | `restore`, `tiles` |
-| Return to a normal tab | `return`, `normal` |
-| Add another tab | `add` |
+| Verb | Keywords | Enter |
+| --- | --- | --- |
+| Replace | `replace` | `{ type: 'needDestination', mode: 'replace' }`. Split only; hidden when solo. Pick a tab, then `replacePane`. |
+| Split right | `right` | `needDestination` when the row says so; else `arrange(current, 'right')`. |
+| Split below | `below` | Same with `'below'`. |
+| Add to grid / Grid | `grid` | `needDestination` when `groupSize < 3`; else `arrange(current, 'grid')`. |
+| Floating | `float`, `floating` | `needDestination` when solo; else `arrange(current, 'float')`. |
+| Horizontal accordion | `accordion` | `arrange(current, 'accordion')`. |
+| Scrolling | `scrolling` | `arrange(current, 'scrolling')`. |
+| Reset all column widths | `reset` | Only when `presentation === 'scrolling'`. Clears `state.widths`, sets `follow`. Not a layout mode. |
+| Unsplit | `unsplit` | `unsplit` the current / named group. |
+| Restore tiled layout | `restore`, `tiles` | `arrange(current, 'tiles')`. |
+| Return to a normal tab | `return`, `normal` | `arrange(current, 'normal')`. Hidden when `groupSize: 1`. |
+| Add another tab | `add` | `{ type: 'needDestination', mode: 'right' }` (today’s `chooseTab(tab, 'right')`). |
+
+No **snapshot** verb. Main’s layout menu has none; leftover `snapshot` is `normalizeMode` → `scrolling`.
 
 On a solo tab with several existing splits, `unsplit` lists an Unsplit row per group. Prefixes never promote a verb: `acc` does not list Accordion.
 
@@ -263,7 +267,7 @@ On a solo tab with several existing splits, `unsplit` lists an Unsplit row per g
 
 **Physical brackets, not characters.** On a US layout Shift turns `[` into `{`, so the reducer must use `event.code`. AltGr on Windows is Ctrl+Alt; `!altKey` keeps that from cycling. On layouts where `[` / `]` need AltGr (German, Nordic, and others) this chord cannot be typed — **non-US layouts are out of scope for the native gate**; the chip click and chevron menu are the fallback.
 
-**Peek transitions** (search stays focused; reducer state `peek: null | { row, actionIndex }`):
+**Peek transitions — keys** go through `reduce(state, keyInput)`. Search stays focused. `peek: null | { row, actionIndex }`.
 
 | From | Input | To |
 | --- | --- | --- |
@@ -276,15 +280,20 @@ On a solo tab with several existing splits, `unsplit` lists an Unsplit row per g
 | Peek open | ↑ / ↓ | Move among peek actions (wrap). List selection unchanged |
 | Peek open | Tab / Shift+Tab | Peek closed, then next/previous control |
 | Peek open | Ctrl+Shift+BracketLeft/Right | Peek closed, then cycle default layout |
+| Peek open | any other key (Backspace, Delete, Home/End, PageUp/Down, printable, paste, …) | Peek closed, then that key’s normal handling |
+
+↑/↓ stay inside peek. Escape only leaves peek. Any other unlisted key leaves peek and then runs its normal handling.
+
+**Peek transitions — pointer** stay at the **edge** (DOM handler). They do **not** go through `reduce`. `keyInput` stays key fields only. Do not retag the second argument as hover/click.
+
+| From | Input | To |
+| --- | --- | --- |
 | Peek open | click More… | Same as Enter on More… |
 | Peek open | click any other peek action | Run it, close hub |
 | Peek open | hover another result row | **No-op.** Selection and peek stay put (today `mouseenter` would steal the row). |
 | Peek open | click another result row | Peek closed, that row selected (do not activate) |
 | Peek open | click the layout chip / chevron | Peek closed, then chip/menu handles the click |
 | Peek open | click backdrop | Close hub (same as today) |
-| Peek open | any other key (Backspace, Delete, Home/End, PageUp/Down, printable, paste, …) | Peek closed, then that key’s normal handling |
-
-↑/↓ stay inside peek. Escape only leaves peek. Any other unlisted key leaves peek and then runs its normal handling.
 
 **A11y:** search is a `combobox`; results are a `listbox`; the selected row is `aria-activedescendant` on the input. Peek is a **second listbox** (not buttons inside an `option` — that was problem #5). While peek is open, `aria-activedescendant` points at the selected peek action.
 
@@ -386,13 +395,13 @@ Also:
 
 - `filterDestinations(list, query)`
 - `defaultMode({ inSplit })`
-- `activatePlan({ kind, mode })` — returns `{ op: 'replace'|'add'|'join'|'unsplit'|'arrange', mode }` without touching Zen. **No `shiftKey`.** Float is just `mode: 'float'`. Key meaning lives only in the reducer. **Today’s split-card rule lives here:** `activatePlan({ kind: 'split', mode: 'replace' })` returns `{ op: 'join', mode: 'grid' }` (`openCandidate` currently does `requestedMode || (openMode === "replace" ? "grid" : openMode)` because `join` rejects `replace`). Confirm `normalizeMode` would throw on `replace`; the plan absorbs that.
+- `activatePlan({ kind, mode })` — returns `{ op: 'replace'|'add'|'join'|'unsplit'|'arrange', mode }` without touching Zen. **No `shiftKey`.** Float is just `mode: 'float'`. Key meaning lives only in the reducer. **Today’s split-card rule lives here:** `activatePlan({ kind: 'split', mode: 'replace' })` returns `{ op: 'join', mode: 'grid' }` (`openCandidate` currently does `requestedMode || (openMode === "replace" ? "grid" : openMode)`). `normalizeMode` only maps `snapshot` → `scrolling`; `replace` passes through. What rejects it is `join`’s “Unknown layout” guard (`layoutTypes` is right/below/grid only). The plan absorbs that.
 
 Wire `openCandidate` to the plan. **No visual change.** Callers pass an explicit `mode`. Until PR2, the DOM handler may still branch on Shift at the edge, **only for split cards:** `mode: (rowKind === 'split' && event.shiftKey) ? 'float' : openMode`. On a tab row, Shift+Enter is plain Enter (Replace still replaces). After PR2 the handler only executes the reducer’s `{ type, mode }` and never reads Shift. The model never sees Shift.
 
-Put a pure `arrangeOptions({ groupSize, currentMode, presentation })` in a tiny **`layout-options.mjs`**. `multiwindow.mjs` and `picker-model.mjs` both import it. Do **not** export it from `multiwindow.mjs` — Node fixtures should not load the browser-facing controller. It returns the layout-menu rows with today’s rules (accordion/scrolling/snapshot only when `groupSize >= 2`, `tiles` only when presentation is accordion/scrolling, current-mode flag). `openMenu` renders that list; it does not build it inline. The hub will reuse it in PR4 so the “arrange-scope equals the layout menu” test compares one source.
+Put a pure `arrangeOptions({ groupSize, currentMode, presentation })` in a tiny **`layout-options.mjs`**. `multiwindow.mjs` and `picker-model.mjs` both import it. Do **not** export it from `multiwindow.mjs` — Node fixtures should not load the browser-facing controller. It returns the layout-menu rows that **main** shows: accordion/scrolling only when `groupSize >= 2`, `tiles` only when presentation is accordion/scrolling, **Reset all column widths** only when `presentation === 'scrolling'`, current-mode flag. **No snapshot row.** `openMenu` renders that list; it does not build it inline. The hub will reuse it in PR4 so the “arrange-scope equals the layout menu” test compares one source.
 
-**Tests:** table-driven Node fixtures for eligibility (solo vs in-split, other-split tabs excluded, workspace, empty tabs), substring filter, default mode. `activatePlan({ kind: 'split', mode: 'float' })` vs `mode: 'grid'` vs **`mode: 'replace'` → `{ op: 'join', mode: 'grid' }`**. `arrangeOptions` tables: `groupSize: 1` (right/below/grid/float only, **Normal hidden**, all four `needsDestination: true`); `groupSize: 2` (Grid `needsDestination: true`, Accordion/Scrolling `false`); 4 panes; each presentation. **No reducer tests in this PR** (`picker-keys.mjs` does not exist yet; `needDestination` lives in PR4). Move the source-slicing checks in `test-replacement.mjs` onto the plan object. A fixture that imports the model in Node must not touch `globalThis.gBrowser` or `Services`. Add `picker-model.mjs` and `layout-options.mjs` to `validate.mjs` (package list + capability scan) and to `package.json` `check` (`node --check` + their test scripts).
+**Tests:** table-driven Node fixtures for eligibility (solo vs in-split, other-split tabs excluded, workspace, empty tabs), substring filter, default mode. `activatePlan({ kind: 'split', mode: 'float' })` vs `mode: 'grid'` vs **`mode: 'replace'` → `{ op: 'join', mode: 'grid' }`**. `arrangeOptions` tables: `groupSize: 1` (right/below/grid/float only, **Normal hidden**, all four `needsDestination: true`); `groupSize: 2` (Grid `needsDestination: true`, Accordion/Scrolling `false`); `presentation: 'scrolling'` includes **Reset all column widths**, other presentations do not; 4 panes; each presentation. **No snapshot row in any table.** **No reducer tests in this PR** (`picker-keys.mjs` does not exist yet; `needDestination` lives in PR4). Move the source-slicing checks in `test-replacement.mjs` onto the plan object. A fixture that imports the model in Node must not touch `globalThis.gBrowser` or `Services`. Add `picker-model.mjs` and `layout-options.mjs` to `validate.mjs` (package list + capability scan) and to `package.json` `check` (`node --check` + their test scripts).
 
 **Why first:** every later UI needs this, and it locks the rules we must not break.
 
@@ -404,7 +413,7 @@ A small `picker-keys.mjs`. One reducer for every later PR:
 reduce(state, keyInput)
 ```
 
-`state` is `{ query, expanded, selectedIndex, mode, scope, peek, pending, inSplit, rows }`. Fields that do not exist yet are `null` (`scope`, `peek`, `pending`). `pending` is `null | { needDestination: mode }`. `rows` is the current list (each row may carry `kind` / `needsDestination`). `keyInput` is `{ key, code, keyCode, ctrlKey, shiftKey, altKey, metaKey, isComposing }`. Plain data. No DOM, no `gBrowser`. PR4 fills the nulls; it does not invent a second signature.
+`state` is `{ query, expanded, selectedIndex, mode, scope, peek, pending, inSplit, rows }`. Fields that do not exist yet are `null` (`scope`, `peek`, `pending`). `pending` is `null | { needDestination: mode, previousMode }` — `previousMode` is the default-layout chip before the verb, so Escape can restore it without reading the DOM. `rows` is the current list (each row may carry `kind` / `needsDestination`). `keyInput` is `{ key, code, keyCode, ctrlKey, shiftKey, altKey, metaKey, isComposing }` — **keys only**. Pointer (hover/click) stays at the edge; do not widen this signature. Plain data. No DOM, no `gBrowser`. PR4 fills the nulls; it does not invent a second signature.
 
 If `isComposing` or `keyCode === 229` (IME), **no-op** for Enter, Escape, arrows, Shift+Enter, and the bracket chord — composition commit/cancel must not activate a row or close the hub. Cycle-layout is:
 
@@ -451,7 +460,7 @@ Keep `#pane-open-modes` as an implementation detail or replace with a `[data-mod
 
 Add command rows to the same list:
 
-- From a split: Restore tiled (if accordion/scrolling), Return to a normal tab, Unsplit group, and the presentation layouts as verbs that call `arrange(current, mode)` **without** picking another tab.
+- From a split: Restore tiled (if accordion/scrolling), Return to a normal tab, Unsplit group, **Reset all column widths** (scrolling only), and the presentation layouts as verbs that call `arrange(current, mode)` **without** picking another tab. No snapshot verb.
 - From solo: Existing split rows become `Join …` / `Unsplit …` as sibling rows, not nested widgets. Inner Add/Floating/Unsplit buttons go away; peek (`Shift+Enter`) or the default-layout chip supplies Add vs Float.
 
 **Module boundary:** `multiwindow.mjs` must **not** import `pane.uc.mjs`. Inject `openHub(tab, { scope, anchor })` into `createMultiwindow` (same pattern as today’s `chooseTab`). Layout-menu shortcut dispatch can stay in `onAccordionShortcut`; it calls `openHub` instead of building `#pane-layout-menu`. Every current `openMenu(tab, anchor)` site uses that callback and keeps its anchor:
@@ -466,7 +475,7 @@ Add command rows to the same list:
 
 Opening arrange-scope must run the same **side effects as `openMenu` today**: cancel scrolling overview, drop the snapshot overlay, then show the hub. Read the anchor rect **before** teardown so the dialog is not placed at `0,0` (the scrolling-card menu bug). Keep `getBoundingClientRect()` **floats unrounded until the final style write**, same as divider sizes.
 
-**Reducer:** still `reduce(state, keyInput)` from PR2. PR4 fills `scope`, `peek`, `pending`, `inSplit`, and per-row `needsDestination`. Peek actions are derived from `inSplit` in state, not from the DOM.
+**Reducer:** still `reduce(state, keyInput)` from PR2. PR4 fills `scope`, `peek`, `pending` (`{ needDestination, previousMode }`), `inSplit`, and per-row `needsDestination`. Peek actions are derived from `inSplit` in state, not from the DOM. Hover/click in peek are **edge tests**, not reducer cases.
 
 When the hub opens **in a split** (empty query, not arrange-scope), **the first destination row is selected** (Q2’s Replace default). Arrange this split… is listed but not selected.
 
@@ -476,7 +485,7 @@ Arrange-scope rows come from `layout-options.mjs` `arrangeOptions(...)`, not a s
 
 **Shift+Enter:** from this PR on, the reducer maps it to peek (see the transition table in §3C). It no longer activates Floating. `activatePlan` is unchanged. Document in CHANGELOG and `picker.md`.
 
-**Tests:** arrange-scope list **is** `arrangeOptions` for that tab (right/below/grid/float/accordion/scrolling/snapshot/normal/tiles/add). Choosing a verb does not call `add()`. On a solo tab (`groupSize: 1`), Enter on Split right/below/grid/float is the reducer’s `{ type: 'needDestination', mode }` — overlay stays open, chip set, destination rows shown; `add()` is not called; `activatePlan` is not invoked. Same for **Grid on a 2-pane split** (`groupSize: 2`): Enter goes to destination rows, does not call `add()`. Accordion/Scrolling on 2 panes apply immediately (`needsDestination: false`). Escape: query `not` while picking a destination → first Escape clears `not` and stays in destination picking; second Escape returns to arrange verbs and restores the previous chip. Peek actions: Replace absent when `inSplit` is false; Enter/click More… opens the layout list in place and does not close; hover another result is a no-op. Join/unsplit still hit the existing controller methods (extend `test-multiple-floats.mjs`). Reducer cases for every peek transition in §3C, including the catch-all and hover. Unsplit **closes** the hub. `createMultiwindow` is constructed with `openHub`; `multiwindow.mjs` source does not import `pane.uc.mjs`. **Ordering fixture (not pixel position):** injected mocks, `getBoundingClientRect` on the anchor is called **before** `cancelOverview` / snapshot teardown. Fixtures still do not build the overlay. Placement (`not 0,0`) is native-only. If this PR adds a test file, append it to `package.json` `check` and `validate.mjs`.
+**Tests:** arrange-scope list **is** `arrangeOptions` for that tab (right/below/grid/float/accordion/scrolling/normal/tiles/add, plus **reset** iff scrolling). **No snapshot row.** Choosing a verb does not call `add()`. On a solo tab (`groupSize: 1`), Enter on Split right/below/grid/float is the reducer’s `{ type: 'needDestination', mode }` — overlay stays open, chip set, destination rows shown; `add()` is not called; `activatePlan` is not invoked. Enter on **Add another tab** is `{ type: 'needDestination', mode: 'right' }`. Enter on **Replace** (split only) is `{ type: 'needDestination', mode: 'replace' }`. Same for **Grid on a 2-pane split** (`groupSize: 2`): Enter goes to destination rows, does not call `add()`. Accordion/Scrolling on 2 panes apply immediately (`needsDestination: false`). Enter on Reset (scrolling) clears widths; a throw from `floatTab` (last background pane already floating) **closes the hub then toasts**, matching `run()`. Escape: query `not` while picking a destination → first Escape clears `not` and stays in destination picking; second Escape returns to arrange verbs and restores `pending.previousMode`. Peek **key** transitions: reducer cases for every key row in §3C, including the catch-all. Peek **pointer** (hover no-op, click another row, click More…): edge tests only. Join/unsplit still hit the existing controller methods (extend `test-multiple-floats.mjs`). Unsplit **closes** the hub. `createMultiwindow` is constructed with `openHub`; `multiwindow.mjs` source does not import `pane.uc.mjs`. **Ordering fixture (not pixel position):** injected mocks, `getBoundingClientRect` on the anchor is called **before** `cancelOverview` / snapshot teardown. Fixtures still do not build the overlay. Placement (`not 0,0`) is native-only. If this PR adds a test file, append it to `package.json` `check` and `validate.mjs`.
 
 **Do not** change replace/add rollback in this PR. Keep calling `arrange()` rather than re-deriving divider sizes.
 
@@ -486,13 +495,13 @@ Query filters destination rows by substring. Verb rows appear only when the **tr
 
 Exact-keyword Enter rearranges the current split immediately. **Jasiel decided no confirm.** No undo in PR1–6. Note it in CHANGELOG.
 
-**Tests:** `filterHub(query)` ranking tables. Query `grid` with a tab titled “Grid notes”: Grid verb first, then the tab. Query `grid notes`: **no Grid verb**, tab stays. Query `grid ` (trailing space): Grid verb after trim. Queries `acc`, `gr`, and `flo` with tabs “Accounts” / “Grid notes” / “Float plan”: the matching **tab stays first**; no Accordion/Grid/Floating verb is listed. Every keyword in the §3C table has a row. Query `unsplit` on a solo tab with two other groups: two Unsplit rows. Query `restore` or `tiles` lists Restore tiled layout; `return` or `normal` lists Return this tab to the sidebar. Escape clears query before close. Enter on the Grid verb with query `grid` calls `arrange` with no confirm step.
+**Tests:** `filterHub(query)` ranking tables. Query `grid` with a tab titled “Grid notes”: Grid verb first, then the tab. Query `grid notes`: **no Grid verb**, tab stays. Query `grid ` (trailing space): Grid verb after trim. Queries `acc`, `gr`, and `flo` with tabs “Accounts” / “Grid notes” / “Float plan”: the matching **tab stays first**; no Accordion/Grid/Floating verb is listed. Every keyword in the §3C table has a row (`reset` only when presentation is scrolling; **no `snapshot`**). Query `unsplit` on a solo tab with two other groups: two Unsplit rows. Query `restore` or `tiles` lists Restore tiled layout; `return` or `normal` lists Return this tab to the sidebar. Query `add` lists Add another tab; Enter is `needDestination` with mode `right`. Query `replace` in a split lists Replace; Enter is `needDestination` with mode `replace`. Escape clears query before close. Enter on the Grid verb with query `grid` calls `arrange` with no confirm step.
 
 **Privacy:** still no titles in diagnostics. Previews: only for visible destination rows, still in-memory, still dropped on close (generation counter stays).
 
 ### PR 6 — Docs, skill, screenshots
 
-README, CHANGELOG ( **Shift+Enter no longer floats**; peek instead; **Unsplit now closes the hub** ), picker.md + layout-menu.md (every arrange entry point now “opens the hub in arrange scope”). Stale `pane-current-picker.png` / arrange screenshot. `COMPATIBILITY.md` narrow-picker line. Mac help footer uses `⌃⇧[` / `⌃⇧]`.
+README, CHANGELOG ( **Shift+Enter no longer floats**; peek instead; **Unsplit now closes the hub**; **Floating a solo tab now asks for a destination** instead of throwing ). picker.md + layout-menu.md (every arrange entry point now “opens the hub in arrange scope”). Stale `pane-current-picker.png` / arrange screenshot. `COMPATIBILITY.md` narrow-picker line. Mac help footer uses `⌃⇧[` / `⌃⇧]`.
 
 No user-visible behavior in this PR if PR 4–5 already landed.
 
@@ -516,7 +525,7 @@ C is decided. PR4 is the point of no return for deleting the layout popup.
 
 - Eligibility and filter (PR 1, 5). Model fixtures pass `{ tabs, groups, recentFirst }` — no `gBrowser` / `Services`.
 - `arrangeOptions` tables from `layout-options.mjs` (PR 1, 4).
-- Key state machine (PR 2–4): `reduce(state, keyInput)` with the PR2 shape; `code: 'BracketRight'` with `key: '}'` + Ctrl+Shift cycles; AltGr does not; `isComposing` / `keyCode === 229` no-ops Enter/Escape/arrows/Shift+Enter/brackets; bare `[` types; digits type; Tab = next control; Shift+Enter on a split card = `{ type: 'activate', mode: 'float' }` until PR4 then peek; Shift+Enter on a tab row = same as Enter; Escape stages (clear query before leave-`needDestination`).
+- Key state machine (PR 2–4): `reduce(state, keyInput)` with the PR2 shape (`pending` holds `previousMode`); `code: 'BracketRight'` with `key: '}'` + Ctrl+Shift cycles; AltGr does not; `isComposing` / `keyCode === 229` no-ops Enter/Escape/arrows/Shift+Enter/brackets; bare `[` types; digits type; Tab = next control; Shift+Enter on a split card = `{ type: 'activate', mode: 'float' }` until PR4 then peek; Shift+Enter on a tab row = same as Enter; Escape stages (clear query before leave-`needDestination`). Peek hover/click are edge tests, not reducer cases.
 - New modules listed in `validate.mjs` (package + capability scan) and in `package.json` `check`, or CI is lying.
 - `activatePlan({ kind, mode })` only — no `shiftKey`. Keep existing rollback tests.
 - Markup: combobox + listbox + `aria-activedescendant`; peek is a nested listbox, not controls inside an option. Nested buttons on split cards should be gone by PR 4.
@@ -534,14 +543,14 @@ Update `features/picker.md` and `features/layout-menu.md`:
 - Default-layout cycle with **real** OS Control+Shift+physical `[` / `]`, not synthetic keydown. Footer shows `⌃⇧[` / `⌃⇧]` on Mac.
 - Confirm Option+←/→ still word-jumps in search on Mac; Alt+← is still Back on Windows when a query is present.
 - Type `1Password` and `[Draft]` — must filter, not change mode.
-- Tab order is search, chip, Show all (until PR5), settings, diagnostics, close — not the result rows. Shift+Enter peeks (after PR4); it does not float. **Until PR4**, Shift+Enter on a split card still floats; on a tab row it is still Enter. Peek on a solo tab has no Replace. More… opens the layout list in place. Escape from peek returns to the list. Hover another result while peek is open does nothing.
-- Arrange-scope: accordion / scrolling / restore tiles / unsplit / return to normal. Opening it from a scrolling overview cancels the overview first; from a scrolling-card **more** button the hub is **not** at `0,0`. Layout-menu shortcut while already in arrange-scope is a **no-op**.
+- Tab order is search, chip, Show all (until PR5), settings, diagnostics, close — not the result rows. Shift+Enter peeks (after PR4); it does not float. **Until PR4**, Shift+Enter on a split card still floats; on a tab row it is still Enter. Peek on a solo tab has no Replace. More… opens the layout list in place. Escape from peek returns to the list. Hover another result while peek is open does nothing (pointer at the edge, not the reducer).
+- Arrange-scope: accordion / scrolling / restore tiles / unsplit / return to normal / **Reset all column widths** (scrolling only). **No snapshot row.** Opening it from a scrolling overview cancels the overview first; from a scrolling-card **more** button the hub is **not** at `0,0`. Layout-menu shortcut while already in arrange-scope is a **no-op**.
 - Escape stages; focus returns to the page.
 - Replacement still keeps divider sizes; unsplit keeps origins and **closes** the hub.
 - Non-US AltGr-bracket layouts: NOT RUN unless Jasiel opts in; chip/chevron is the fallback.
 - IME composition Enter/Escape must not activate or close. **NOT RUN** unless a CJK layout is available.
-- Solo tab, arrange-scope, Enter on Split right: hub stays open, chip = Split right, destination list shown; `add` is not called until a tab is chosen. Type a query then Escape: query clears first; a second Escape returns to arrange verbs and restores the previous chip.
-- 2-pane split, arrange-scope, Enter on Grid: destination rows, `add` not called. Enter on Accordion applies immediately.
+- Solo tab, arrange-scope, Enter on Split right or Floating: hub stays open, chip set, destination list shown; `add` is not called until a tab is chosen (Floating no longer throws). Type a query then Escape: query clears first; a second Escape returns to arrange verbs and restores `pending.previousMode`.
+- 2-pane split, arrange-scope, Enter on Grid: destination rows, `add` not called. Enter on Accordion applies immediately. Enter on Reset (scrolling) clears column widths. Floating the last background pane closes the hub and toasts.
 - Default Open Pane shortcut with the hub open still closes it. Layout-menu shortcut with the hub open in the destination view switches to arrange-scope; if already in arrange-scope, no-op.
 - Exact query `grid` + Enter applies Grid immediately (no confirm).
 - Seed pinned / Essential / folder tabs as in the skill.
@@ -562,7 +571,7 @@ Closed: direction **C**; exact-verb Enter **applies immediately, no confirm**; l
 
 4. **Show all vs one list:** retire compact thumbs, or keep thumbs for the first N destination rows? Recommendation: keep thumbs only in the empty-query recent section; searching and verb rows are text. Privacy and speed get better; the current screenshot look stays for the common case.
 
-5. **Snapshot vs scrolling:** PR #7 wants one Scrolling layout. Hub verbs should follow whatever main has when PR 4 lands (one row vs two). Do not invent a third name here.
+5. **Snapshot vs scrolling:** **Closed.** Main already has one Scrolling row. Arrange-scope matches that list: no snapshot verb; leftover `snapshot` is `normalizeMode` → `scrolling`.
 
 6. **Settings/diagnostics:** stay as header icons, or also verb rows (`Open Pane settings`, `Copy diagnostics`)? Recommendation: keep icons; add verb rows so they are searchable. Same actions.
 
@@ -580,7 +589,7 @@ Closed: direction **C**; exact-verb Enter **applies immediately, no confirm**; l
 | --- | --- |
 | `pane.uc.mjs` | Overlay DOM, open/close, replace transaction, shortcut toggle. Owns the hub; passes `openHub` into `createMultiwindow`. |
 | `picker-model.mjs` | Pure eligibility, filter, `defaultMode`, `activatePlan({ kind, mode })`. |
-| `picker-keys.mjs` | Pure `reduce(state, keyInput)`. `state` is `{ query, expanded, selectedIndex, mode, scope, peek, pending, inSplit, rows }`. |
+| `picker-keys.mjs` | Pure `reduce(state, keyInput)`. `state` is `{ query, expanded, selectedIndex, mode, scope, peek, pending, inSplit, rows }`. `pending` is `{ needDestination, previousMode }`. `keyInput` is keys only; pointer stays at the edge. |
 | `layout-options.mjs` | Pure `arrangeOptions`. Imported by `multiwindow.mjs` and the hub. |
 | `multiwindow.mjs` | `add` / `join` / `unsplit` / `arrange` / `openMenu`. Does **not** import `pane.uc.mjs`. |
 | `chrome.css` | Overlay, chips, results, layout menu. |
