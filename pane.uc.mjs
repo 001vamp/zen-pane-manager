@@ -12,6 +12,7 @@ const root = document.documentElement;
 const INSTANCE_KEY = "__paneInstance";
 const DIAGNOSTICS_KEY = "__paneDiagnostics";
 const diagnosticLog = (event, details = {}) => window[DIAGNOSTICS_KEY]?.log?.(event, details);
+const MOD_ID = "zen-pane-manager";
 
 // Sine can reload a user script without restarting the browser. Tear down a
 // previous v0.3+ instance and remove any orphaned UI from older releases.
@@ -966,7 +967,18 @@ const historyProgress = {
   onStateChange() { updateHistoryControls(window); },
 };
 
-function destroy(options = {}) {
+async function paneExplicitlyDisabled() {
+  try {
+    if (Services.prefs.getBoolPref("sine.mods.disable-all", false)) return true;
+    const utils = ChromeUtils.importESModule("chrome://userscripts/content/engine/core/utils.mjs").default;
+    return (await utils.getMods())?.[MOD_ID]?.enabled === false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function destroy(options = {}) {
+  const reload = options.reload ?? !(await paneExplicitlyDisabled());
   diagnosticLog("Pane runtime unloading");
   gBrowser.tabContainer.removeEventListener("TabSelect", schedulePaneButtons);
   for (const [header, state] of toolbarReveals) {
@@ -975,7 +987,7 @@ function destroy(options = {}) {
   }
   toolbarReveals.clear();
   renderGeneration++;
-  multiwindow?.destroy(options);
+  multiwindow?.destroy({ ...options, reload });
   clearTimeout(updateNoticeTimer);
   updateNotice?.remove();
   updateNotice = null;

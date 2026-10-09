@@ -2,7 +2,6 @@
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 const KEY = 'pane-split-v1';
 const MAX_RETRIES = 3;
-const MAX_DEFERRED_BOUNDARIES = 25;
 const INVALID = Symbol('invalid-split-record');
 
 // Only JSON values cross SessionStore; native nodes and parent links stay in memory.
@@ -38,7 +37,7 @@ export function decodeTree(saved, tabs, parent = null, prototypes = {}) {
 
 export function createSplitPersistence(win, origins) {
   const {SessionStore: session, gBrowser: browser, gZenViewSplitter: view} = win;
-  const groups = new WeakMap(), restored = new Set(), deferred = new Map(), deferrals = new Map();
+  const groups = new WeakMap(), restored = new Set(), deferred = new Map();
   let needsRestoreScan = true, lastLayoutState = "";
   const live = tab => tab && tab.isConnected && !tab.closing;
   const parseRecord = raw => {
@@ -125,17 +124,12 @@ export function createSplitPersistence(win, origins) {
       if (members.length < 2) continue;
       let data = view._data.find(data => members.every(tab => data.tabs.includes(tab)) && data.tabs.length === members.length);
       if (data) {
-        groups.set(data, group); restored.add(group); deferred.delete(group); deferrals.delete(group);
+        groups.set(data, group); restored.add(group); deferred.delete(group);
         if (data.tabs.includes(browser.selectedTab) && view._data[view.currentView] !== data) view.activateSplitView(data, true);
         continue;
       }
       // Do not steal tabs from a different native group.
       if (members.some(tab => view._data.some(data => data.tabs.includes(tab))) || members.some(tab => tab.hidden)) {
-        if (retryDeferred) {
-          const skips = (deferrals.get(group) ?? 0) + 1;
-          if (skips >= MAX_DEFERRED_BOUNDARIES) {restored.add(group); deferred.delete(group); deferrals.delete(group); continue;}
-          deferrals.set(group, skips);
-        }
         deferred.set(group, attempts); continue;
       }
       const prototypes = {};
@@ -156,7 +150,7 @@ export function createSplitPersistence(win, origins) {
       map(tree);
       if (data.tabs.includes(browser.selectedTab)) view.activateSplitView(data, true);
       if (view._data[view.currentView] === data) {view.removeSplitters(); view.applyGridLayout(tree);}
-      restored.add(group); deferred.delete(group); deferrals.delete(group);
+      restored.add(group); deferred.delete(group);
     }
     needsRestoreScan = false;
   }
