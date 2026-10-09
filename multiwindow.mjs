@@ -1253,8 +1253,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       if (disposed) return;
       options ??= {};
       const preserveSession = Boolean(origins.shuttingDown || win.closed || windowClosing);
-      if (preserveSession || !options.disable) persistence.save();
-      else persistence.clear();
+      if (preserveSession) persistence.save();
+      else persistence.clear({preserveHidden:true});
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; if (frame) win.cancelAnimationFrame(frame);
