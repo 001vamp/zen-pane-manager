@@ -39,7 +39,7 @@ export function addHistoryControls(win, parent) {
 
 export const layoutTypes = { right: "vsep", below: "hsep", grid: "grid" };
 export const presentationModes = ["accordion", "snapshot", "scrolling"];
-export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", snapshot: "Snapshot scrolling", scrolling: "Scrolling" };
+export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", snapshot: "Snapshot scrolling (prototype)", scrolling: "Scrolling (experimental)" };
 
 export function fitRectangle(rect, width, height) {
   const w = Math.min(Math.max(260, rect.width), width);
@@ -995,20 +995,29 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function copyTree(node) {
     const copy = Object.assign(Object.create(Object.getPrototypeOf(node)), node);
     copy.parent = null;
-    if (node.children) copy.children = node.children.map(copyTree);
+    if (node.children) copy.children = node.children.map(child => {
+      const copyChild = copyTree(child);
+      copyChild.parent = copy;
+      return copyChild;
+    });
     return copy;
+  }
+  function setTreeParent(node, parent = null) {
+    node.parent = parent;
+    if (node.children) for (const child of node.children) setTreeParent(child, node);
+    return node;
   }
   function replaceLeaf(node, tab, replacement) {
     if (!node.children) {
       if (node.tab !== tab) return null;
       for (const [key, value] of Object.entries(node)) {
-        if (!["tab", "children", "parent"].includes(key) && !(key in replacement)) replacement[key] = value;
+        if (!["tab", "children", "parent"].includes(key) && (key === "sizeInParent" || !(key in replacement))) replacement[key] = value;
       }
-      return replacement;
+      return setTreeParent(replacement, node.parent ?? null);
     }
     for (let i = 0; i < node.children.length; i++) {
       const next = replaceLeaf(node.children[i], tab, replacement);
-      if (next) { node.children[i] = next; return node; }
+      if (next) { node.children[i] = next; next.parent = node; return node; }
     }
     return null;
   }
@@ -1017,7 +1026,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const tree = copyTree(snapshot.tree);
     const replaced = replaceLeaf(tree, target, branch);
     if (!replaced) throw new Error("Zen could not find the target pane");
-    return replaced === tree ? tree : replaced;
+    return setTreeParent(replaced === tree ? tree : replaced);
   }
   function add(target, incoming, mode) {
     checkTab(target); checkTab(incoming);
@@ -1044,6 +1053,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       }
       browser.selectedTab = incoming;
       if (mode === "float") floatTab(incoming);
+      else if (mode === "scrolling") startScrolling(incoming, false, presentation.scrolling?.widths);
+      else if (mode === "snapshot") startScrolling(incoming, true, presentation.scrolling?.widths);
       else if (presentationMode) arrange(incoming, mode);
       else if (presentation.scrolling) startScrolling(incoming,presentation.scrolling.snapshot,presentation.scrolling.widths);
 
@@ -1071,7 +1082,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function join(data, incoming, mode = "grid") {
     if (!view._data.includes(data) || data.tabs.length < 2) throw new Error("That split is no longer available");
     if (!layoutTypes[mode] && !["float", ...presentationModes].includes(mode)) throw new Error("Unknown layout");
-    const target = data.tabs.find(tab => !floats.has(tab)) || data.tabs[0];
+    const selected = data.tabs.includes(browser.selectedTab) && !floats.has(browser.selectedTab) ? browser.selectedTab : null;
+    const target = selected || data.tabs.find(tab => !floats.has(tab)) || data.tabs[0];
     add(target, incoming, mode);
   }
   function unsplit(data) {

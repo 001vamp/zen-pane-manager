@@ -426,11 +426,11 @@ function renderSplitCandidate(candidate, index, query, generation) {
   actions.append(unsplit);
   item.append(preview, copy, actions);
   item.addEventListener("mouseenter", () => selectResult(index));
-  item.addEventListener("click", () => { if (!full) openCandidate(candidate, "grid"); });
+  item.addEventListener("click", () => { if (!full) openCandidate(candidate); });
   item.addEventListener("keydown", event => {
     if (event.target !== item) return;
     if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault(); openCandidate(candidate, event.shiftKey ? "float" : "grid");
+      event.preventDefault(); openCandidate(candidate, event.shiftKey ? "float" : null);
     } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault(); selectResult(index + (event.key === "ArrowDown" ? 1 : -1));
     }

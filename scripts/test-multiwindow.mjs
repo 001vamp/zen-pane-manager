@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import { fitRectangle, resizeRectangle, layoutTypes, isSupportedTab, tabWorkspace } from "../multiwindow.mjs";
+import { fitRectangle, resizeRectangle, layoutTypes, modeLabels, isSupportedTab, tabWorkspace } from "../multiwindow.mjs";
 assert.deepEqual(layoutTypes, { right: "vsep", below: "hsep", grid: "grid" });
+assert.equal(modeLabels.scrolling, "Scrolling (experimental)");
+assert.equal(modeLabels.snapshot, "Snapshot scrolling (prototype)");
 assert.deepEqual(fitRectangle({x:900,y:800,width:480,height:420},800,600), {x:320,y:180,width:480,height:420});
 assert.deepEqual(fitRectangle({x:-20,y:-10,width:10,height:20},800,600), {x:0,y:0,width:260,height:180});
 assert.deepEqual(fitRectangle({x:40,y:50,width:480,height:420},200,100), {x:0,y:0,width:200,height:100});

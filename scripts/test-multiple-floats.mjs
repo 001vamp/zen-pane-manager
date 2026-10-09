@@ -49,7 +49,8 @@ let lastLayout;
 const view = {
   _data:[data], currentView:0, MAX_TABS:4, _tabToSplitNode:new Map(),
   tabBrowserPanel:{getBoundingClientRect:()=>({width:1200,height:900})},
-  calculateLayoutTree:tree, removeSplitters(){}, applyGridLayout(t){lastLayout=t;},
+  calculateLayoutTree(tabs,type) { return {...tree(tabs,type), sizeInParent:50}; },
+  removeSplitters(){}, applyGridLayout(t){lastLayout=t;},
   activateSplitView(d){this.currentView=this._data.indexOf(d);},
   splitTabs([target,incoming]) {data.tabs.push(incoming); incoming.splitView=true; data.layoutTree=tree(data.tabs); return data;},
   removeTabFromGroup(tab) {data.tabs=data.tabs.filter(t=>t!==tab);tab.splitView=false;data.layoutTree=tree(data.tabs);},
@@ -129,21 +130,26 @@ const resetCustomTree = () => {
   tabs[4].splitView = false;
 };
 resetCustomTree();
+win.gBrowser.selectedTab = tabs[2];
 controller.join(data, tabs[4], 'right');
 assert.equal(data.gridType, 'vsep', 'joining right preserves the existing group type');
 assert.equal(data.layoutTree.children[0].sizeInParent, 62, 'joining right preserves the resized nested branch');
 assert.equal(data.layoutTree.children[1].sizeInParent, 38, 'joining right preserves sibling size');
-assert.equal(data.layoutTree.children[0].children[1].sizeInParent, 70, 'joining right preserves existing leaf size');
-assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining right keeps the target leaf size on the inserted branch');
-assert.equal(data.layoutTree.children[0].children[0].type, 'vsep', 'joining right splits the target leaf horizontally');
-assert.deepEqual(data.layoutTree.children[0].children[0].children.map(n => n.tab), [tabs[0], tabs[4]]);
+assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining right preserves existing leaf size');
+assert.equal(data.layoutTree.children[0].children[1].sizeInParent, 70, 'joining right keeps the selected leaf size over calculated defaults');
+assert.equal(data.layoutTree.children[0].children[1].type, 'vsep', 'joining right splits the selected leaf horizontally');
+assert.deepEqual(data.layoutTree.children[0].children[1].children.map(n => n.tab), [tabs[2], tabs[4]]);
+assert.equal(data.layoutTree.children[0].parent, data.layoutTree, 'joining right restores parent links on preserved branches');
+assert.equal(data.layoutTree.children[0].children[1].parent, data.layoutTree.children[0], 'joining right parents the inserted branch');
+assert.equal(data.layoutTree.children[0].children[1].children[0].parent, data.layoutTree.children[0].children[1], 'joining right parents inserted leaves');
 resetCustomTree();
+win.gBrowser.selectedTab = tabs[0];
 controller.join(data, tabs[4], 'below');
 assert.equal(data.gridType, 'vsep', 'joining below preserves the existing group type');
 assert.equal(data.layoutTree.children[0].sizeInParent, 62, 'joining below preserves the resized nested branch');
 assert.equal(data.layoutTree.children[1].sizeInParent, 38, 'joining below preserves sibling size');
 assert.equal(data.layoutTree.children[0].children[1].sizeInParent, 70, 'joining below preserves existing leaf size');
-assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining below keeps the target leaf size on the inserted branch');
+assert.equal(data.layoutTree.children[0].children[0].sizeInParent, 30, 'joining below keeps the target leaf size over calculated defaults');
 assert.equal(data.layoutTree.children[0].children[0].type, 'hsep', 'joining below splits the target leaf vertically');
 assert.deepEqual(data.layoutTree.children[0].children[0].children.map(n => n.tab), [tabs[0], tabs[4]]);
 data.tabs = [tabs[0]];
@@ -416,9 +422,13 @@ scrolling.arrange(tabs[0], 'tiles');
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0);
 scrolling.arrange(tabs[0], 'scrolling');
 win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+container(tabs[0]).querySelector('.pane-scrolling-resize').emit('keydown',{key:'ArrowRight'});
 scrolling.arrange(tabs[2],'normal');
 assert.equal(container(tabs[0]).hasAttribute('pane-scrolling'),true,'remaining scrolling split keeps its presentation');
-scrolling.add(tabs[0],tabs[2],'grid');
+scrolling.add(tabs[0],tabs[2],'scrolling');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'),'800px','adding in scrolling mode preserves custom widths');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
 options.origins.shuttingDown=true; scrolling.destroy(); options.origins.shuttingDown=false;
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length, 0, 'unload cleans scrolling headers');
 assert.equal((win.listeners.get('wheel') ?? []).length, 0, 'unload removes wheel interception');
