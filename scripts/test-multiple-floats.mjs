@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createMultiwindow, presentationModes } from '../multiwindow.mjs';
+import { encodeTree } from '../split-persistence.mjs';
 
 // Minimal browser-chrome fixture exercising the controller with real DOM-like events.
 class Node {
@@ -58,7 +59,7 @@ const view = {
 const win = new Node(doc); let queued;
 const timers = new Map(); let timerId = 0;
 const motion = new Node(doc); motion.matches = false;
-Object.assign(win, {document:doc, AbortController, gZenViewSplitter:view,
+Object.assign(win, {document:doc, AbortController, navigator:{platform:'Win32'}, gZenViewSplitter:view,
   gBrowser:{tabs,selectedTab:tabs[0],tabContainer:new Node(doc)},
   requestAnimationFrame:fn => { queued=fn; return 1; }, cancelAnimationFrame(){queued=null;},
   setTimeout:fn => { timers.set(++timerId,fn); return timerId; }, clearTimeout:id => timers.delete(id),
@@ -438,6 +439,9 @@ console.log('Multiple floats and accordion: navigation, state preservation, limi
 assert.equal(savedScrollings.size,3,'scrolling metadata survives unload');
 const restoredScrolling=createMultiwindow(win,{...options,prefs:{...prefs,getIntPref:(key,fallback)=>fallback}}); flush();
 assert.equal(doc.querySelectorAll('.pane-scrolling-header').length,3,'scrolling returns automatically after restart');
+win.emit('keydown', {type:'keydown',altKey:true,shiftKey:true});
+assert.equal(container(tabs[0]).getAttribute('--pane-scrolling-width'),'800px','custom column width round-trips through SessionStore');
+win.emit('keyup',{type:'keyup',altKey:false,shiftKey:false});
 restoredScrolling.arrange(tabs[0],'tiles');
 assert.equal(savedScrollings.size,0,'explicit tiles clears scrolling persistence');
 restoredScrolling.destroy();
@@ -525,3 +529,19 @@ for (const mode of ['right', 'below', 'grid', ...presentationModes, 'float']) {
   }
 }
 console.log('Picker layouts: add and join preserve pages and apply every layout.');
+
+// Persist the actual tree produced by PR #1's join path, then hydrate it over
+// native defaults. There is no second layout model to reconcile.
+savedSplits.clear(); savedScrollings.clear(); savedLayouts.clear(); savedFloats.clear();
+resetCustomTree();
+win.gBrowser.selectedTab=tabs[2];
+const savingJoin=createMultiwindow(win,options); flush();
+savingJoin.join(data,tabs[4],'right'); flush();
+const joinedTree=encodeTree(data.layoutTree,data.tabs);
+assert.equal(joinedTree.children[0].children[1].sizeInParent,70);
+options.origins.shuttingDown=true; savingJoin.destroy(); options.origins.shuttingDown=false;
+assert.deepEqual(JSON.parse(savedSplits.get(tabs[0])).tree,joinedTree,'saved layout uses the live joined tree and its preserved sizes');
+data.layoutTree=tree(data.tabs);
+const recoveringJoin=createMultiwindow(win,options); flush();
+assert.deepEqual(encodeTree(data.layoutTree,data.tabs),joinedTree,'joined nested sizes round-trip over native defaults');
+recoveringJoin.destroy();
