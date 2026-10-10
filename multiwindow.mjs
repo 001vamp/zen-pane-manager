@@ -459,18 +459,14 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     state.abort.abort();
     stopScrollingPaint(state);
     state.snapshotOverlay?.remove();
-    state.snapshotToken = (state.snapshotToken ?? 0) + 1;
     for (const container of state.containers) {
       container.querySelector('.pane-scrolling-header')?.remove();
       container.querySelector('.pane-scrolling-reveal')?.remove();
-      container.querySelector('.pane-scrolling-resize')?.remove();
-      container.querySelector('.pane-scrolling-shield')?.remove();
-      container.removeAttribute('pane-scrolling-overview');
       container.removeAttribute('pane-scrolling-hidden');
       container.removeAttribute('pane-scrolling-landing');
       container.removeAttribute('pane-scrolling-toolbar-active');
       container.removeAttribute('pane-scrolling');
-      for (const key of ['x', 'width']) container.style.removeProperty(`--pane-scrolling-${key}`);
+      container.style.removeProperty('--pane-scrolling-width');
     }
     if (!preserveSession && session) for (const tab of state.savedTabs ?? data.tabs) if (tab.isConnected && !tab.closing) session.deleteCustomTabValue(tab,scrollingKey);
     scrollings.delete(data);
@@ -528,14 +524,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       for (const container of [...state.containers]) if (!data.tabs.some(tab => containerFor(tab) === container)) {
         container.querySelector('.pane-scrolling-header')?.remove();
         container.querySelector('.pane-scrolling-reveal')?.remove();
-        container.querySelector('.pane-scrolling-resize')?.remove();
-        container.querySelector('.pane-scrolling-shield')?.remove();
-        container.removeAttribute('pane-scrolling-overview');
         container.removeAttribute('pane-scrolling-hidden');
         container.removeAttribute('pane-scrolling-landing');
         container.removeAttribute('pane-scrolling-toolbar-active');
         container.removeAttribute('pane-scrolling');
-        for (const key of ['x', 'width']) container.style.removeProperty(`--pane-scrolling-${key}`);
+        container.style.removeProperty('--pane-scrolling-width');
         state.containers.delete(container);
       }
       const geometry = scrollingGeometry(data, state);
@@ -622,7 +615,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     for (const [icon, title, action] of [
       ['back', 'Previous scrolling tab', () => scrollStep(data, -1)],
       ['forward', 'Next scrolling tab', () => scrollStep(data, 1)],
-      ['grid', 'Reset column to default width', () => { state.widths.delete(tab); state.follow = true; applyScrolling(); }],
+      ['grid', 'Reset column to default width', () => { state.widths.delete(tab); applyScrolling(); }], // keep the current pan; do not jump back to the selected tab
     ]) {
       const control = button('', action, 'pane-scrolling-control');
       control.setAttribute('aria-label', title); control.title = title;
@@ -642,20 +635,29 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     resize.setAttribute('aria-orientation', 'vertical');
     resize.setAttribute('aria-label', 'Resize column. Double-click to reset width');
     let drag = null;
+    const finishDrag = () => {
+      const pointerId = drag?.pointerId;
+      drag = null;
+      resize.removeAttribute('data-dragging');
+      if (pointerId != null && resize.hasPointerCapture?.(pointerId)) resize.releasePointerCapture(pointerId);
+    };
     const setWidth = value => {
+      // Drop the drag if the overview closed or this card was removed mid-drag.
+      if (!state.overview || !resize.isConnected) { finishDrag(); return; }
       const viewport = scrollingGeometry(data,state).viewport;
       state.widths.set(tab, scrollingColumnWidth(viewport,value)); state.follow = false; state.selected = browser.selectedTab; applyScrolling();
     };
     resize.addEventListener('pointerdown', event => {
       if (event.button !== 0) return;
       event.preventDefault(); event.stopPropagation();
-      drag = {x:event.clientX, width:scrollingGeometry(data,state).widths[data.tabs.indexOf(tab)]};
+      drag = {x:event.clientX, width:scrollingGeometry(data,state).widths[data.tabs.indexOf(tab)], pointerId:event.pointerId};
+      resize.setAttribute('data-dragging', '');
       resize.setPointerCapture(event.pointerId);
     }, {signal:state.abort.signal});
     resize.addEventListener('pointermove', event => {
       if (drag) setWidth(drag.width + event.clientX - drag.x);
     }, {signal:state.abort.signal});
-    for (const name of ['pointerup','pointercancel','lostpointercapture']) resize.addEventListener(name, () => { drag = null; }, {signal:state.abort.signal});
+    for (const name of ['pointerup','pointercancel','lostpointercapture']) resize.addEventListener(name, finishDrag, {signal:state.abort.signal});
     resize.addEventListener('dblclick', () => { state.widths.delete(tab); applyScrolling(); }, {signal:state.abort.signal});
     resize.addEventListener('keydown', event => {
       if (!['ArrowLeft','ArrowRight','Home'].includes(event.key)) return;
@@ -1213,7 +1215,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       menu.append(b);
     }
     if (scrollings.has(group)) {
-      const reset=button('Reset all column widths',()=>run(()=>{const state=scrollings.get(group);state.widths.clear();state.follow=true;applyScrolling();}), 'pane-layout-add');
+      const reset=button('Reset all column widths',()=>run(()=>{const state=scrollings.get(group);state.widths.clear();applyScrolling();}), 'pane-layout-add'); // keep the current pan; do not jump back to the selected tab
       menu.append(reset);
     }
     const add = button("", () => { closeMenu(); chooseTab(tab, "right"); }, "pane-layout-add");
