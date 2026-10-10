@@ -1,10 +1,10 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker-edge";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker-focus";
 import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
 import { pickerBinding, pickerShortcutAction } from "./keybindings.mjs?pane=0.11.0-hub-fix";
-import { reduce, selectedIndexForKey, selectionAfterRender, shouldDeferEnterToButton } from "./picker-keys.mjs?pane=0.11.0-picker-edge";
+import { reduce } from "./picker-keys.mjs?pane=0.11.0-picker-focus";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -250,7 +250,7 @@ function closePicker(restoreFocus = true) {
   if (restoreFocus) oldTarget?.linkedBrowser?.focus();
 }
 
-function selectResult(index) {
+function selectResult(index, { moveFocus = false } = {}) {
   if (!filtered.length) return;
   selectedIndex = ((index % filtered.length) + filtered.length) % filtered.length;
   const items = [...results.querySelectorAll(".pane-item")];
@@ -259,6 +259,7 @@ function selectResult(index) {
     item.tabIndex = i === selectedIndex ? 0 : -1;
   });
   items[selectedIndex]?.scrollIntoView({ block: "nearest" });
+  if (moveFocus) items[selectedIndex]?.focus();
   if (filtered[selectedIndex]?.kind === "split") {
     document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${openMode === "replace" ? "Add" : modeLabels[openMode]}</span><span><kbd>Shift</kbd>+<kbd>Enter</kbd> Floating</span><span><kbd>Esc</kbd> Cancel</span>`;
   } else {
@@ -277,7 +278,7 @@ function highlighted(text, query) {
   return frag;
 }
 
-function renderResults({ keepSelection = false } = {}) {
+function renderResults() {
   const generation = ++renderGeneration;
   const query = search.value.trim().toLocaleLowerCase();
   const matches = filterDestinations(candidates.map(tab => tab.kind === "split"
@@ -372,7 +373,7 @@ function renderResults({ keepSelection = false } = {}) {
       capturePreview(tab, preview, generation);
     }
   });
-  if (filtered.length) selectResult(selectionAfterRender(selectedIndex, filtered.length, { keepSelection }));
+  if (filtered.length) selectResult(0);
 }
 
 function renderSplitCandidate(candidate, index, query, generation) {
@@ -465,7 +466,8 @@ async function capturePreview(tab, canvas, generation) {
   } catch { canvas.remove(); }
 }
 
-function setMode(mode, { keepSelection = false } = {}) {
+// Change the chip and the verbs on each row. Do not rebuild the list.
+function paintMode(mode) {
   mode = normalizeMode(mode);
   openMode = mode;
   modeBar.querySelectorAll("button").forEach(b => {
@@ -474,8 +476,19 @@ function setMode(mode, { keepSelection = false } = {}) {
     b.querySelector(".pane-mode-check")?.remove();
     if (selected) { const check = paneIcon(document, "check"); check.classList.add("pane-mode-check"); b.append(check); }
   });
-  document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[mode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
-  renderResults({ keepSelection });
+  for (const [index, item] of [...results.querySelectorAll(".pane-item")].entries()) {
+    const row = filtered[index];
+    if (!row || row.kind === "split") continue;
+    item.setAttribute("aria-label", `${modeLabels[openMode]}: ${tabTitle(row)}`);
+    const action = item.querySelector(".pane-action");
+    if (action) action.textContent = modeLabels[openMode];
+  }
+  if (filtered.length) selectResult(selectedIndex);
+}
+
+function setMode(mode, { rebuild = false } = {}) {
+  paintMode(mode);
+  if (rebuild) renderResults();
 }
 
 function openCandidate(tab, requestedMode = null) {
@@ -613,6 +626,12 @@ function buildPicker() {
 
   overlay.addEventListener("mousedown", onBackdropMouseDown);
   dialog.addEventListener("keydown", onPickerDialogKey);
+  results.addEventListener("focusin", event => {
+    const item = event.target?.closest?.(".pane-item");
+    if (!item) return;
+    const index = [...results.querySelectorAll(".pane-item")].indexOf(item);
+    if (index >= 0) selectResult(index);
+  });
   search.addEventListener("input", renderResults);
 }
 
@@ -703,7 +722,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   applyAppearance();
   expanded = false;
   search.value = "";
-  setMode(openMode);
+  setMode(openMode, { rebuild: true });
   overlay.hidden = false;
   diagnosticLog("picker opened", {
     anchored: anchorToPane,
@@ -921,15 +940,20 @@ function currentPickerState() {
   };
 }
 
+// Enter on Add / Floating / Unsplit should hit that button, not the row.
+function shouldDeferEnterToButton(target) {
+  if (target === search) return false;
+  const item = target?.closest?.(".pane-item");
+  if (item && target === item) return false;
+  return Boolean(target?.closest?.("button"));
+}
+
 function applyPickerKey(event) {
-  if (event.key === "Enter" && shouldDeferEnterToButton(event.target, search)) return;
-  const items = [...results.querySelectorAll(".pane-item")];
-  const focused = selectedIndexForKey(currentPickerState(), event.target, items);
-  if (focused !== selectedIndex && focused >= 0) selectResult(focused);
+  if (event.key === "Enter" && shouldDeferEnterToButton(event.target)) return;
   const { state, action } = reduce(currentPickerState(), pickerKeyInput(event));
   if (!action) return;
   if (action.preventDefault) event.preventDefault();
-  if (action.type === "cycleMode") setMode(state.mode, { keepSelection: true });
+  if (action.type === "cycleMode") paintMode(state.mode);
   else if (action.type === "clearQuery") {
     search.value = "";
     expanded = false;
@@ -940,8 +964,9 @@ function applyPickerKey(event) {
     renderResults();
     search.focus();
   } else if (action.type === "close") closePicker();
-  else if (action.type === "move") selectResult(state.selectedIndex);
-  else if (action.type === "activate" && filtered[state.selectedIndex]) {
+  else if (action.type === "move") {
+    selectResult(state.selectedIndex, { moveFocus: results.contains(document.activeElement) });
+  } else if (action.type === "activate" && filtered[state.selectedIndex]) {
     openCandidate(filtered[state.selectedIndex], action.mode);
   }
 }

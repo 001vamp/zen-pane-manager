@@ -4,36 +4,11 @@
 import { modeLabels } from "./layout-modes.mjs?pane=0.11.0-picker";
 import { isHubCycleChord } from "./keybindings.mjs?pane=0.11.0-hub-fix";
 
-export { isHubCycleChord };
-
 // One reducer for every later hub PR. Pointer (hover/click) stays at the edge.
 // scope / peek / pending stay null until those PRs fill them in.
+// This file stays inputs-in, actions-out: no DOM nodes.
 
 const IME = input => Boolean(input.isComposing || input.keyCode === 229);
-
-export function rowIndexForEventTarget(target, items = []) {
-  const item = typeof target?.closest === "function" ? target.closest(".pane-item") : null;
-  if (!item) return -1;
-  return items.indexOf(item);
-}
-
-export function selectedIndexForKey(state, target, items = []) {
-  const focused = rowIndexForEventTarget(target, items);
-  return focused >= 0 ? focused : state.selectedIndex;
-}
-
-export function selectionAfterRender(previous, count, { keepSelection = false } = {}) {
-  if (!count) return 0;
-  if (!keepSelection) return 0;
-  return Math.min(Math.max(previous ?? 0, 0), count - 1);
-}
-
-export function shouldDeferEnterToButton(target, search) {
-  if (target === search) return false;
-  const item = typeof target?.closest === "function" ? target.closest(".pane-item") : null;
-  if (item && target === item) return false;
-  return Boolean(typeof target?.closest === "function" && target.closest("button"));
-}
 
 // Solo tabs do not show Replace. The chip bar still lists every other layout.
 export function visibleModes({ inSplit } = {}) {

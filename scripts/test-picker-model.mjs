@@ -70,6 +70,17 @@ const old = tab("old", { title: "Old tab", lastUsed: 1 });
 }
 
 {
+  const listed = eligibleDestinations({
+    target: tab("here"),
+    currentGroupTabs: [tab("here"), tab("mate")],
+    tabs: [notes],
+    groups: [{ tabs: [tab("a"), tab("b")] }],
+    recentFirst: true,
+  });
+  assert.equal(listed.some(row => row.kind === "split"), false, "currentGroupTabs alone means in-split even if splitView is stale");
+}
+
+{
   const mate = tab("mate");
   const listed = eligibleDestinations({
     target,

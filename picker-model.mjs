@@ -33,6 +33,9 @@ export function eligibleDestinations({
   groups = [],
   recentFirst = true,
 } = {}) {
+  // In-split if Zen already marked the tab, or the caller handed us this split's
+  // members. That second check covers a stale splitView flag so we still hide
+  // other-group cards and skip tabs already in this split.
   const inSplit = Boolean(target?.splitView) || currentGroupTabs.length > 0;
   const currentIds = idSet(currentGroupTabs);
   const listed = (tabs ?? []).filter(tab =>
