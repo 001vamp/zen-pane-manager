@@ -635,22 +635,29 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     resize.setAttribute('aria-orientation', 'vertical');
     resize.setAttribute('aria-label', 'Resize column. Double-click to reset width');
     let drag = null;
+    const finishDrag = () => {
+      const pointerId = drag?.pointerId;
+      drag = null;
+      resize.removeAttribute('data-dragging');
+      if (pointerId != null && resize.hasPointerCapture?.(pointerId)) resize.releasePointerCapture(pointerId);
+    };
     const setWidth = value => {
       // Drop the drag if the overview closed or this card was removed mid-drag.
-      if (!state.overview || !resize.isConnected) { drag = null; return; }
+      if (!state.overview || !resize.isConnected) { finishDrag(); return; }
       const viewport = scrollingGeometry(data,state).viewport;
       state.widths.set(tab, scrollingColumnWidth(viewport,value)); state.follow = false; state.selected = browser.selectedTab; applyScrolling();
     };
     resize.addEventListener('pointerdown', event => {
       if (event.button !== 0) return;
       event.preventDefault(); event.stopPropagation();
-      drag = {x:event.clientX, width:scrollingGeometry(data,state).widths[data.tabs.indexOf(tab)]};
+      drag = {x:event.clientX, width:scrollingGeometry(data,state).widths[data.tabs.indexOf(tab)], pointerId:event.pointerId};
+      resize.setAttribute('data-dragging', '');
       resize.setPointerCapture(event.pointerId);
     }, {signal:state.abort.signal});
     resize.addEventListener('pointermove', event => {
       if (drag) setWidth(drag.width + event.clientX - drag.x);
     }, {signal:state.abort.signal});
-    for (const name of ['pointerup','pointercancel','lostpointercapture']) resize.addEventListener(name, () => { drag = null; }, {signal:state.abort.signal});
+    for (const name of ['pointerup','pointercancel','lostpointercapture']) resize.addEventListener(name, finishDrag, {signal:state.abort.signal});
     resize.addEventListener('dblclick', () => { state.widths.delete(tab); applyScrolling(); }, {signal:state.abort.signal});
     resize.addEventListener('keydown', event => {
       if (!['ArrowLeft','ArrowRight','Home'].includes(event.key)) return;
