@@ -4,6 +4,7 @@ All notable changes to Pane are documented here.
 
 ## Unreleased
 
+- Let Control+Shift+[ and Control+Shift+] (the physical bracket keys) cycle the picker layout chips while search stays focused. The highlight and a Tab-focused row move together; cycling or clicking a chip paints chips and row verbs in place so the highlighted row, focus, and thumbnails stay put. Hover follows a focused row but leaves Add / Floating / Unsplit and search alone, and ignores mouseovers caused by keyboard or wheel scrolling (the highlight stays until a real pointer move). Recording that chord as Open Pane or a layout shortcut is rejected. An already-saved copy still opens the picker, but does not toggle it closed while the overlay is open. A pre-existing non-US Ctrl+Shift+* layout-menu shortcut still fires when the picker is closed.
 - Remove experimental and prototype labels from Scrolling, Horizontal accordion, and settings. Saved layout IDs and preference keys are unchanged.
 
 ## 0.11.0 — 2026-10-05

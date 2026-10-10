@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the Mozilla Public License, v. 2.0.
 // You can obtain a copy at https://mozilla.org/MPL/2.0/.
 import { numericSettings, colorSettings, conditionMatches } from './appearance.mjs?pane=0.11.0-labels';
-import { shortcutSettings } from './keybindings.mjs?pane=0.11.0-macos-shortcut';
+import { shortcutSettings } from './keybindings.mjs?pane=0.11.0-hub-fix';
 try {
   // This page is served from Sine's privileged chrome URI, never from the web.
   document.getElementById('show-updates').addEventListener('click', () => {

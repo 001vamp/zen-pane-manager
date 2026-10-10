@@ -1,8 +1,10 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-modules";
-import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker-focus";
+import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
+import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
-import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
+import { pickerBinding, pickerShortcutAction } from "./keybindings.mjs?pane=0.11.0-hub-fix";
+import { reduce } from "./picker-keys.mjs?pane=0.11.0-picker-focus";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -50,6 +52,7 @@ let candidates = [];
 let filtered = [];
 let selectedIndex = 0;
 let expanded = false;
+let pickerInSplit = false;
 let paneAnchorTab = null;
 let toastTimer;
 let buttonObserver = null;
@@ -105,26 +108,36 @@ function displayUrl(tab) {
   } catch (e) { return ""; }
 }
 
+function tabRecord(tab) {
+  return {
+    id: tab,
+    title: tabTitle(tab),
+    url: displayUrl(tab),
+    lastUsed: lastUsed(tab),
+    splitView: Boolean(tab.splitView),
+    closing: Boolean(tab.closing),
+    hidden: Boolean(tab.hidden),
+    supported: isSupportedTab(tab),
+    connected: Boolean(tab.isConnected),
+    ref: tab,
+  };
+}
+
 function eligibleTabs(target, data) {
   const workspace = workspaceId(target);
-  const tabs = [...gBrowser.tabs].filter(tab =>
-    tab !== target && !data?.tabs.includes(tab) && !tab.closing && !tab.hidden &&
-    isSupportedTab(tab) &&
-    !tab.splitView && workspaceId(tab) === workspace
-  );
-  if (boolPref(PREF.recent, true)) tabs.sort((a, b) => lastUsed(b) - lastUsed(a));
-  const groups = target.splitView ? [] : splitter()._data.filter(group =>
-    group.tabs.length >= 2 && !group.tabs.includes(target) &&
-    group.tabs.every(tab => !tab.closing && tab.isConnected && workspaceId(tab) === workspace)
-  ).map(group => ({ kind: "split", group }));
-  return [...groups, ...tabs];
+  return eligibleDestinations({
+    target: tabRecord(target),
+    currentGroupTabs: (data?.tabs ?? []).map(tabRecord),
+    tabs: [...gBrowser.tabs].filter(tab => workspaceId(tab) === workspace).map(tabRecord),
+    groups: splitter()._data
+      .filter(group => group.tabs.every(tab => workspaceId(tab) === workspace))
+      .map(group => ({ tabs: group.tabs.map(tabRecord), ref: group })),
+    recentFirst: boolPref(PREF.recent, true),
+  }).map(item => item.kind === "split" ? { kind: "split", group: item.group.ref } : item.ref);
 }
 
 const candidateTitle = candidate => candidate.kind === "split"
   ? candidate.group.tabs.map(tabTitle).join(" + ") : tabTitle(candidate);
-const candidateSearch = candidate => candidate.kind === "split"
-  ? candidate.group.tabs.map(tab => `${tabTitle(tab)} ${displayUrl(tab)}`).join(" ")
-  : `${tabTitle(candidate)} ${displayUrl(candidate)}`;
 
 function showToast(message, kind = "info") {
   let toast = document.getElementById("pane-toast");
@@ -229,6 +242,7 @@ function closePicker(restoreFocus = true) {
   renderGeneration++;
   results.replaceChildren();
   targetTab = null;
+  pickerInSplit = false;
   paneAnchorTab = null;
   positionDialog();
   candidates = [];
@@ -236,20 +250,54 @@ function closePicker(restoreFocus = true) {
   if (restoreFocus) oldTarget?.linkedBrowser?.focus();
 }
 
-function selectResult(index) {
+function pickerRows() {
+  return [...results.querySelectorAll(".pane-item")];
+}
+
+function selectResult(index, { moveFocus = false } = {}, items = pickerRows()) {
   if (!filtered.length) return;
   selectedIndex = ((index % filtered.length) + filtered.length) % filtered.length;
-  const items = [...results.querySelectorAll(".pane-item")];
   items.forEach((item, i) => {
     item.setAttribute("aria-selected", String(i === selectedIndex));
     item.tabIndex = i === selectedIndex ? 0 : -1;
   });
   items[selectedIndex]?.scrollIntoView({ block: "nearest" });
+  if (moveFocus) items[selectedIndex]?.focus();
   if (filtered[selectedIndex]?.kind === "split") {
     document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${openMode === "replace" ? "Add" : modeLabels[openMode]}</span><span><kbd>Shift</kbd>+<kbd>Enter</kbd> Floating</span><span><kbd>Esc</kbd> Cancel</span>`;
   } else {
     document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[openMode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
   }
+}
+
+// Last real mouse position. Same coords after a keyboard scroll are not a hover.
+const pointer = { x: NaN, y: NaN };
+
+function onResultsPointerMove(event) {
+  if (event.clientX === pointer.x && event.clientY === pointer.y) return;
+  pointer.x = event.clientX;
+  pointer.y = event.clientY;
+  const items = pickerRows();
+  const item = event.target?.closest?.(".pane-item");
+  if (!item) return;
+  const index = items.indexOf(item);
+  if (index >= 0) hoverResult(index, items);
+}
+
+// Hover a different row only when the focused thing is a row, not Add / Unsplit.
+function hoverResult(index, items = pickerRows()) {
+  if (index === selectedIndex) return;
+  const focused = document.activeElement;
+  if (items.some(row => row !== focused && row.contains(focused))) return;
+  selectResult(index, { moveFocus: items.includes(focused) }, items);
+}
+
+function onResultsFocusIn(event) {
+  const items = pickerRows();
+  const item = event.target?.closest?.(".pane-item");
+  if (!item) return;
+  const index = items.indexOf(item);
+  if (index >= 0 && index !== selectedIndex) selectResult(index, {}, items);
 }
 
 function highlighted(text, query) {
@@ -266,9 +314,10 @@ function highlighted(text, query) {
 function renderResults() {
   const generation = ++renderGeneration;
   const query = search.value.trim().toLocaleLowerCase();
-  const matches = candidates.filter(tab =>
-    candidateSearch(tab).toLocaleLowerCase().includes(query)
-  );
+  const matches = filterDestinations(candidates.map(tab => tab.kind === "split"
+    ? { kind: "split", tabs: tab.group.tabs.map(member => ({ title: tabTitle(member), url: displayUrl(member) })), ref: tab }
+    : { kind: "tab", title: tabTitle(tab), url: displayUrl(tab), ref: tab }
+  ), query).map(item => item.ref);
   const showAll = Boolean(query) || expanded;
   const previewCount = numericValue("recent-count", Services.prefs);
   filtered = showAll ? matches : matches.slice(0, previewCount);
@@ -345,7 +394,6 @@ function renderResults() {
     action.className = "pane-action";
     action.textContent = modeLabels[openMode];
     item.append(iconBox, copy, action);
-    item.addEventListener("mouseenter", () => selectResult(index));
     item.addEventListener("click", () => openCandidate(tab));
     results.appendChild(item);
     if (!showAll && !tab.hasAttribute("pending")) {
@@ -357,8 +405,7 @@ function renderResults() {
       capturePreview(tab, preview, generation);
     }
   });
-  selectedIndex = 0;
-  if (filtered[0]?.kind === "split") selectResult(0);
+  if (filtered.length) selectResult(0);
 }
 
 function renderSplitCandidate(candidate, index, query, generation) {
@@ -431,14 +478,12 @@ function renderSplitCandidate(candidate, index, query, generation) {
   });
   actions.append(unsplit);
   item.append(preview, copy, actions);
-  item.addEventListener("mouseenter", () => selectResult(index));
   item.addEventListener("click", () => { if (!full) openCandidate(candidate); });
   item.addEventListener("keydown", event => {
     if (event.target !== item) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault(); openCandidate(candidate, event.shiftKey ? "float" : null);
-    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault(); selectResult(index + (event.key === "ArrowDown" ? 1 : -1));
+    if (event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      openCandidate(candidate, event.shiftKey ? "float" : openMode);
     }
   });
   results.append(item);
@@ -452,7 +497,8 @@ async function capturePreview(tab, canvas, generation) {
   } catch { canvas.remove(); }
 }
 
-function setMode(mode) {
+// Change the chip and the verbs on each row. Do not rebuild the list.
+function paintMode(mode) {
   mode = normalizeMode(mode);
   openMode = mode;
   modeBar.querySelectorAll("button").forEach(b => {
@@ -461,27 +507,38 @@ function setMode(mode) {
     b.querySelector(".pane-mode-check")?.remove();
     if (selected) { const check = paneIcon(document, "check"); check.classList.add("pane-mode-check"); b.append(check); }
   });
-  document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[mode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
-  renderResults();
+  for (const [index, item] of [...results.querySelectorAll(".pane-item")].entries()) {
+    const row = filtered[index];
+    if (!row || row.kind === "split") continue;
+    item.setAttribute("aria-label", `${modeLabels[openMode]}: ${tabTitle(row)}`);
+    const action = item.querySelector(".pane-action");
+    if (action) action.textContent = modeLabels[openMode];
+  }
+  if (filtered.length) selectResult(selectedIndex);
+}
+
+function setMode(mode, { rebuild = false } = {}) {
+  paintMode(mode);
+  if (rebuild) renderResults();
 }
 
 function openCandidate(tab, requestedMode = null) {
-  if (tab.kind === "split") {
-    const current = targetTab;
-    const mode = requestedMode || (openMode === "replace" ? "grid" : openMode);
+  const kind = tab.kind === "split" ? "split" : "tab";
+  const plan = activatePlan({ kind, mode: requestedMode || openMode });
+  if (plan.op === "join") {
     try {
-      multiwindow.join(tab.group, current, mode);
+      multiwindow.join(tab.group, targetTab, plan.mode);
       closePicker(false);
     } catch (error) { showToast(error.message || "The split could not be changed", "warning"); }
     return;
   }
-  if (openMode === "replace") {
+  if (plan.op === "replace") {
     multiwindow.clearFloat(true, targetTab);
     replacePane(tab); return;
   }
-  const target = targetTab, mode = openMode;
+  const target = targetTab;
   closePicker(false);
-  try { multiwindow.add(target, tab, mode); }
+  try { multiwindow.add(target, tab, plan.mode); }
   catch (error) { showToast(error.message || "The layout could not be changed", "warning"); }
 }
 
@@ -599,15 +656,10 @@ function buildPicker() {
   root.appendChild(overlay);
 
   overlay.addEventListener("mousedown", onBackdropMouseDown);
-  dialog.addEventListener("keydown", trapDialogFocus);
+  dialog.addEventListener("keydown", onPickerDialogKey);
+  results.addEventListener("pointermove", onResultsPointerMove);
+  results.addEventListener("focusin", onResultsFocusIn);
   search.addEventListener("input", renderResults);
-  search.addEventListener("keydown", event => {
-    if (event.key === "ArrowDown") { event.preventDefault(); selectResult(selectedIndex + 1); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); selectResult(selectedIndex - 1); }
-    else if (event.key === "Enter" && filtered[selectedIndex]) {
-      event.preventDefault(); openCandidate(filtered[selectedIndex], event.shiftKey ? "float" : null);
-    }
-  });
 }
 
 function applyAppearance() {
@@ -683,10 +735,11 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
     showToast("Choose a regular tab to open Pane", "warning"); return;
   }
   const inSplit = Boolean(data?.tabs.includes(tab));
+  pickerInSplit = inSplit;
   targetTab = tab;
   paneAnchorTab = anchorToPane ? tab : null;
   candidates = eligibleTabs(tab, data);
-  openMode = requestedMode || (inSplit ? "replace" : "right");
+  openMode = requestedMode || defaultMode({ inSplit });
   modeBar.querySelector('[data-mode="replace"]').hidden = !inSplit;
   document.getElementById("pane-arrange-current").hidden = !inSplit;
   heading.textContent = inSplit ? "Replace or arrange this pane" : "Open a tab alongside this one";
@@ -696,7 +749,9 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   applyAppearance();
   expanded = false;
   search.value = "";
-  setMode(openMode);
+  pointer.x = NaN;
+  pointer.y = NaN;
+  setMode(openMode, { rebuild: true });
   overlay.hidden = false;
   diagnosticLog("picker opened", {
     anchored: anchorToPane,
@@ -887,12 +942,80 @@ function schedulePaneButtons() {
   });
 }
 
+function pickerKeyInput(event) {
+  return {
+    key: event.key,
+    code: event.code,
+    keyCode: event.keyCode,
+    ctrlKey: event.ctrlKey,
+    shiftKey: event.shiftKey,
+    altKey: event.altKey,
+    metaKey: event.metaKey,
+    isComposing: event.isComposing,
+  };
+}
+
+function currentPickerState() {
+  return {
+    query: search.value,
+    expanded,
+    selectedIndex,
+    mode: openMode,
+    scope: null,
+    peek: null,
+    pending: null,
+    inSplit: pickerInSplit,
+    rows: filtered.map(row => ({ kind: row.kind === "split" ? "split" : "tab" })),
+  };
+}
+
+// Enter on Add / Floating / Unsplit should hit that button, not the row.
+function shouldDeferEnterToButton(target) {
+  if (target === search) return false;
+  const item = target?.closest?.(".pane-item");
+  if (item && target === item) return false;
+  return Boolean(target?.closest?.("button"));
+}
+
+function applyPickerKey(event) {
+  if (event.key === "Enter" && shouldDeferEnterToButton(event.target)) return;
+  const { state, action } = reduce(currentPickerState(), pickerKeyInput(event));
+  if (!action) return;
+  if (action.preventDefault) event.preventDefault();
+  if (action.type === "cycleMode") paintMode(state.mode);
+  else if (action.type === "clearQuery") {
+    search.value = "";
+    expanded = false;
+    renderResults();
+    search.focus();
+  } else if (action.type === "collapse") {
+    expanded = false;
+    renderResults();
+    search.focus();
+  } else if (action.type === "close") closePicker();
+  else if (action.type === "move") {
+    selectResult(state.selectedIndex, { moveFocus: results.contains(document.activeElement) });
+  } else if (action.type === "activate" && filtered[state.selectedIndex]) {
+    openCandidate(filtered[state.selectedIndex], action.mode);
+  }
+}
+
+function onPickerDialogKey(event) {
+  if (event.key === "Tab") {
+    trapDialogFocus(event);
+    return;
+  }
+  applyPickerKey(event);
+}
+
 function onShortcut(event) {
   const binding = pickerBinding(Services.prefs);
-  if (matchesBinding(event, binding)) {
+  const action = pickerShortcutAction(event, { overlayOpen: Boolean(overlay && !overlay.hidden), binding });
+  if (action === "cycle") return;
+  if (action === "open" || action === "close") {
     event.preventDefault(); event.stopPropagation();
     diagnosticLog("picker shortcut received", { binding: binding.label });
-    overlay.hidden ? openPicker() : closePicker();
+    action === "open" ? openPicker() : closePicker();
   }
 }
 
@@ -901,22 +1024,6 @@ function onBackdropMouseDown(event) {
 }
 
 function trapDialogFocus(event) {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    if (search.value) {
-      search.value = "";
-      expanded = false;
-      renderResults();
-      search.focus();
-    } else if (expanded) {
-      expanded = false;
-      renderResults();
-      search.focus();
-    } else {
-      closePicker();
-    }
-    return;
-  }
   if (event.key !== "Tab") return;
   const focusable = [
     search,
