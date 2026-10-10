@@ -7,7 +7,7 @@ import { modeLabels, normalizeMode } from "../layout-modes.mjs";
 const source = await readFile(new URL("../pane.uc.mjs", import.meta.url), "utf8");
 const take = (start, end) => source.slice(source.indexOf(start), source.indexOf(end));
 const body = [
-  take("function selectResult", "function highlighted"),
+  take("function pickerRows", "function highlighted"),
   take("function paintMode", "function setMode"),
   take("function pickerKeyInput", "function onShortcut"),
 ].join("\n");
@@ -114,7 +114,7 @@ function harness() {
     closePicker() { context.closed = true; },
     renderResults() { context.rebuilt = (context.rebuilt ?? 0) + 1; },
   };
-  vm.runInNewContext(`${body}\nthis.selectResult=selectResult;this.hoverResult=hoverResult;this.onResultsPointerMove=onResultsPointerMove;this.paintMode=paintMode;this.applyPickerKey=applyPickerKey;`, context);
+  vm.runInNewContext(`${body}\nthis.selectResult=selectResult;this.hoverResult=hoverResult;this.onResultsPointerMove=onResultsPointerMove;this.onResultsFocusIn=onResultsFocusIn;this.paintMode=paintMode;this.applyPickerKey=applyPickerKey;`, context);
   const key = extra => ({
     key: "", code: "", keyCode: 0, ctrlKey: false, shiftKey: false, altKey: false, metaKey: false, isComposing: false,
     target: active, preventDefault() { this.prevented = true; },
@@ -158,7 +158,7 @@ function harness() {
   assert.equal(context.selectedIndex, 0);
   context.onResultsPointerMove({ clientX: 20, clientY: 16, target: items[2] });
   assert.equal(context.document.activeElement, unsplit, "hover does not steal focus from Unsplit");
-  assert.equal(context.selectedIndex, 2);
+  assert.equal(context.selectedIndex, 0, "hover does not move the highlight while Unsplit has focus");
 }
 
 {
@@ -189,6 +189,17 @@ function harness() {
 }
 
 {
+  const { context, items, help } = harness();
+  context.selectResult(0);
+  context.onResultsFocusIn({ target: items[2] });
+  assert.equal(context.selectedIndex, 2, "Tab into a row updates the highlight");
+  help.innerHTML = "unchanged";
+  context.onResultsFocusIn({ target: items[2] });
+  assert.equal(help.innerHTML, "unchanged", "focusin skips a no-op re-select");
+  assert.equal(context.selectedIndex, 2);
+}
+
+{
   const { context, items, key, activated } = harness();
   context.document.activeElement = context.search;
   context.selectResult(0);
@@ -204,4 +215,4 @@ const keys = await readFile(new URL("../picker-keys.mjs", import.meta.url), "utf
 assert.ok(!source.includes("export { isHubCycleChord }"));
 assert.ok(!keys.includes("export { isHubCycleChord }"), "the chord lives in keybindings, not a picker re-export");
 assert.ok(!keys.includes(".closest"), "the reducer stays DOM-free");
-console.log("Picker wiring: roving focus, hover follows row focus, nested buttons keep Enter.");
+console.log("Picker wiring: roving focus, hover follows row focus, nested buttons keep highlight.");

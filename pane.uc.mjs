@@ -250,10 +250,13 @@ function closePicker(restoreFocus = true) {
   if (restoreFocus) oldTarget?.linkedBrowser?.focus();
 }
 
-function selectResult(index, { moveFocus = false } = {}) {
+function pickerRows() {
+  return [...results.querySelectorAll(".pane-item")];
+}
+
+function selectResult(index, { moveFocus = false } = {}, items = pickerRows()) {
   if (!filtered.length) return;
   selectedIndex = ((index % filtered.length) + filtered.length) % filtered.length;
-  const items = [...results.querySelectorAll(".pane-item")];
   items.forEach((item, i) => {
     item.setAttribute("aria-selected", String(i === selectedIndex));
     item.tabIndex = i === selectedIndex ? 0 : -1;
@@ -274,17 +277,27 @@ function onResultsPointerMove(event) {
   if (event.clientX === pointer.x && event.clientY === pointer.y) return;
   pointer.x = event.clientX;
   pointer.y = event.clientY;
+  const items = pickerRows();
   const item = event.target?.closest?.(".pane-item");
   if (!item) return;
-  const index = [...results.querySelectorAll(".pane-item")].indexOf(item);
-  if (index >= 0) hoverResult(index);
+  const index = items.indexOf(item);
+  if (index >= 0) hoverResult(index, items);
 }
 
-// Hover moves focus only when the focused thing is the row itself, not Add / Unsplit.
-function hoverResult(index) {
+// Hover a different row only when the focused thing is a row, not Add / Unsplit.
+function hoverResult(index, items = pickerRows()) {
   if (index === selectedIndex) return;
-  const items = [...results.querySelectorAll(".pane-item")];
-  selectResult(index, { moveFocus: items.includes(document.activeElement) });
+  const focused = document.activeElement;
+  if (items.some(row => row !== focused && row.contains(focused))) return;
+  selectResult(index, { moveFocus: items.includes(focused) }, items);
+}
+
+function onResultsFocusIn(event) {
+  const items = pickerRows();
+  const item = event.target?.closest?.(".pane-item");
+  if (!item) return;
+  const index = items.indexOf(item);
+  if (index >= 0 && index !== selectedIndex) selectResult(index, {}, items);
 }
 
 function highlighted(text, query) {
@@ -645,13 +658,7 @@ function buildPicker() {
   overlay.addEventListener("mousedown", onBackdropMouseDown);
   dialog.addEventListener("keydown", onPickerDialogKey);
   results.addEventListener("pointermove", onResultsPointerMove);
-  results.addEventListener("mousemove", onResultsPointerMove);
-  results.addEventListener("focusin", event => {
-    const item = event.target?.closest?.(".pane-item");
-    if (!item) return;
-    const index = [...results.querySelectorAll(".pane-item")].indexOf(item);
-    if (index >= 0 && index !== selectedIndex) selectResult(index);
-  });
+  results.addEventListener("focusin", onResultsFocusIn);
   search.addEventListener("input", renderResults);
 }
 
