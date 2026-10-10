@@ -8,9 +8,9 @@ This is a prioritized plan, not a release schedule. See [the review](docs/pane-p
 
 ## Current position
 
-Pane supports replacing panes, right/below/grid splits, existing-split destinations, multiple floating tabs, horizontal accordion, experimental scrolling, appearance previews, recorded shortcuts, diagnostics, and update guides.
+Pane supports replacing panes, right/below/grid splits, existing-split destinations, multiple floating tabs, horizontal accordion, scrolling, appearance previews, recorded shortcuts, diagnostics, and update guides.
 
-The automated suite passes. The reliability/settings update was committed and pushed as `f59cd52` on `custom-keybindings`. Fixture tests establish controller behavior; they do not establish native rendering, trackpad behavior, or Windows compatibility for the latest changes. Scrolling and snapshot scrolling remain experimental. Floating geometry and pins now have a local session-recovery implementation with fixture coverage; native verification is pending.
+The automated suite passes. The reliability/settings update was committed and pushed as `f59cd52` on `custom-keybindings`. Fixture tests establish controller behavior; they do not establish native rendering, trackpad behavior, or Windows compatibility for the latest changes. PR #6 landed accordion drag-resize; PR #7 combined the scrolling modes into one Scrolling layout. Picker, layout menu, and settings no longer mark these as experimental. Floating geometry and pins now have a local session-recovery implementation with fixture coverage; native verification is pending.
 
 ## Implementation checkpoint — October 2
 
@@ -83,7 +83,7 @@ Avoid a broad rewrite. Move one responsibility at a time while preserving behavi
 - Undo the last layout/replacement action, subject to tab availability and explicit handling of closed outgoing tabs.
 - Named layouts and versioned settings export/import.
 - Vertical accordion, only if it solves a workflow the existing layouts cannot.
-- Choose whether snapshot scrolling earns a permanent place; avoid maintaining two scrolling modes indefinitely without a clear benefit.
+- Snapshot scrolling is now the combined Scrolling layout (PR #7). Keep the `snapshot` compatibility alias; do not add a second scrolling menu choice.
 - Compatibility adapters when supported Zen versions actually diverge.
 
 ## Boundaries
@@ -100,3 +100,7 @@ Keep page state and divider geometry, local-only operation, keyboard access, exp
 ## Main release — October 5
 
 Version 0.11.0 is prepared for the normal `main` update channel. Its README, changelog, and in-app update card identify scrolling, snapshot scrolling, and floating session recovery as optional experimental features. Existing tiled layouts are not automatically switched. Automated checks pass; native Windows and floating restart gates remain open. Phase 5 consolidation remains next.
+
+## Label graduation — October 9
+
+PR #6 (accordion drag-resize) and PR #7 (combined Scrolling) are on `main`. Picker, layout menu, and settings now say Scrolling and Horizontal accordion without experimental or prototype labels. Preference keys, `scrolling`/`accordion` IDs, `pane-scrolling-v1`, and the `snapshot` alias are unchanged. Native input, restart, and Windows gates remain open; this change is labels and docs only.

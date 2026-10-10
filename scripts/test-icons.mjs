@@ -3,11 +3,18 @@ import { readFile } from "node:fs/promises";
 const icons = await readFile("icons.mjs", "utf8");
 const pane = await readFile("pane.uc.mjs", "utf8");
 const multiwindow = await readFile("multiwindow.mjs", "utf8");
+const extracted = await Promise.all([
+  "layout-modes.mjs",
+  "tab-eligibility.mjs",
+  "presentation-geometry.mjs",
+  "presentation-records.mjs",
+  "presentation-snapshot.mjs",
+].map(path => readFile(path, "utf8")));
 for (const name of ["check","down","up","plus","settings","info","close","search","swap","more","back","forward","pin","right","below","grid","float","normal","grip","unsplit"]) {
   assert.match(icons, new RegExp(`\\b${name}:`), `missing Lucide ${name} icon`);
 }
 for (const glyph of ["⚙", "ⓘ", "⌕", "⇄", "⌖", "+ Add another"]) {
-  assert.equal(pane.includes(glyph) || multiwindow.includes(glyph), false, `platform glyph remains: ${glyph}`);
+  assert.equal(pane.includes(glyph) || multiwindow.includes(glyph) || extracted.some(source => source.includes(glyph)), false, `platform glyph remains: ${glyph}`);
 }
 assert.match(icons, /Lucide Icons 1\.41\.0/);
 assert.match(icons, /stroke=\"context-stroke\"/);

@@ -914,7 +914,7 @@
 .pane-update-preview span:nth-child(2) { background: #71658d; }
 .pane-update-preview span:last-child { flex: 1; writing-mode: horizontal-tb; background: #262532; padding: 12px; }
 
-/* Experimental scrolling keeps each native page at a useful, stable width. */
+/* Scrolling keeps each native page at a useful, stable width. */
 #tabbrowser-tabpanels:has(> .browserSidebarContainer[pane-scrolling]) { overflow:hidden !important; }
 .browserSidebarContainer[pane-scrolling][zen-split] {
   position:absolute !important; inset:0 auto 0 0 !important;

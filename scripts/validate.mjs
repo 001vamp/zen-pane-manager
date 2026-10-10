@@ -11,10 +11,18 @@ const packageJson = await readJson("package.json");
 const preferences = await readJson("preferences.json");
 const source = await readFile("pane.uc.mjs", "utf8");
 const diagnostics = await readFile("pane-diagnostics.uc.mjs", "utf8");
+const extracted = await Promise.all([
+  "layout-modes.mjs",
+  "tab-eligibility.mjs",
+  "presentation-geometry.mjs",
+  "presentation-records.mjs",
+  "presentation-snapshot.mjs",
+  "multiwindow.mjs",
+].map(path => readFile(path, "utf8")));
 const readme = await readFile("README.md", "utf8");
 const changelog = await readFile("CHANGELOG.md", "utf8");
 
-for (const path of ["tab-origins.mjs", "icons.mjs", "LICENSES/LUCIDE-ICONS.txt", "multiwindow.mjs", "settings.html", "settings-page.mjs", "appearance.mjs", "pane-settings.uc.mjs", "keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
+for (const path of ["tab-origins.mjs", "icons.mjs", "LICENSES/LUCIDE-ICONS.txt", "multiwindow.mjs", "layout-modes.mjs", "tab-eligibility.mjs", "presentation-geometry.mjs", "presentation-records.mjs", "presentation-snapshot.mjs", "settings.html", "settings-page.mjs", "appearance.mjs", "pane-settings.uc.mjs", "keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
   try { await access(path); } catch { fail(`Sine package is missing ${path}`); }
 }
 
@@ -47,7 +55,11 @@ if (duplicates.length) fail(`duplicate preference keys: ${[...new Set(duplicates
 
 for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "eval(", "nsIProcess", "@mozilla.org/file"]) {
   if (source.includes(forbidden)) fail(`privileged source contains forbidden capability: ${forbidden}`);
+  if (extracted.some(body => body.includes(forbidden))) fail(`extracted module contains forbidden capability: ${forbidden}`);
 }
+
+if (!source.includes("multiwindow.mjs?pane=0.11.0-modules")) fail("runtime must cache-bust the split controller");
+if (!source.includes("presentation-snapshot.mjs?pane=0.11.0-modules")) fail("runtime must cache-bust the snapshot helper");
 
 
 

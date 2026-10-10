@@ -1,6 +1,7 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-scrolling-reset";
-import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-macos-shortcut";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-modules";
+import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
+import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -147,6 +148,7 @@ const UPDATE_NOTICES = [
   { id: "accordion-motion-2026-10", title: "Accordion tabs", message: "Keep one page expanded and switch through the others from their edges, with smoother motion and keyboard navigation." },
   { id: "quick-start-2026-10", title: "A quick start for everyone", message: "The guide below covers splitting, floating, accordion, and putting tabs back." },
   { id: "pane-0.11.0", title: "Pane 0.11.0", message: "Open the layout menu with Ctrl+Shift+L on Mac or Alt+Shift+L on Windows/Linux. This changed because Option modifies letter keys before Pane can read them on real macOS. Settings and layout recovery are more consistent. Scrolling and floating position/pin recovery are experimental and optional; use the layout menu to return to tiles." },
+  { id: "layout-labels-2026-10", title: "Plain layout names", message: "Scrolling is no longer marked experimental in the picker, layout menu, and settings. Updating does not change your current layout.", skipOnFreshInstall: true },
 ];
 const QUICK_START_ID = "quick-start-2026-10";
 
@@ -204,7 +206,10 @@ function showUpdateNotice(manual = false) {
     accordion.appendChild(preview);
     card("5. Put tabs back", "Return to a normal tab removes one pane. Unsplit separates the whole group. Pages stay open. Use Restore tiled layout to leave accordion.");
   }
-  for (const update of manual ? UPDATE_NOTICES.toReversed() : unread) card(update.title, update.message);
+  for (const update of manual ? UPDATE_NOTICES.toReversed() : unread) {
+    if (update.skipOnFreshInstall && guideNeeded) continue;
+    card(update.title, update.message);
+  }
   const done = document.createElement("button"); done.type = "button"; done.textContent = "Got it";
   done.addEventListener("click", () => {
     prefs.setStringPref("mod.pane.last-read-update", latest);
@@ -735,7 +740,7 @@ function replacePane(incoming) {
   let changed = false, prepared = false, rollbackFailed = false;
   const previousSelection=gBrowser.selectedTab;
   const savedPresentation=multiwindow.capturePresentation(data);
-  const presentation={...savedPresentation,floating:savedPresentation.floating.map(record=>({...record})),scrolling:savedPresentation.scrolling && {...savedPresentation.scrolling,widths:new Map(savedPresentation.scrolling.widths)}};
+  const presentation=remapPresentation(savedPresentation,outgoing,incoming);
   try {
     multiwindow.origins.begin([...data.tabs, incoming]); prepared=true;
     changed=true;
@@ -750,13 +755,6 @@ function replacePane(incoming) {
     view.activateSplitView(data, true);
     dispatch("ZenSplitViewTabsSplit", splitGroup);
     gBrowser.selectedTab = incoming;
-    presentation.selected=incoming;
-    for (const record of presentation.floating) if (record.tab===outgoing) record.tab=incoming;
-    if (presentation.accordion===outgoing) presentation.accordion=incoming;
-    if (presentation.scrolling?.widths.has(outgoing)) {
-      presentation.scrolling.widths.set(incoming,presentation.scrolling.widths.get(outgoing));
-      presentation.scrolling.widths.delete(outgoing);
-    }
     multiwindow.restorePresentation(data,presentation,incoming);
     if (!boolPref(PREF.keep, true)) gBrowser.removeTab(outgoing, { animate: true });
     diagnosticLog("replacement completed", { keptOutgoingTab: boolPref(PREF.keep, true) });
