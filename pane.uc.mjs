@@ -1,10 +1,10 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker-keys";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker-edge";
 import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
-import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-hub-cycle";
-import { reduce, isHubCycleChord } from "./picker-keys.mjs?pane=0.11.0-picker-keys";
+import { pickerBinding, pickerShortcutAction } from "./keybindings.mjs?pane=0.11.0-hub-fix";
+import { reduce, selectedIndexForKey, selectionAfterRender, shouldDeferEnterToButton } from "./picker-keys.mjs?pane=0.11.0-picker-edge";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -52,6 +52,7 @@ let candidates = [];
 let filtered = [];
 let selectedIndex = 0;
 let expanded = false;
+let pickerInSplit = false;
 let paneAnchorTab = null;
 let toastTimer;
 let buttonObserver = null;
@@ -241,6 +242,7 @@ function closePicker(restoreFocus = true) {
   renderGeneration++;
   results.replaceChildren();
   targetTab = null;
+  pickerInSplit = false;
   paneAnchorTab = null;
   positionDialog();
   candidates = [];
@@ -275,7 +277,7 @@ function highlighted(text, query) {
   return frag;
 }
 
-function renderResults() {
+function renderResults({ keepSelection = false } = {}) {
   const generation = ++renderGeneration;
   const query = search.value.trim().toLocaleLowerCase();
   const matches = filterDestinations(candidates.map(tab => tab.kind === "split"
@@ -370,8 +372,7 @@ function renderResults() {
       capturePreview(tab, preview, generation);
     }
   });
-  selectedIndex = 0;
-  if (filtered[0]?.kind === "split") selectResult(0);
+  if (filtered.length) selectResult(selectionAfterRender(selectedIndex, filtered.length, { keepSelection }));
 }
 
 function renderSplitCandidate(candidate, index, query, generation) {
@@ -464,7 +465,7 @@ async function capturePreview(tab, canvas, generation) {
   } catch { canvas.remove(); }
 }
 
-function setMode(mode) {
+function setMode(mode, { keepSelection = false } = {}) {
   mode = normalizeMode(mode);
   openMode = mode;
   modeBar.querySelectorAll("button").forEach(b => {
@@ -474,7 +475,7 @@ function setMode(mode) {
     if (selected) { const check = paneIcon(document, "check"); check.classList.add("pane-mode-check"); b.append(check); }
   });
   document.getElementById("pane-help").innerHTML = `<span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> ${modeLabels[mode]}</span><span><kbd>Esc</kbd> Cancel</span>`;
-  renderResults();
+  renderResults({ keepSelection });
 }
 
 function openCandidate(tab, requestedMode = null) {
@@ -688,6 +689,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
     showToast("Choose a regular tab to open Pane", "warning"); return;
   }
   const inSplit = Boolean(data?.tabs.includes(tab));
+  pickerInSplit = inSplit;
   targetTab = tab;
   paneAnchorTab = anchorToPane ? tab : null;
   candidates = eligibleTabs(tab, data);
@@ -914,17 +916,20 @@ function currentPickerState() {
     scope: null,
     peek: null,
     pending: null,
-    inSplit: Boolean(targetTab && activeData()?.tabs.includes(targetTab)),
+    inSplit: pickerInSplit,
     rows: filtered.map(row => ({ kind: row.kind === "split" ? "split" : "tab" })),
   };
 }
 
 function applyPickerKey(event) {
-  if (event.key === "Enter" && event.target !== search && event.target.closest?.("button")) return;
+  if (event.key === "Enter" && shouldDeferEnterToButton(event.target, search)) return;
+  const items = [...results.querySelectorAll(".pane-item")];
+  const focused = selectedIndexForKey(currentPickerState(), event.target, items);
+  if (focused !== selectedIndex && focused >= 0) selectResult(focused);
   const { state, action } = reduce(currentPickerState(), pickerKeyInput(event));
   if (!action) return;
   if (action.preventDefault) event.preventDefault();
-  if (action.type === "cycleMode") setMode(state.mode);
+  if (action.type === "cycleMode") setMode(state.mode, { keepSelection: true });
   else if (action.type === "clearQuery") {
     search.value = "";
     expanded = false;
@@ -950,13 +955,13 @@ function onPickerDialogKey(event) {
 }
 
 function onShortcut(event) {
-  // A saved Open Pane chord of Ctrl+Shift+] must not toggle while the hub is open.
-  if (isHubCycleChord(event) && overlay && !overlay.hidden) return;
   const binding = pickerBinding(Services.prefs);
-  if (matchesBinding(event, binding)) {
+  const action = pickerShortcutAction(event, { overlayOpen: Boolean(overlay && !overlay.hidden), binding });
+  if (action === "cycle") return;
+  if (action === "open" || action === "close") {
     event.preventDefault(); event.stopPropagation();
     diagnosticLog("picker shortcut received", { binding: binding.label });
-    overlay.hidden ? openPicker() : closePicker();
+    action === "open" ? openPicker() : closePicker();
   }
 }
 

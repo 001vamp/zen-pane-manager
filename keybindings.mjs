@@ -99,20 +99,28 @@ export function shortcutLabel(binding, platform = currentPlatform()) {
 // Ctrl+Shift+[ / ] is the in-hub layout cycle. `{` / `}` is the same physical key.
 const HUB_CYCLE_KEYS = new Set(['[', '{', ']', '}']);
 
+export function isHubCycleChord(input) {
+  return Boolean(
+    input?.ctrlKey
+    && input.shiftKey
+    && !input.altKey
+    && !input.metaKey
+    && (input.code === 'BracketLeft' || input.code === 'BracketRight')
+  );
+}
+
 export function isHubCycleBinding(binding) {
   return Boolean(binding?.ctrlKey && binding.shiftKey && !binding.altKey && !binding.metaKey && HUB_CYCLE_KEYS.has(binding.key));
 }
 
-export function hubCycleConflict(binding) {
-  return isHubCycleBinding(binding) ? 'Already used by the layout cycle' : '';
+export function hubCycleConflict(binding, event) {
+  return isHubCycleChord(event) || isHubCycleBinding(binding) ? 'Already used by the layout cycle' : '';
 }
 
-function conflictKey(binding) {
-  if (!binding) return '';
-  if (isHubCycleBinding(binding)) {
-    return binding.key === '[' || binding.key === '{' ? 'Ctrl+Shift+BracketLeft' : 'Ctrl+Shift+BracketRight';
-  }
-  return binding.label;
+export function pickerShortcutAction(event, { overlayOpen = false, binding = null, platform } = {}) {
+  if (isHubCycleChord(event) && overlayOpen) return 'cycle';
+  if (matchesBinding(event, binding, platform)) return overlayOpen ? 'close' : 'open';
+  return null;
 }
 
 // Conflicting navigation bindings are inactive until the user changes them.
@@ -128,12 +136,13 @@ export function layoutBindings(prefs, platform = currentPlatform()) {
     reserved.push({ label: 'diagnostics', binding: diagnosticsBinding(prefs ?? {}, platform) });
   }
   for (const record of records) {
-    if (hubCycleConflict(record.binding)) {
-      record.error = `${hubCycleConflict(record.binding)}. Choose another shortcut.`;
+    const reservedChord = hubCycleConflict(record.binding);
+    if (reservedChord) {
+      record.error = `${reservedChord}. Choose another shortcut.`;
       continue;
     }
     const conflict = [...reserved, ...records.filter(other => other !== record)]
-      .find(other => record.binding && other.binding && conflictKey(other.binding) === conflictKey(record.binding));
+      .find(other => record.binding && other.binding?.label === record.binding.label);
     if (conflict) record.error = `Already used by ${conflict.label}. Choose another shortcut.`;
   }
   for (const record of records) if (record.error) record.binding = null;

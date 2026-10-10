@@ -1,8 +1,7 @@
 import { createSplitPersistence } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-hub-cycle";
-import { isHubCycleChord } from "./picker-keys.mjs?pane=0.11.0-picker-keys";
+import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers, isHubCycleChord } from "./keybindings.mjs?pane=0.11.0-hub-fix";
 import { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-picker";
 import { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
 import { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-picker";

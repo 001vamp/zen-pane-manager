@@ -32,10 +32,22 @@ assert.equal(run('prepare').ended,0,'failed preparation does not end an unstarte
 assert.match(run(null).messages.at(-1),/Now showing/);
 console.log('Replacement: early mutations, rollback failures and origin lifecycle passed.');
 
-assert.deepEqual(activatePlan({kind:'split',mode:'below'}),{op:'join',mode:'below'},'split picker activation uses the selected layout mode');
-assert.deepEqual(activatePlan({kind:'split',mode:'replace'}),{op:'join',mode:'grid'},'Replace on a split card is add-to-grid');
+const openCandidateSource=source.slice(source.indexOf('function openCandidate'),source.indexOf('function buildPicker'));
+{
+  const targetTab={label:'current'}, group={tabs:[]};
+  let joined=null, closed=false;
+  const context={targetTab,group,openMode:'below',activatePlan,multiwindow:{join:(joinedGroup,incoming,mode)=>{joined={joinedGroup,incoming,mode};}},closePicker:()=>{closed=true;},showToast:message=>{throw new Error(message);}};
+  vm.runInNewContext(openCandidateSource+'\nopenCandidate({kind:"split",group});',context);
+  assert.deepEqual(joined,{joinedGroup:group,incoming:targetTab,mode:'below'},'split picker activation uses the selected layout mode');
+  assert.equal(closed,true);
+}
+{
+  const targetTab={label:'current'}, group={tabs:[]};
+  let joined=null, closed=false;
+  const context={targetTab,group,openMode:'replace',activatePlan,multiwindow:{join:(joinedGroup,incoming,mode)=>{joined={joinedGroup,incoming,mode};}},closePicker:()=>{closed=true;},showToast:message=>{throw new Error(message);}};
+  vm.runInNewContext(openCandidateSource+'\nopenCandidate({kind:"split",group});',context);
+  assert.deepEqual(joined,{joinedGroup:group,incoming:targetTab,mode:'grid'},'Replace on a split card still joins as grid');
+  assert.equal(closed,true);
+}
 assert.deepEqual(activatePlan({kind:'split',mode:'float'}),{op:'join',mode:'float'});
-assert.ok(source.includes('activatePlan({ kind, mode: requestedMode || openMode })'),'openCandidate follows the plan object');
-assert.ok(source.includes('item.addEventListener("click", () => { if (!full) openCandidate(candidate); });'),'clicking a split candidate does not force grid');
-assert.ok(source.includes('openCandidate(filtered[state.selectedIndex], action.mode)'),'Enter follows the reducer payload; the model never sees Shift');
 console.log('Picker split activation preserves the selected layout mode.');

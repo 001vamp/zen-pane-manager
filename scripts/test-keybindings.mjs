@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel, hubCycleConflict, isHubCycleBinding } from '../keybindings.mjs';
+import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel, hubCycleConflict, isHubCycleBinding, isHubCycleChord, pickerShortcutAction } from '../keybindings.mjs';
 const event = overrides => ({key:'r', code:'KeyR',ctrlKey:true,altKey:true,shiftKey:false,metaKey:false,...overrides});
 const defaultBinding = pickerBinding({getIntPref:()=>0}, 'MacIntel');
 assert.equal(defaultBinding.label,'Ctrl+Alt+R');
@@ -103,10 +102,21 @@ assert.equal(
   'Ctrl+Shift+}',
   'an already-saved Open Pane pref can still hold the reserved chord'
 );
-const settings = await readFile(new URL('../pane-settings.uc.mjs', import.meta.url), 'utf8');
-assert.match(settings, /hubCycleConflict/, 'Open Pane recorder rejects the layout-cycle chord at record time');
-const runtime = await readFile(new URL('../pane.uc.mjs', import.meta.url), 'utf8');
-assert.match(runtime, /isHubCycleChord\(event\) && overlay && !overlay.hidden\) return/, 'saved hub chord cycles and does not toggle while open');
-assert.match(runtime, /overlay.hidden \? openPicker\(\) : closePicker\(\)/, 'default Open Pane with the hub open still closes it');
-const controller = await readFile(new URL('../multiwindow.mjs', import.meta.url), 'utf8');
-assert.match(controller, /if \(isHubCycleChord\(event\)\) return/, 'layout shortcuts step aside only for the hub cycle chord');
+
+const savedCycle = pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift+}'});
+const cycleEvent = event({key:'}',code:'BracketRight',ctrlKey:true,altKey:false,shiftKey:true});
+assert.equal(pickerShortcutAction(cycleEvent, {overlayOpen:true, binding:savedCycle}), 'cycle', 'saved hub chord cycles and does not toggle while open');
+assert.equal(pickerShortcutAction(cycleEvent, {overlayOpen:false, binding:savedCycle}), 'open', 'the same saved chord can still open the picker');
+const defaultOpen = pickerBinding({getIntPref:()=>0}, 'Win32');
+assert.equal(
+  pickerShortcutAction(event({key:'P',code:'KeyP',ctrlKey:false,altKey:true,shiftKey:true}), {overlayOpen:true, binding:defaultOpen, platform:'Win32'}),
+  'close',
+  'default Open Pane with the hub open still closes it'
+);
+assert.equal(isHubCycleChord(cycleEvent), true, 'layout shortcuts step aside for the physical hub chord');
+assert.equal(isHubCycleChord(event({key:'l',code:'KeyL',ctrlKey:true,shiftKey:true})), false);
+
+const germanStar = {key:'*',code:'BracketRight',ctrlKey:true,shiftKey:true,altKey:false,metaKey:false};
+assert.equal(isHubCycleChord(germanStar), true);
+assert.match(hubCycleConflict(bindingFromEvent(germanStar), germanStar), /layout cycle/, 'recorder rejects the physical bracket chord on non-US layouts');
+assert.equal(hubCycleConflict(parseBinding('Ctrl+Shift+*')), '', 'a saved star label is not reserved unless the event is the physical chord');

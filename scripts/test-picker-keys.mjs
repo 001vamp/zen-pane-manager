@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { reduce, isHubCycleChord, visibleModes, cycleMode } from "../picker-keys.mjs";
+import { reduce, isHubCycleChord, visibleModes, cycleMode, selectedIndexForKey, selectionAfterRender, shouldDeferEnterToButton } from "../picker-keys.mjs";
 
 const modes = visibleModes({ inSplit: true });
 assert.deepEqual(modes[0], "replace");
@@ -121,7 +121,47 @@ for (const blocked of [
 }
 
 assert.equal(cycleMode("replace", 1, { inSplit: false }), "right");
+
+const item = () => {
+  const node = {
+    closest(selector) {
+      if (selector === ".pane-item") return this;
+      if (selector === "button") return this.tag === "button" ? this : null;
+      return null;
+    },
+  };
+  return node;
+};
+const nestedButton = parent => ({
+  closest(selector) {
+    if (selector === "button") return this;
+    if (selector === ".pane-item") return parent;
+    return null;
+  },
+});
+const cards = [item(), item()];
+assert.equal(selectedIndexForKey({ selectedIndex: 0 }, cards[1], cards), 1, "Enter uses the focused card, not the highlighted row");
+assert.equal(selectedIndexForKey({ selectedIndex: 1 }, cards[0], cards), 0);
+assert.equal(selectedIndexForKey({ selectedIndex: 0 }, { closest: () => null }, cards), 0, "search / empty target keeps the highlight");
+assert.equal(shouldDeferEnterToButton(nestedButton(cards[0]), {}), true, "Add/Floating/Unsplit keep their own Enter");
+assert.equal(shouldDeferEnterToButton(cards[0], {}), false);
+{
+  const rows = [{ kind: "split" }, { kind: "split" }];
+  const index = selectedIndexForKey({ selectedIndex: 0 }, cards[1], cards);
+  const { action } = reduce(state({ selectedIndex: index, mode: "right", rows }), key({ key: "Enter" }));
+  assert.deepEqual(action, { type: "activate", kind: "split", mode: "right", preventDefault: true });
+}
+
+{
+  const cycled = reduce(state({ selectedIndex: 1, mode: "right", rows: [{ kind: "tab" }, { kind: "tab" }] }), cycleRight);
+  assert.equal(cycled.state.selectedIndex, 1, "reducer keeps the highlight across a cycle");
+  assert.equal(cycled.action.type, "cycleMode");
+  assert.equal(selectionAfterRender(cycled.state.selectedIndex, 2, { keepSelection: true }), 1, "re-render after cycle keeps the highlight");
+  assert.equal(selectionAfterRender(cycled.state.selectedIndex, 2, { keepSelection: false }), 0, "chip click still resets to the first row");
+  assert.equal(selectionAfterRender(5, 3, { keepSelection: true }), 2);
+}
+
 assert.equal(globalThis.gBrowser, undefined);
 assert.equal(globalThis.Services, undefined);
 
-console.log("Picker keys: cycle, IME, Escape stages, and Shift+Enter split-only float passed.");
+console.log("Picker keys: cycle, IME, Escape stages, focused-card Enter, and kept highlight passed.");
