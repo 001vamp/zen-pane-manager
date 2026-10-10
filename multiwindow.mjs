@@ -2,22 +2,23 @@ import { createSplitPersistence } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
 import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
-import { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-modules";
-import { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-modules";
-import { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-modules";
-import { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-modules";
-import { clonePresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
+import { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-picker";
+import { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
+import { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-picker";
+import { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-picker";
+import { clonePresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
+import { arrangeOptions } from "./layout-options.mjs?pane=0.11.0-picker";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
 // Extracted: layout-modes, tab-eligibility, presentation-geometry/records/snapshot.
 // This file still owns live maps, gestures, toolbars, and native transactions.
 // Public names stay here so existing imports keep working.
-export { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-modules";
-export { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-modules";
-export { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-modules";
-export { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-modules";
-export { clonePresentation, remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
+export { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-picker";
+export { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
+export { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-picker";
+export { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-picker";
+export { clonePresentation, remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 
 export function updateHistoryControls(win) {
   for (const control of win.document.querySelectorAll(".pane-history-button")) {
@@ -1132,40 +1133,34 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     close.setAttribute("aria-label", "Close layout menu");
     header.append(heading, close); menu.append(header);
     const group = groupFor(tab);
-    const currentMode = scrollings.has(group) ? "scrolling" : accordions.has(group) ? "accordion" : floats.has(tab) ? "float" : !group ? "normal" :
-      Object.keys(layoutTypes).find(mode => layoutTypes[mode] === group.gridType);
-    const options = [
-      ["right", "Split right", "Place beside the other tabs"],
-      ["below", "Split below", "Place below the other tabs"],
-      ["grid", "Grid", "Arrange with other split tabs"],
-      ["float", "Floating", "Move and resize this tab"],
-      ["normal", "Return to a normal tab", "Keep this tab open and stay on the remaining split"],
-    ];
-    if (group?.tabs.length >= 2) options.splice(3, 0,
-      ["scrolling", modeLabels.scrolling, "Hold the modifier to reveal and scroll through tabs"],
-      ["accordion", modeLabels.accordion, "Expand one tab and switch from the side strips"],
-      ...((accordions.has(group) || scrollings.has(group)) ? [["tiles", "Restore tiled layout", "Bring back your previous divider sizes"]] : []));
-    for (const [mode, label, description] of options) {
-      const current = mode === currentMode;
-      const b = button("", () => run(() => arrange(tab, mode)), "pane-layout-option");
-      b.dataset.mode = mode;
+    const presentation = scrollings.has(group) ? "scrolling" : accordions.has(group) ? "accordion" : null;
+    const currentMode = presentation || (floats.has(tab) ? "float" : !group ? "normal" :
+      Object.keys(layoutTypes).find(mode => layoutTypes[mode] === group.gridType));
+    for (const option of arrangeOptions({ groupSize: group?.tabs.length ?? 1, currentMode, presentation })) {
+      if (option.mode === "reset") {
+        const reset=button('Reset all column widths',()=>run(()=>{const state=scrollings.get(group);state.widths.clear();applyScrolling();}), 'pane-layout-add'); // keep the current pan; do not jump back to the selected tab
+        menu.append(reset);
+        continue;
+      }
+      if (option.mode === "add") {
+        const add = button("", () => { closeMenu(); chooseTab(tab, "right"); }, "pane-layout-add");
+        add.append(paneIcon(doc, "plus"), doc.createTextNode("Add another tab…"));
+        menu.append(add);
+        continue;
+      }
+      const current = option.current;
+      const b = button("", () => run(() => arrange(tab, option.mode)), "pane-layout-option");
+      b.dataset.mode = option.mode;
       b.setAttribute("aria-pressed", String(current));
       const icon = el("span", "pane-layout-icon");
-      icon.append(paneIcon(doc, mode === "accordion" || mode === "scrolling" ? "right" : mode === "tiles" ? "grid" : mode));
+      icon.append(paneIcon(doc, option.mode === "accordion" || option.mode === "scrolling" ? "right" : option.mode === "tiles" ? "grid" : option.mode));
       icon.setAttribute("aria-hidden", "true");
       const copy = el("span", "pane-layout-copy");
-      copy.append(el("span", "pane-layout-label", label), el("span", "pane-layout-description", current ? "Current layout" : description));
+      copy.append(el("span", "pane-layout-label", option.label), el("span", "pane-layout-description", current ? "Current layout" : option.description));
       b.append(icon, copy);
       if (current) b.append(el("span", "pane-layout-badge", "Current"));
       menu.append(b);
     }
-    if (scrollings.has(group)) {
-      const reset=button('Reset all column widths',()=>run(()=>{const state=scrollings.get(group);state.widths.clear();applyScrolling();}), 'pane-layout-add'); // keep the current pan; do not jump back to the selected tab
-      menu.append(reset);
-    }
-    const add = button("", () => { closeMenu(); chooseTab(tab, "right"); }, "pane-layout-add");
-    add.append(paneIcon(doc, "plus"), doc.createTextNode("Add another tab…"));
-    menu.append(add);
     if (accordions.has(group)) {
       const hints = el("div", "pane-accordion-shortcuts");
       for (const record of accordionBindings(prefs, win.navigator?.platform)) {

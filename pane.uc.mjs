@@ -1,6 +1,7 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-modules";
-import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker";
+import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
+import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -105,26 +106,36 @@ function displayUrl(tab) {
   } catch (e) { return ""; }
 }
 
+function tabRecord(tab) {
+  return {
+    id: tab,
+    title: tabTitle(tab),
+    url: displayUrl(tab),
+    lastUsed: lastUsed(tab),
+    splitView: Boolean(tab.splitView),
+    closing: Boolean(tab.closing),
+    hidden: Boolean(tab.hidden),
+    supported: isSupportedTab(tab),
+    connected: Boolean(tab.isConnected),
+    ref: tab,
+  };
+}
+
 function eligibleTabs(target, data) {
   const workspace = workspaceId(target);
-  const tabs = [...gBrowser.tabs].filter(tab =>
-    tab !== target && !data?.tabs.includes(tab) && !tab.closing && !tab.hidden &&
-    isSupportedTab(tab) &&
-    !tab.splitView && workspaceId(tab) === workspace
-  );
-  if (boolPref(PREF.recent, true)) tabs.sort((a, b) => lastUsed(b) - lastUsed(a));
-  const groups = target.splitView ? [] : splitter()._data.filter(group =>
-    group.tabs.length >= 2 && !group.tabs.includes(target) &&
-    group.tabs.every(tab => !tab.closing && tab.isConnected && workspaceId(tab) === workspace)
-  ).map(group => ({ kind: "split", group }));
-  return [...groups, ...tabs];
+  return eligibleDestinations({
+    target: tabRecord(target),
+    currentGroupTabs: (data?.tabs ?? []).map(tabRecord),
+    tabs: [...gBrowser.tabs].filter(tab => workspaceId(tab) === workspace).map(tabRecord),
+    groups: splitter()._data
+      .filter(group => group.tabs.every(tab => workspaceId(tab) === workspace))
+      .map(group => ({ tabs: group.tabs.map(tabRecord), ref: group })),
+    recentFirst: boolPref(PREF.recent, true),
+  }).map(item => item.kind === "split" ? { kind: "split", group: item.group.ref } : item.ref);
 }
 
 const candidateTitle = candidate => candidate.kind === "split"
   ? candidate.group.tabs.map(tabTitle).join(" + ") : tabTitle(candidate);
-const candidateSearch = candidate => candidate.kind === "split"
-  ? candidate.group.tabs.map(tab => `${tabTitle(tab)} ${displayUrl(tab)}`).join(" ")
-  : `${tabTitle(candidate)} ${displayUrl(candidate)}`;
 
 function showToast(message, kind = "info") {
   let toast = document.getElementById("pane-toast");
@@ -266,9 +277,10 @@ function highlighted(text, query) {
 function renderResults() {
   const generation = ++renderGeneration;
   const query = search.value.trim().toLocaleLowerCase();
-  const matches = candidates.filter(tab =>
-    candidateSearch(tab).toLocaleLowerCase().includes(query)
-  );
+  const matches = filterDestinations(candidates.map(tab => tab.kind === "split"
+    ? { kind: "split", tabs: tab.group.tabs.map(member => ({ title: tabTitle(member), url: displayUrl(member) })), ref: tab }
+    : { kind: "tab", title: tabTitle(tab), url: displayUrl(tab), ref: tab }
+  ), query).map(item => item.ref);
   const showAll = Boolean(query) || expanded;
   const previewCount = numericValue("recent-count", Services.prefs);
   filtered = showAll ? matches : matches.slice(0, previewCount);
@@ -436,7 +448,9 @@ function renderSplitCandidate(candidate, index, query, generation) {
   item.addEventListener("keydown", event => {
     if (event.target !== item) return;
     if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault(); openCandidate(candidate, event.shiftKey ? "float" : null);
+      event.preventDefault();
+      const rowKind = "split";
+      openCandidate(candidate, (rowKind === "split" && event.shiftKey) ? "float" : openMode);
     } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault(); selectResult(index + (event.key === "ArrowDown" ? 1 : -1));
     }
@@ -466,22 +480,22 @@ function setMode(mode) {
 }
 
 function openCandidate(tab, requestedMode = null) {
-  if (tab.kind === "split") {
-    const current = targetTab;
-    const mode = requestedMode || (openMode === "replace" ? "grid" : openMode);
+  const kind = tab.kind === "split" ? "split" : "tab";
+  const plan = activatePlan({ kind, mode: requestedMode || openMode });
+  if (plan.op === "join") {
     try {
-      multiwindow.join(tab.group, current, mode);
+      multiwindow.join(tab.group, targetTab, plan.mode);
       closePicker(false);
     } catch (error) { showToast(error.message || "The split could not be changed", "warning"); }
     return;
   }
-  if (openMode === "replace") {
+  if (plan.op === "replace") {
     multiwindow.clearFloat(true, targetTab);
     replacePane(tab); return;
   }
-  const target = targetTab, mode = openMode;
+  const target = targetTab;
   closePicker(false);
-  try { multiwindow.add(target, tab, mode); }
+  try { multiwindow.add(target, tab, plan.mode); }
   catch (error) { showToast(error.message || "The layout could not be changed", "warning"); }
 }
 
@@ -605,7 +619,10 @@ function buildPicker() {
     if (event.key === "ArrowDown") { event.preventDefault(); selectResult(selectedIndex + 1); }
     else if (event.key === "ArrowUp") { event.preventDefault(); selectResult(selectedIndex - 1); }
     else if (event.key === "Enter" && filtered[selectedIndex]) {
-      event.preventDefault(); openCandidate(filtered[selectedIndex], event.shiftKey ? "float" : null);
+      event.preventDefault();
+      const row = filtered[selectedIndex];
+      const rowKind = row.kind === "split" ? "split" : "tab";
+      openCandidate(row, (rowKind === "split" && event.shiftKey) ? "float" : openMode);
     }
   });
 }
@@ -686,7 +703,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   targetTab = tab;
   paneAnchorTab = anchorToPane ? tab : null;
   candidates = eligibleTabs(tab, data);
-  openMode = requestedMode || (inSplit ? "replace" : "right");
+  openMode = requestedMode || defaultMode({ inSplit });
   modeBar.querySelector('[data-mode="replace"]').hidden = !inSplit;
   document.getElementById("pane-arrange-current").hidden = !inSplit;
   heading.textContent = inSplit ? "Replace or arrange this pane" : "Open a tab alongside this one";
