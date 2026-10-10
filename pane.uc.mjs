@@ -1,5 +1,6 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-scrolling-reset";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-modules";
+import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
 import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -739,7 +740,7 @@ function replacePane(incoming) {
   let changed = false, prepared = false, rollbackFailed = false;
   const previousSelection=gBrowser.selectedTab;
   const savedPresentation=multiwindow.capturePresentation(data);
-  const presentation={...savedPresentation,floating:savedPresentation.floating.map(record=>({...record})),scrolling:savedPresentation.scrolling && {...savedPresentation.scrolling,widths:new Map(savedPresentation.scrolling.widths)}};
+  const presentation=remapPresentation(savedPresentation,outgoing,incoming);
   try {
     multiwindow.origins.begin([...data.tabs, incoming]); prepared=true;
     changed=true;
@@ -754,13 +755,6 @@ function replacePane(incoming) {
     view.activateSplitView(data, true);
     dispatch("ZenSplitViewTabsSplit", splitGroup);
     gBrowser.selectedTab = incoming;
-    presentation.selected=incoming;
-    for (const record of presentation.floating) if (record.tab===outgoing) record.tab=incoming;
-    if (presentation.accordion===outgoing) presentation.accordion=incoming;
-    if (presentation.scrolling?.widths.has(outgoing)) {
-      presentation.scrolling.widths.set(incoming,presentation.scrolling.widths.get(outgoing));
-      presentation.scrolling.widths.delete(outgoing);
-    }
     multiwindow.restorePresentation(data,presentation,incoming);
     if (!boolPref(PREF.keep, true)) gBrowser.removeTab(outgoing, { animate: true });
     diagnosticLog("replacement completed", { keptOutgoingTab: boolPref(PREF.keep, true) });

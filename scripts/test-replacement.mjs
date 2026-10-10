@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
+import { remapPresentation } from '../presentation-snapshot.mjs';
 
 // Exercise the actual runtime transaction with injected native API failures.
 const source=await readFile(new URL('../pane.uc.mjs',import.meta.url),'utf8');
@@ -11,7 +12,7 @@ function run(failure) {
   let moves=0,ended=0,activation=0;
   const browser={selectedTab:outgoing,moveTabToExistingGroup(tab,target){tab.group=target;if(++moves===1 && failure==='move')throw Error('move failed');},ungroupTab(tab){tab.group=null;},removeTab(){}};
   const view={getSplitNodeFromTab:()=>leaf,_tabToSplitNode:new Map([[outgoing,leaf]]),resetTabState(tab){tab.splitView=false;},activateSplitView(){if((failure==='activate-once' && ++activation===1)||failure==='rollback')throw Error('activate failed');}};
-  const context={incoming,splitter:()=>view,activeData:()=>data,targetTab:outgoing,closePicker(){},diagnosticLog(){},showToast:message=>messages.push(message),workspaceId:()=>1,gBrowser:browser,boolPref:()=>true,PREF:{keep:'keep'},dispatch(){},TAG:'Pane',console:{error(){}},tabTitle:()=> 'Sample',Map,
+  const context={incoming,splitter:()=>view,activeData:()=>data,targetTab:outgoing,closePicker(){},diagnosticLog(){},showToast:message=>messages.push(message),workspaceId:()=>1,gBrowser:browser,boolPref:()=>true,PREF:{keep:'keep'},dispatch(){},TAG:'Pane',console:{error(){}},tabTitle:()=> 'Sample',Map,remapPresentation,
     multiwindow:{origins:{begin(){if(failure==='prepare')throw Error('prepare failed');},end(){ended++;}},capturePresentation:()=>({selected:outgoing,floating:[],scrolling:null}),restorePresentation(){}}};
   vm.runInNewContext(body+'\nreplacePane(incoming);',context);
   return {data,leaf,outgoing,incoming,browser,messages,ended};

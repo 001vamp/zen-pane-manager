@@ -2,12 +2,22 @@ import { createSplitPersistence } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
 import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
+import { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-modules";
+import { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-modules";
+import { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-modules";
+import { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-modules";
+import { clonePresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
-export const tabWorkspace = (win, tab) => tab?.hasAttribute("zen-essential")
-  ? win.gZenWorkspaces.activeWorkspace : (tab?.getAttribute("zen-workspace-id") ?? "");
-export const isSupportedTab = tab => Boolean(tab && !tab.closing && !tab.hidden && !tab.hasAttribute("zen-empty-tab"));
+// Extracted: layout-modes, tab-eligibility, presentation-geometry/records/snapshot.
+// This file still owns live maps, gestures, toolbars, and native transactions.
+// Public names stay here so existing imports keep working.
+export { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-modules";
+export { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-modules";
+export { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-modules";
+export { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-modules";
+export { clonePresentation, remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-modules";
 
 export function updateHistoryControls(win) {
   for (const control of win.document.querySelectorAll(".pane-history-button")) {
@@ -38,54 +48,6 @@ export function addHistoryControls(win, parent) {
   updateHistoryControls(win);
 }
 
-export const layoutTypes = { right: "vsep", below: "hsep", grid: "grid" };
-// Pure presentation geometry; native split ratios and browser state stay at the edges.
-export function accordionSizes(width, count, requestedWidth) {
-  const available = Math.max(0, Number.isFinite(width) ? width : 0);
-  const neighbors = Math.max(0, count - 1);
-  if (!neighbors) return { expanded: available, strip: 0 };
-  const defaultStrip = Math.min(44, available / (count + 2));
-  const minimumStrip = Math.min(32, available / (count + 2));
-  const minimumExpanded = Math.min(320, available - neighbors * defaultStrip);
-  const maximumExpanded = available - neighbors * minimumStrip;
-  const desired = Number.isFinite(requestedWidth) ? requestedWidth : available - neighbors * defaultStrip;
-  const expanded = Math.min(maximumExpanded, Math.max(minimumExpanded, desired));
-  return { expanded, strip: (available - expanded) / neighbors };
-}
-
-export const presentationModes = ["accordion", "scrolling"];
-export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", scrolling: "Scrolling" };
-
-// Legacy callers and saved choices converge before validation or side effects.
-export const normalizeMode = mode => mode === "snapshot" ? "scrolling" : mode;
-
-export const scrollingColumnWidth = (viewport, value) => Math.min(viewport, Math.max(Math.min(320, viewport), value));
-
-export function scrollingSizes(viewport, percent, savedWidths) {
-  const width = Math.min(viewport, Math.max(320, viewport * Math.max(30, Math.min(100, percent)) / 100));
-  const widths = savedWidths.map(value => scrollingColumnWidth(viewport, value ?? width));
-  let total = 0;
-  const positions = widths.map(value => { const left = total; total += value + 10; return left; });
-  return {viewport, width, widths, positions, max:Math.max(0, total - 10 - viewport)};
-}
-
-export function fitRectangle(rect, width, height) {
-  const w = Math.min(Math.max(260, rect.width), width);
-  const h = Math.min(Math.max(180, rect.height), height);
-  return { width: w, height: h, x: Math.max(0, Math.min(rect.x, width - w)), y: Math.max(0, Math.min(rect.y, height - h)) };
-}
-
-// Keep the opposite edge fixed, including when reaching minimum size or window bounds.
-export function resizeRectangle(rect, edge, dx, dy, width, height) {
-  const minWidth = Math.min(260, width), minHeight = Math.min(180, height);
-  let left = rect.x, top = rect.y, right = left + rect.width, bottom = top + rect.height;
-  if (edge.includes("w")) left = Math.max(0, Math.min(left + dx, right - minWidth));
-  if (edge.includes("e")) right = Math.min(width, Math.max(right + dx, left + minWidth));
-  if (edge.includes("n")) top = Math.max(0, Math.min(top + dy, bottom - minHeight));
-  if (edge.includes("s")) bottom = Math.min(height, Math.max(bottom + dy, top + minHeight));
-  return { x: left, y: top, width: right - left, height: bottom - top };
-}
-
 // Floating is a presentation of a native split, not a second browser or iframe.
 // The original browser node and browsing context never leave their container.
 export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = win.Services?.prefs, origins = createTabOrigins(win) }) {
@@ -100,7 +62,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   const persistence = createSplitPersistence(win, origins);
   function saveFloat(f) {
     if (!session || f.tab.closing) return;
-    const value=JSON.stringify({version:1,rect:f.rect,headerPinned:Boolean(f.headerPinned)});
+    const value=encodeFloat({rect:f.rect,headerPinned:f.headerPinned});
     if (session.getCustomTabValue(f.tab,floatingKey)!==value) session.setCustomTabValue(f.tab,floatingKey,value);
   }
   function recoverFloats() {
@@ -109,16 +71,14 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       if (data.tabs.length<2 || accordions.has(data) || scrollings.has(data)) continue;
       for (const tab of data.tabs) {
         if (floats.has(tab) || tab.closing || !tab.isConnected) continue;
-        let record;
-        try {record=JSON.parse(session.getCustomTabValue(tab,floatingKey)||'null');} catch {session.deleteCustomTabValue(tab,floatingKey);record=null;}
-        if (!record) continue;
-        const valid=record.version===1 && record.rect && ['x','y','width','height'].every(key=>Number.isFinite(record.rect[key])) && record.rect.width>0 && record.rect.height>0;
-        if (!valid || data.tabs.filter(member=>!floats.has(member)).length<=1) {
+        const decoded=decodeFloat(session.getCustomTabValue(tab,floatingKey));
+        if (decoded.kind==='missing') continue;
+        if (decoded.kind==='invalid' || data.tabs.filter(member=>!floats.has(member)).length<=1) {
           session.deleteCustomTabValue(tab,floatingKey);continue;
         }
         const container=containerFor(tab);
         if (!container) continue;
-        const f={tab,data,container,rect:{...record.rect},headerPinned:record.headerPinned===true,abort:new win.AbortController()};
+        const f={tab,data,container,rect:{...decoded.value.rect},headerPinned:decoded.value.headerPinned,abort:new win.AbortController()};
         floats.set(tab,f);
         bindFloatFocus(f);
         tab.setAttribute('pane-floating-tab','true');
@@ -133,7 +93,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     }
     state.savedTabs = [...data.tabs];
     for (const tab of data.tabs) if (!tab.closing) {
-      const value = JSON.stringify({ group:state.sessionId, active:tab === state.active });
+      const value = encodeAccordion(state.sessionId, tab === state.active);
       if (session.getCustomTabValue(tab, accordionKey) !== value) session.setCustomTabValue(tab, accordionKey, value);
     }
   }
@@ -141,12 +101,10 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (!session || view._sessionRestoring) return;
     for (const data of view._data) {
       if (accordions.has(data) || scrollings.has(data) || data.tabs.length < 2 || data.tabs.some(tab => floats.has(tab))) continue;
-      const saved = data.tabs.map(tab => {
-        try { return JSON.parse(session.getCustomTabValue(tab, accordionKey) || 'null'); } catch { return null; }
-      });
-      if (!saved.every(record => typeof record?.group === 'string' && record.group === saved[0]?.group)) continue;
-      const active = data.tabs[saved.findIndex(record => record.active)] ?? data.tabs[0];
-      accordions.set(data, { active, sessionId:saved[0].group, savedTabs:[...data.tabs], handles:new Map(), pages:new Map() });
+      const decoded = decodeAccordionGroup(data.tabs.map(tab => session.getCustomTabValue(tab, accordionKey)));
+      if (!decoded) continue;
+      const active = data.tabs[decoded.activeIndex] ?? data.tabs[0];
+      accordions.set(data, { active, sessionId:decoded.group, savedTabs:[...data.tabs], handles:new Map(), pages:new Map() });
     }
   }
   function saveScrolling(data,state) {
@@ -156,7 +114,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     state.savedTabs = [...data.tabs];
     if (data.tabs.includes(browser.selectedTab)) state.active = browser.selectedTab;
     for (const tab of data.tabs) if (!tab.closing) {
-      const value = JSON.stringify({group:state.sessionId,active:tab===state.active,mode:"scrolling",width:state.widths.get(tab) ?? null});
+      const value = encodeScrolling(state.sessionId, tab===state.active, state.widths.get(tab) ?? null);
       if (session.getCustomTabValue(tab,scrollingKey)!==value) session.setCustomTabValue(tab,scrollingKey,value);
     }
   }
@@ -164,11 +122,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (!session || view._sessionRestoring) return;
     for (const data of view._data) {
       if (scrollings.has(data) || accordions.has(data) || data.tabs.length<2 || data.tabs.some(tab=>floats.has(tab))) continue;
-      const saved=data.tabs.map(tab=>{try{return JSON.parse(session.getCustomTabValue(tab,scrollingKey)||'null');}catch{return null;}});
-      if (!saved.every(record=>typeof record?.group==='string' && record.group===saved[0].group)) continue;
+      const decoded=decodeScrollingGroup(data.tabs.map(tab=>session.getCustomTabValue(tab,scrollingKey)));
+      if (!decoded) continue;
       const widths=new Map();
-      saved.forEach((record,i)=>{if (Number.isFinite(record.width) && record.width>0) widths.set(data.tabs[i],record.width);});
-      scrollings.set(data,{offset:0,follow:true,overview:false,widths,containers:new Set(),abort:new win.AbortController(),sessionId:saved[0].group,savedTabs:[...data.tabs]});
+      decoded.widths.forEach((width,i)=>{if (width!=null) widths.set(data.tabs[i],width);});
+      scrollings.set(data,{offset:0,follow:true,overview:false,widths,containers:new Set(),abort:new win.AbortController(),sessionId:decoded.group,savedTabs:[...data.tabs]});
     }
   }
   const backgrounds = new WeakMap();
@@ -479,13 +437,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   }
   // The same candidate drives the preview highlight and release selection.
   function scrollingLanding(data, state, geometry = scrollingGeometry(data,state)) {
-    const center = state.offset + geometry.viewport / 2;
-    let nearest = 0, distance = Infinity;
-    geometry.positions.forEach((left,index) => {
-      const d = Math.abs(left + geometry.widths[index]/2 - center);
-      if (d < distance) { nearest = index; distance = d; }
-    });
-    return data.tabs[nearest];
+    return data.tabs[landingIndex(geometry, state.offset)];
   }
   function scrollStep(data, direction) {
     const state = scrollings.get(data);
@@ -585,7 +537,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   }
   function capturePresentation(data) {
     const scrolling=scrollings.get(data), accordion=accordions.get(data);
-    return {selected:browser.selectedTab, floating:[...floats.values()].filter(f=>f.data===data).map(f=>({tab:f.tab,rect:{...f.rect},headerPinned:f.headerPinned})), scrolling:scrolling && {widths:new Map(scrolling.widths)}, accordion:accordion?.active};
+    return clonePresentation({selected:browser.selectedTab, floating:[...floats.values()].filter(f=>f.data===data).map(f=>({tab:f.tab,rect:f.rect,headerPinned:f.headerPinned})), scrolling:scrolling && {widths:scrolling.widths}, accordion:accordion?.active});
   }
   function restorePresentation(data,saved,tab=saved.selected) {
     if (saved.scrolling) {
