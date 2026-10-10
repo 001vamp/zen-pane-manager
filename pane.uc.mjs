@@ -267,9 +267,24 @@ function selectResult(index, { moveFocus = false } = {}) {
   }
 }
 
-// Hover only steals focus when a row already has it, so Enter and Space stay on the same card.
+// Last real mouse position. Same coords after a keyboard scroll are not a hover.
+const pointer = { x: NaN, y: NaN };
+
+function onResultsPointerMove(event) {
+  if (event.clientX === pointer.x && event.clientY === pointer.y) return;
+  pointer.x = event.clientX;
+  pointer.y = event.clientY;
+  const item = event.target?.closest?.(".pane-item");
+  if (!item) return;
+  const index = [...results.querySelectorAll(".pane-item")].indexOf(item);
+  if (index >= 0) hoverResult(index);
+}
+
+// Hover moves focus only when the focused thing is the row itself, not Add / Unsplit.
 function hoverResult(index) {
-  selectResult(index, { moveFocus: results.contains(document.activeElement) });
+  if (index === selectedIndex) return;
+  const items = [...results.querySelectorAll(".pane-item")];
+  selectResult(index, { moveFocus: items.includes(document.activeElement) });
 }
 
 function highlighted(text, query) {
@@ -366,7 +381,6 @@ function renderResults() {
     action.className = "pane-action";
     action.textContent = modeLabels[openMode];
     item.append(iconBox, copy, action);
-    item.addEventListener("mouseenter", () => hoverResult(index));
     item.addEventListener("click", () => openCandidate(tab));
     results.appendChild(item);
     if (!showAll && !tab.hasAttribute("pending")) {
@@ -451,7 +465,6 @@ function renderSplitCandidate(candidate, index, query, generation) {
   });
   actions.append(unsplit);
   item.append(preview, copy, actions);
-  item.addEventListener("mouseenter", () => hoverResult(index));
   item.addEventListener("click", () => { if (!full) openCandidate(candidate); });
   item.addEventListener("keydown", event => {
     if (event.target !== item) return;
@@ -631,6 +644,8 @@ function buildPicker() {
 
   overlay.addEventListener("mousedown", onBackdropMouseDown);
   dialog.addEventListener("keydown", onPickerDialogKey);
+  results.addEventListener("pointermove", onResultsPointerMove);
+  results.addEventListener("mousemove", onResultsPointerMove);
   results.addEventListener("focusin", event => {
     const item = event.target?.closest?.(".pane-item");
     if (!item) return;
@@ -727,6 +742,8 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   applyAppearance();
   expanded = false;
   search.value = "";
+  pointer.x = NaN;
+  pointer.y = NaN;
   setMode(openMode, { rebuild: true });
   overlay.hidden = false;
   diagnosticLog("picker opened", {

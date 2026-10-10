@@ -71,6 +71,8 @@ function harness() {
     results.children.push(item);
     return item;
   });
+  const unsplit = node({ tag: "button", className: "pane-split-unsplit", textContent: "Unsplit" });
+  items[0].append(unsplit);
   for (const mode of ["replace", "right", "below", "grid", "float"]) {
     modeBar.append(node({ tag: "button", dataset: { mode } }));
   }
@@ -81,6 +83,8 @@ function harness() {
     getElementById(id) { return id === "pane-help" ? help : null; },
   };
   items.forEach(item => { item.ownerDocument = document; item.focus = () => { active = item; }; });
+  unsplit.ownerDocument = document;
+  unsplit.focus = () => { active = unsplit; };
   search.ownerDocument = document;
   search.focus = () => { active = search; };
   results.contains = other => results === other || results.children.some(child => child === other || child.contains(other));
@@ -110,13 +114,13 @@ function harness() {
     closePicker() { context.closed = true; },
     renderResults() { context.rebuilt = (context.rebuilt ?? 0) + 1; },
   };
-  vm.runInNewContext(`${body}\nthis.selectResult=selectResult;this.hoverResult=hoverResult;this.paintMode=paintMode;this.applyPickerKey=applyPickerKey;`, context);
+  vm.runInNewContext(`${body}\nthis.selectResult=selectResult;this.hoverResult=hoverResult;this.onResultsPointerMove=onResultsPointerMove;this.paintMode=paintMode;this.applyPickerKey=applyPickerKey;`, context);
   const key = extra => ({
     key: "", code: "", keyCode: 0, ctrlKey: false, shiftKey: false, altKey: false, metaKey: false, isComposing: false,
     target: active, preventDefault() { this.prevented = true; },
     ...extra,
   });
-  return { context, items, filtered, key, activated: () => activated, help, search, document };
+  return { context, items, filtered, key, activated: () => activated, help, search, document, unsplit };
 }
 
 {
@@ -138,11 +142,33 @@ function harness() {
   const { context, items, filtered, key, activated } = harness();
   items[0].focus();
   context.selectResult(0);
-  context.hoverResult(2);
+  context.onResultsPointerMove({ clientX: 4, clientY: 8, target: items[2] });
   assert.equal(context.selectedIndex, 2);
   assert.equal(context.document.activeElement, items[2], "hover moves focus when a row already has it");
   context.applyPickerKey(key({ key: "Enter", target: items[2] }));
   assert.equal(activated().row, filtered[2], "Tab then hover then Enter opens the hovered row");
+}
+
+{
+  const { context, items, unsplit } = harness();
+  unsplit.focus();
+  context.selectResult(0);
+  context.onResultsPointerMove({ clientX: 12, clientY: 16, target: unsplit });
+  assert.equal(context.document.activeElement, unsplit, "hovering the same card leaves Unsplit focused");
+  assert.equal(context.selectedIndex, 0);
+  context.onResultsPointerMove({ clientX: 20, clientY: 16, target: items[2] });
+  assert.equal(context.document.activeElement, unsplit, "hover does not steal focus from Unsplit");
+  assert.equal(context.selectedIndex, 2);
+}
+
+{
+  const { context, items } = harness();
+  items[0].focus();
+  context.selectResult(0);
+  context.onResultsPointerMove({ clientX: 7, clientY: 7, target: items[0] });
+  context.onResultsPointerMove({ clientX: 7, clientY: 7, target: items[2] });
+  assert.equal(context.selectedIndex, 0, "same pointer coords after a keyboard scroll do not hover");
+  assert.equal(context.document.activeElement, items[0]);
 }
 
 {
@@ -167,7 +193,7 @@ function harness() {
   context.document.activeElement = context.search;
   context.selectResult(0);
   items[0].focus = () => { throw new Error("hover must not steal search focus"); };
-  context.hoverResult(2);
+  context.onResultsPointerMove({ clientX: 3, clientY: 9, target: items[2] });
   assert.equal(context.selectedIndex, 2);
   assert.equal(context.document.activeElement, context.search);
   context.applyPickerKey(key({ key: "Enter", target: context.search }));
@@ -178,4 +204,4 @@ const keys = await readFile(new URL("../picker-keys.mjs", import.meta.url), "utf
 assert.ok(!source.includes("export { isHubCycleChord }"));
 assert.ok(!keys.includes("export { isHubCycleChord }"), "the chord lives in keybindings, not a picker re-export");
 assert.ok(!keys.includes(".closest"), "the reducer stays DOM-free");
-console.log("Picker wiring: roving focus, hover follows list focus, cycle keeps focus.");
+console.log("Picker wiring: roving focus, hover follows row focus, nested buttons keep Enter.");
