@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { boundedNumber, numericSettings, numericValue } from '../appearance.mjs';
+import { boundedNumber, numericSettings, numericValue, settingsSections } from '../appearance.mjs';
+assert.equal(settingsSections.find(section => section[0] === 'scrolling')[1], 'Scrolling');
+assert.deepEqual(settingsSections.map(section => section[0]), ['0','1','scrolling','2','3','4','5'],'section keys stay stable');
 const width = numericSettings.find(s => s.key === 'picker-width');
 assert.equal(boundedNumber('537',width),537);
 assert.equal(boundedNumber('',width),520);

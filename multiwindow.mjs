@@ -54,7 +54,7 @@ export function accordionSizes(width, count, requestedWidth) {
 }
 
 export const presentationModes = ["accordion", "scrolling"];
-export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", scrolling: "Scrolling (experimental)" };
+export const modeLabels = { replace: "Replace", right: "Split right", below: "Split below", grid: "Add to grid", float: "Floating", accordion: "Horizontal accordion", scrolling: "Scrolling" };
 
 // Legacy callers and saved choices converge before validation or side effects.
 export const normalizeMode = mode => mode === "snapshot" ? "scrolling" : mode;
@@ -1190,8 +1190,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       ["normal", "Return to a normal tab", "Keep this tab open and stay on the remaining split"],
     ];
     if (group?.tabs.length >= 2) options.splice(3, 0,
-      ["scrolling", "Scrolling (experimental)", "Hold the modifier to reveal and scroll through tabs"],
-      ["accordion", "Horizontal accordion", "Expand one tab and switch from the side strips"],
+      ["scrolling", modeLabels.scrolling, "Hold the modifier to reveal and scroll through tabs"],
+      ["accordion", modeLabels.accordion, "Expand one tab and switch from the side strips"],
       ...((accordions.has(group) || scrollings.has(group)) ? [["tiles", "Restore tiled layout", "Bring back your previous divider sizes"]] : []));
     for (const [mode, label, description] of options) {
       const current = mode === currentMode;

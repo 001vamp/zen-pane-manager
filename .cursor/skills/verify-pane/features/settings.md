@@ -14,7 +14,7 @@ Picker gear #pane-appearance; Settings > Sine Mods > Pane gear, then complete se
 
 Preconditions: SKILL.md doctor passes for the owned throwaway profile; seed A/B/C/D. Run the fixture helper first.
 
-Open each entry point. Change picker width and toolbar visibility, reopen picker and require their visible effect. Reopen settings and require saved values. Reset this section and require unrelated section values unchanged. Record a shortcut, cancel with Escape, use default, disable, and try a duplicate Pane shortcut. Require unchanged canceled value and conflict warning with inactive duplicate. Restore defaults in the test profile.
+Open each entry point. Confirm the Scrolling section title has no experimental label and that raw custom-shortcut rows stay hidden. Change picker width and toolbar visibility, reopen picker and require their visible effect. Reopen settings and require saved values. Reset this section and require unrelated section values unchanged. Record a shortcut, cancel with Escape, use default, disable, and try a duplicate Pane shortcut. Require unchanged canceled value and conflict warning with inactive duplicate. Restore defaults in the test profile.
 
 Capture the action transcript and before/after screenshots under the helper's evidence directory. Record each entry point separately.
 

@@ -237,7 +237,7 @@
   {
     "id": "mod.pane.section-scrolling",
     "type": "separator",
-    "label": "Scrolling (experimental)"
+    "label": "Scrolling"
   },
   {
     "property": "mod.pane.scrolling-modifier",
@@ -288,7 +288,7 @@
   {
     "type": "text",
     "size": "12px",
-    "label": "Choose Scrolling in a split layout menu. Hold the modifier to reveal columns, then scroll with the wheel or two fingers. Release to open the centered tab at full width. Drag a column edge to resize; double-click to reset. Experimental: the layout and column widths are saved with the split."
+    "label": "Choose Scrolling in a split layout menu. Hold the modifier to reveal columns, then scroll with the wheel or two fingers. Release to open the centered tab at full width. Drag a column edge to resize; double-click to reset. The layout and column widths are saved with the split."
   },
   {
     "type": "separator",
