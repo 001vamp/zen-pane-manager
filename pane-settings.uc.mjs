@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import { numericSettings, colorSettings, numericValue, glassPresets, settingsSections } from './appearance.mjs?pane=0.11.0-labels';
-import { shortcutSettings, accordionBindings, pickerBinding, diagnosticsBinding, scrollingModifiers, shortcutLabel, parseBinding, bindingFromEvent } from './keybindings.mjs?pane=0.11.0-macos-shortcut';
+import { shortcutSettings, accordionBindings, pickerBinding, diagnosticsBinding, scrollingModifiers, shortcutLabel, parseBinding, bindingFromEvent, hubCycleConflict } from './keybindings.mjs?pane=0.11.0-hub-cycle';
 
 const INSTANCE = '__paneSettings';
 window[INSTANCE]?.destroy();
@@ -147,6 +147,7 @@ function shortcutControl(setting, box) {
   const save = value => {
     if (!setting.hold) {
       const binding = parseBinding(value);
+      if (hubCycleConflict(binding)) { note.textContent = `${hubCycleConflict(binding)}. Press another combination.`; return; }
       const candidates = [
         {key:'shortcut', label:'Open Pane', binding:pickerBinding(prefs)},
         {key:'diagnostics-keybinding', label:'Diagnostic report', binding:diagnosticsBinding(prefs)},

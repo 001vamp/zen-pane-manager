@@ -1,9 +1,10 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-picker-keys";
 import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
-import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
+import { matchesBinding, pickerBinding } from "./keybindings.mjs?pane=0.11.0-hub-cycle";
+import { reduce, isHubCycleChord } from "./picker-keys.mjs?pane=0.11.0-picker-keys";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -447,12 +448,9 @@ function renderSplitCandidate(candidate, index, query, generation) {
   item.addEventListener("click", () => { if (!full) openCandidate(candidate); });
   item.addEventListener("keydown", event => {
     if (event.target !== item) return;
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.key === " " || event.key === "Spacebar") {
       event.preventDefault();
-      const rowKind = "split";
-      openCandidate(candidate, (rowKind === "split" && event.shiftKey) ? "float" : openMode);
-    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault(); selectResult(index + (event.key === "ArrowDown" ? 1 : -1));
+      openCandidate(candidate, event.shiftKey ? "float" : openMode);
     }
   });
   results.append(item);
@@ -613,18 +611,8 @@ function buildPicker() {
   root.appendChild(overlay);
 
   overlay.addEventListener("mousedown", onBackdropMouseDown);
-  dialog.addEventListener("keydown", trapDialogFocus);
+  dialog.addEventListener("keydown", onPickerDialogKey);
   search.addEventListener("input", renderResults);
-  search.addEventListener("keydown", event => {
-    if (event.key === "ArrowDown") { event.preventDefault(); selectResult(selectedIndex + 1); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); selectResult(selectedIndex - 1); }
-    else if (event.key === "Enter" && filtered[selectedIndex]) {
-      event.preventDefault();
-      const row = filtered[selectedIndex];
-      const rowKind = row.kind === "split" ? "split" : "tab";
-      openCandidate(row, (rowKind === "split" && event.shiftKey) ? "float" : openMode);
-    }
-  });
 }
 
 function applyAppearance() {
@@ -904,7 +892,66 @@ function schedulePaneButtons() {
   });
 }
 
+function pickerKeyInput(event) {
+  return {
+    key: event.key,
+    code: event.code,
+    keyCode: event.keyCode,
+    ctrlKey: event.ctrlKey,
+    shiftKey: event.shiftKey,
+    altKey: event.altKey,
+    metaKey: event.metaKey,
+    isComposing: event.isComposing,
+  };
+}
+
+function currentPickerState() {
+  return {
+    query: search.value,
+    expanded,
+    selectedIndex,
+    mode: openMode,
+    scope: null,
+    peek: null,
+    pending: null,
+    inSplit: Boolean(targetTab && activeData()?.tabs.includes(targetTab)),
+    rows: filtered.map(row => ({ kind: row.kind === "split" ? "split" : "tab" })),
+  };
+}
+
+function applyPickerKey(event) {
+  if (event.key === "Enter" && event.target !== search && event.target.closest?.("button")) return;
+  const { state, action } = reduce(currentPickerState(), pickerKeyInput(event));
+  if (!action) return;
+  if (action.preventDefault) event.preventDefault();
+  if (action.type === "cycleMode") setMode(state.mode);
+  else if (action.type === "clearQuery") {
+    search.value = "";
+    expanded = false;
+    renderResults();
+    search.focus();
+  } else if (action.type === "collapse") {
+    expanded = false;
+    renderResults();
+    search.focus();
+  } else if (action.type === "close") closePicker();
+  else if (action.type === "move") selectResult(state.selectedIndex);
+  else if (action.type === "activate" && filtered[state.selectedIndex]) {
+    openCandidate(filtered[state.selectedIndex], action.mode);
+  }
+}
+
+function onPickerDialogKey(event) {
+  if (event.key === "Tab") {
+    trapDialogFocus(event);
+    return;
+  }
+  applyPickerKey(event);
+}
+
 function onShortcut(event) {
+  // A saved Open Pane chord of Ctrl+Shift+] must not toggle while the hub is open.
+  if (isHubCycleChord(event) && overlay && !overlay.hidden) return;
   const binding = pickerBinding(Services.prefs);
   if (matchesBinding(event, binding)) {
     event.preventDefault(); event.stopPropagation();
@@ -918,22 +965,6 @@ function onBackdropMouseDown(event) {
 }
 
 function trapDialogFocus(event) {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    if (search.value) {
-      search.value = "";
-      expanded = false;
-      renderResults();
-      search.focus();
-    } else if (expanded) {
-      expanded = false;
-      renderResults();
-      search.focus();
-    } else {
-      closePicker();
-    }
-    return;
-  }
   if (event.key !== "Tab") return;
   const focusable = [
     search,

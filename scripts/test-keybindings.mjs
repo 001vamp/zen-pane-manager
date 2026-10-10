@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel } from '../keybindings.mjs';
+import { readFile } from 'node:fs/promises';
+import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel, hubCycleConflict, isHubCycleBinding } from '../keybindings.mjs';
 const event = overrides => ({key:'r', code:'KeyR',ctrlKey:true,altKey:true,shiftKey:false,metaKey:false,...overrides});
 const defaultBinding = pickerBinding({getIntPref:()=>0}, 'MacIntel');
 assert.equal(defaultBinding.label,'Ctrl+Alt+R');
@@ -87,3 +88,25 @@ assert.ok(!matchesBinding(optionLayoutEvent,parseBinding('Alt+Shift+L'),'Win32')
 assert.ok(!matchesBinding(optionLayoutEvent,parseBinding('Alt+Shift+L'),'Linux x86_64'));
 const macLayoutEvent = event({key:'l',code:'KeyL',ctrlKey:true,altKey:false,shiftKey:true,view:{navigator:{platform:'MacIntel'}}});
 assert.ok(matchesBinding(macLayoutEvent,accordionBindings(prefs({}),'MacIntel')[2].binding,'MacIntel'));
+
+for (const label of ['Ctrl+Shift+}', 'Ctrl+Shift+]', 'Ctrl+Shift+{', 'Ctrl+Shift+[']) {
+  assert.match(hubCycleConflict(parseBinding(label)), /layout cycle/, `${label} is reserved for the picker layout cycle`);
+  assert.ok(isHubCycleBinding(parseBinding(label)));
+}
+assert.equal(hubCycleConflict(parseBinding('Ctrl+Shift+L')), '');
+assert.equal(hubCycleConflict(parseBinding('Ctrl+Alt+R')), '');
+assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+Shift+}'})).find(record => record.key === 'layout-menu').error, /layout cycle/);
+assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+Shift+]'}),'Win32').find(record => record.key === 'layout-menu').error, /layout cycle/);
+assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+Shift+{'})).find(record => record.key === 'accordion-next').error, /layout cycle/);
+assert.equal(
+  pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift+}'}).label,
+  'Ctrl+Shift+}',
+  'an already-saved Open Pane pref can still hold the reserved chord'
+);
+const settings = await readFile(new URL('../pane-settings.uc.mjs', import.meta.url), 'utf8');
+assert.match(settings, /hubCycleConflict/, 'Open Pane recorder rejects the layout-cycle chord at record time');
+const runtime = await readFile(new URL('../pane.uc.mjs', import.meta.url), 'utf8');
+assert.match(runtime, /isHubCycleChord\(event\) && overlay && !overlay.hidden\) return/, 'saved hub chord cycles and does not toggle while open');
+assert.match(runtime, /overlay.hidden \? openPicker\(\) : closePicker\(\)/, 'default Open Pane with the hub open still closes it');
+const controller = await readFile(new URL('../multiwindow.mjs', import.meta.url), 'utf8');
+assert.match(controller, /if \(isHubCycleChord\(event\)\) return/, 'layout shortcuts step aside only for the hub cycle chord');

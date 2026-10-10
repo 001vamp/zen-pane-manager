@@ -16,6 +16,8 @@ Preconditions: SKILL.md doctor passes for the owned throwaway profile; seed A/B/
 
 Open each entry point; require #pane-overlay and focused #pane-search. Search a title and website, use arrows and Enter, then repeat with mouse .pane-item. Require the selected page in the chosen destination. Test Escape clearing search, collapsing Show all, then closing. From solo D, join an Existing splits card with Add and Shift+Enter/Floating; Unsplit must keep all pages and sidebar origins. At narrow width, every #pane-open-modes [data-mode] choice must remain reachable.
 
+With search focused, real OS Control+Shift+physical `]` / `[` must cycle the pressed `#pane-open-modes` chip (solo skips Replace) and leave the caret in search. Type `1Password` and `[Draft]` — those must filter, not change mode. Option+arrows still word-jump on Mac; Alt+Left is still Back on Windows. Shift+Enter on a split card still floats; on a tab row it is still Enter. Non-US AltGr-bracket layouts and IME composition Enter/Escape: NOT RUN unless that layout is available. The wrapping chip bar, Arrange current, and layout-menu popup are unchanged in this slice.
+
 Capture the action transcript and before/after screenshots under the helper's evidence directory. Record each entry point separately.
 
 ## Gotchas

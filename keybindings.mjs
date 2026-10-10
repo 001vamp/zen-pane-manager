@@ -96,6 +96,25 @@ export function shortcutLabel(binding, platform = currentPlatform()) {
     .replace('ArrowLeft', '←').replace('ArrowRight', '→');
 }
 
+// Ctrl+Shift+[ / ] is the in-hub layout cycle. `{` / `}` is the same physical key.
+const HUB_CYCLE_KEYS = new Set(['[', '{', ']', '}']);
+
+export function isHubCycleBinding(binding) {
+  return Boolean(binding?.ctrlKey && binding.shiftKey && !binding.altKey && !binding.metaKey && HUB_CYCLE_KEYS.has(binding.key));
+}
+
+export function hubCycleConflict(binding) {
+  return isHubCycleBinding(binding) ? 'Already used by the layout cycle' : '';
+}
+
+function conflictKey(binding) {
+  if (!binding) return '';
+  if (isHubCycleBinding(binding)) {
+    return binding.key === '[' || binding.key === '{' ? 'Ctrl+Shift+BracketLeft' : 'Ctrl+Shift+BracketRight';
+  }
+  return binding.label;
+}
+
 // Conflicting navigation bindings are inactive until the user changes them.
 export function layoutBindings(prefs, platform = currentPlatform()) {
   const records = layoutShortcuts.map(setting => {
@@ -109,8 +128,12 @@ export function layoutBindings(prefs, platform = currentPlatform()) {
     reserved.push({ label: 'diagnostics', binding: diagnosticsBinding(prefs ?? {}, platform) });
   }
   for (const record of records) {
+    if (hubCycleConflict(record.binding)) {
+      record.error = `${hubCycleConflict(record.binding)}. Choose another shortcut.`;
+      continue;
+    }
     const conflict = [...reserved, ...records.filter(other => other !== record)]
-      .find(other => record.binding && other.binding?.label === record.binding.label);
+      .find(other => record.binding && other.binding && conflictKey(other.binding) === conflictKey(record.binding));
     if (conflict) record.error = `Already used by ${conflict.label}. Choose another shortcut.`;
   }
   for (const record of records) if (record.error) record.binding = null;

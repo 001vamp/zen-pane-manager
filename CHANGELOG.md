@@ -4,6 +4,7 @@ All notable changes to Pane are documented here.
 
 ## Unreleased
 
+- Let Control+Shift+[ and Control+Shift+] (the physical bracket keys) cycle the picker layout chips while search stays focused. Recording that chord as Open Pane or a layout shortcut is rejected. An already-saved copy still opens the picker, but does not toggle it closed while the overlay is open.
 - Remove experimental and prototype labels from Scrolling, Horizontal accordion, and settings. Saved layout IDs and preference keys are unchanged.
 
 ## 0.11.0 — 2026-10-05

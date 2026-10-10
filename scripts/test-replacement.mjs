@@ -37,5 +37,5 @@ assert.deepEqual(activatePlan({kind:'split',mode:'replace'}),{op:'join',mode:'gr
 assert.deepEqual(activatePlan({kind:'split',mode:'float'}),{op:'join',mode:'float'});
 assert.ok(source.includes('activatePlan({ kind, mode: requestedMode || openMode })'),'openCandidate follows the plan object');
 assert.ok(source.includes('item.addEventListener("click", () => { if (!full) openCandidate(candidate); });'),'clicking a split candidate does not force grid');
-assert.ok(source.includes('(rowKind === "split" && event.shiftKey) ? "float" : openMode'),'Shift+Enter floats a split card only; the model never sees Shift');
+assert.ok(source.includes('openCandidate(filtered[state.selectedIndex], action.mode)'),'Enter follows the reducer payload; the model never sees Shift');
 console.log('Picker split activation preserves the selected layout mode.');

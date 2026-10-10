@@ -1,7 +1,8 @@
 import { createSplitPersistence } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
+import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-hub-cycle";
+import { isHubCycleChord } from "./picker-keys.mjs?pane=0.11.0-picker-keys";
 import { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-picker";
 import { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
 import { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-picker";
@@ -1207,6 +1208,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function saveSplitLayoutIfChanged() { persistence.saveIfChanged(); }
   function markWindowClosing() { windowClosing = true; win.setTimeout?.(() => { if (!win.closed) windowClosing = false; }, 0); }
   function onAccordionShortcut(event) {
+    if (isHubCycleChord(event)) return;
     const picker = doc.getElementById?.('pane-overlay');
     if (menu || (picker && !picker.hidden) || event.repeat || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording')) return;
     const data = view._data[view.currentView];
