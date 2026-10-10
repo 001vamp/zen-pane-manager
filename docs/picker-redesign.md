@@ -180,7 +180,7 @@ Arrange current stays a row at the top of the list when you are in a split (`Ent
 
 ### B. Two-step (tab, then verb)
 
-Step 1: pick a destination (tab or existing split). One list. Search, ↑↓, Enter.  
+Step 1: pick a destination (tab or existing split). One list. Search, ↑↓, Enter.
 Step 2: pick the verb. One list. Current layout marked. ↑↓, Enter commits. `Shift+Enter` on step 1 skips to the default verb (Replace in a split, Split right solo).
 
 Arrange-current: step 1 is skipped; the layout-menu shortcut *is* step 2 for the current tab.
