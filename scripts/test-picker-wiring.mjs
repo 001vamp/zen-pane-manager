@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { pickerBinding, pickerShortcutAction } from "../keybindings.mjs";
+import { pickerBinding, pickerShortcutAction, shortcutLabel } from "../keybindings.mjs";
 import { reduce } from "../picker-keys.mjs";
 import { modeLabels, normalizeMode } from "../layout-modes.mjs";
 
@@ -221,6 +221,7 @@ console.log("Picker wiring: roving focus, hover follows row focus, nested button
 // Run the real capture listener with a macOS Option-generated character.
 {
   let opened = 0, closed = 0;
+  const shortcutLogs = [];
   const context = vm.createContext({
     window: {navigator: {platform: "MacIntel"}, addEventListener(type, listener, capture) {
       assert.equal(type, "keydown");
@@ -228,7 +229,8 @@ console.log("Picker wiring: roving focus, hover follows row focus, nested button
       this.listener = listener;
     }},
     Services: {prefs: {getIntPref: () => 3, getStringPref: () => "Alt+Shift+R"}},
-    pickerBinding, pickerShortcutAction, overlay: {hidden: true}, diagnosticLog() {},
+    pickerBinding, pickerShortcutAction, shortcutLabel, overlay: {hidden: true},
+    diagnosticLog(event, details) { shortcutLogs.push(details.binding); },
     openPicker() { opened++; context.overlay.hidden = false; },
     closePicker() { closed++; context.overlay.hidden = true; },
   });
@@ -249,6 +251,7 @@ console.log("Picker wiring: roving focus, hover follows row focus, nested button
   }
   assert.equal(opened, 1);
   assert.equal(closed, 1);
+  assert.deepEqual(shortcutLogs, ['Option+Shift+R', 'Option+Shift+R'], 'shortcut diagnostics use the platform formatter');
   const ordinary = press({key: "r", altKey: false, shiftKey: false, getModifierState: () => false});
   assert.ok(!ordinary.prevented && !ordinary.stopped, "ordinary typing reaches the page");
 }

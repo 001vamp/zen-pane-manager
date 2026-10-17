@@ -2,7 +2,7 @@
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
 import { modeLabels } from "./layout-modes.mjs?pane=0.11.0-picker";
-import { isHubCycleChord } from "./keybindings.mjs?pane=0.11.0-hub-fix";
+import { isHubCycleChord } from "./keybindings.mjs?pane=0.11.0-shortcut-contract";
 
 // One reducer for every later hub PR. Pointer (hover/click) stays at the edge.
 // scope / peek / pending stay null until those PRs fill them in.

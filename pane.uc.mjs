@@ -1,10 +1,10 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-dock-scrolling";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-shortcut-contract";
 import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
-import { pickerBinding, pickerShortcutAction } from "./keybindings.mjs?pane=0.11.0-hub-fix";
-import { reduce } from "./picker-keys.mjs?pane=0.11.0-picker-focus";
+import { pickerBinding, pickerShortcutAction, shortcutLabel } from "./keybindings.mjs?pane=0.11.0-shortcut-contract";
+import { reduce } from "./picker-keys.mjs?pane=0.11.0-shortcut-contract";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -206,8 +206,8 @@ function showUpdateNotice(manual = false) {
     return section;
   };
   if (guideNeeded || manual) {
-    const binding = pickerBinding(prefs, window.navigator?.platform)?.label;
-    card("1. Open Pane", binding ? `Press ${binding}, or use the swap button at the top of a split pane.` : "Use the swap button at the top of a split pane. You can enable a shortcut in Sine’s Pane settings.");
+    const binding = pickerBinding(prefs, window.navigator?.platform);
+    card("1. Open Pane", binding ? `Press ${shortcutLabel(binding, window.navigator?.platform)}, or use the swap button at the top of a split pane.` : "Use the swap button at the top of a split pane. You can enable a shortcut in Sine’s Pane settings.");
     card("2. Split or replace", "Pick an open tab and choose a layout. Replace swaps a page without changing your split.");
     card("3. Float a tab", "Choose Floating. Drag the title bar to move it, or an edge to resize. Its menu lets you put it back into a split.");
     const accordion = card("4. Try accordion", "Choose Horizontal accordion in a split’s layout menu. Click a page edge to switch, or focus it and use Left/Right. Shortcuts are customizable in Pane settings.");
@@ -1016,7 +1016,7 @@ function onShortcut(event) {
   if (action === "open" || action === "close") {
     event.preventDefault(); event.stopPropagation();
     event.stopImmediatePropagation?.();
-    diagnosticLog("picker shortcut received", { binding: binding.label });
+    diagnosticLog("picker shortcut received", { binding: shortcutLabel(binding, platform) });
     action === "open" ? openPicker() : closePicker();
   }
 }
@@ -1159,8 +1159,8 @@ function initialize() {
     window.addUnloadListener?.(destroy);
 
     const binding = pickerBinding(Services.prefs, window.navigator?.platform);
-    diagnosticLog("Pane runtime ready", { binding: binding?.label ?? "disabled" });
-    console.log(TAG, `0.11.0 ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
+    diagnosticLog("Pane runtime ready", { binding: shortcutLabel(binding, window.navigator?.platform) });
+    console.log(TAG, `0.11.0 ready${binding ? ` — press ${shortcutLabel(binding, window.navigator?.platform)}` : " — shortcut disabled"}`);
   } catch (error) {
     console.error(TAG, "failed to initialize", error);
     diagnosticLog("Pane initialization failed", { error: error?.name });

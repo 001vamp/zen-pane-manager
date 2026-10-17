@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
+import { pickerBinding, shortcutLabel, accordionBindings, shortcutSettings } from '../keybindings.mjs';
 const source = readFileSync(new URL("../pane.uc.mjs", import.meta.url), "utf8");
 const code = source.slice(source.indexOf("const UPDATE_NOTICES ="), source.indexOf("function closePicker("));
 const values = new Map();
 let focused = false, queued, attached = 0, visible;
-const node = () => ({ children: [], setAttribute() {}, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); }, addEventListener(type, fn) { this.click = fn; }, remove() { this.removed = true; } });
+const node = () => ({ children: [], setAttribute() {}, toggleAttribute() {}, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); }, addEventListener(type, fn) { this.click = fn; }, remove() { this.removed = true; } });
 const context = vm.createContext({
   window: { navigator: { platform: "MacIntel" } },
   updateNotice: null, updateNoticeTimer: null,
-  pickerBinding: () => ({ label: "Control+Option+R" }), setPaneIcon() {},
+  pickerBinding, shortcutLabel, setPaneIcon() {},
   Services: { prefs: {
     getStringPref: (key, fallback) => values.get(key) ?? fallback,
     getBoolPref: (key, fallback) => values.get(key) ?? fallback,
@@ -73,4 +74,39 @@ assert.doesNotMatch(context.missedUpdates('pane-0.11.0')[0].message,/Horizontal 
 assert.doesNotMatch(context.missedUpdates('pane-0.11.0')[0].message,/Floating session/);
 assert.match(source, /clearTimeout\(updateNoticeTimer\)/);
 assert.match(source, /updateNotice\?\.remove\(\)/);
+
+// Execute the shipped guide, startup logs and Settings control with real bindings.
+// No module-global navigator is available in this privileged-module fixture.
+const settings = readFileSync(new URL('../pane-settings.uc.mjs', import.meta.url), 'utf8');
+context.element = node;
+context.accordionBindings = accordionBindings;
+context.prefs = context.Services.prefs;
+context.Services.prefs.getIntPref = (key, fallback) => values.get(key) ?? fallback;
+vm.runInContext(settings.slice(settings.indexOf('function shortcutControl('), settings.indexOf('function colorControl(')), context);
+const startup = source.slice(source.lastIndexOf('    const binding = pickerBinding('), source.indexOf('  } catch (error)', source.lastIndexOf('    const binding = pickerBinding(')));
+for (const platform of ['MacIntel', 'Win32', 'Linux x86_64']) {
+  context.window.navigator.platform = platform;
+  for (const custom of [false, true]) {
+    values.clear();
+    values.set('mod.pane.shortcut', custom ? 3 : 0);
+    values.set('mod.pane.custom-shortcut', 'Ctrl+Alt+K');
+    const expected = /Mac/.test(platform)
+      ? (custom ? 'Control+Option+K' : 'Control+Option+R')
+      : (custom ? 'Ctrl+Alt+K' : 'Alt+Shift+P');
+    context.showUpdateNotice(true);
+    const guide = visible.children[2].children[0].children[1].textContent;
+    assert.ok(guide.startsWith(`Press ${expected},`), `${platform}: guide shows ${expected}`);
+    const logs = [], diagnostics = [];
+    context.console = {log: (...args) => logs.push(args)};
+    context.TAG = '[Pane]';
+    context.diagnosticLog = (event, details) => diagnostics.push({event, details});
+    vm.runInContext(`{ ${startup} }`, context);
+    assert.equal(logs[0][1], `0.11.0 ready — press ${expected}`, `${platform}: startup label agrees with guide`);
+    assert.equal(diagnostics[0].details.binding, expected, `${platform}: diagnostics label agrees with guide`);
+    const box = node();
+    context.shortcutControl(shortcutSettings.find(setting => setting.picker), box)();
+    assert.equal(box.children[1].children[0].value, expected, `${platform}: Settings label agrees with guide and logs`);
+  }
+}
+console.log('Picker labels: shipped guide, startup log, diagnostics and Settings agree on Mac/Windows/Linux, including custom shortcuts.');
 console.log("Update cards: backlog, migration, focus, delivery, acknowledgement, reopening, opt-out and cleanup passed.");

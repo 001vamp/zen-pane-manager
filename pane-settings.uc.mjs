@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import { numericSettings, colorSettings, numericValue, glassPresets, settingsSections } from './appearance.mjs?pane=0.11.0-labels';
-import { shortcutSettings, accordionBindings, pickerBinding, diagnosticsBinding, scrollingModifiers, shortcutLabel, parseBinding, bindingFromEvent, hubCycleConflict } from './keybindings.mjs?pane=0.11.0-hub-fix';
+import { shortcutSettings, accordionBindings, pickerBinding, diagnosticsBinding, scrollingModifiers, shortcutLabel, parseBinding, bindingFromEvent, hubCycleConflict } from './keybindings.mjs?pane=0.11.0-shortcut-contract';
 
 const INSTANCE = '__paneSettings';
 window[INSTANCE]?.destroy();

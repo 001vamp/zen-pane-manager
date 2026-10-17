@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
+import { shortcutLabel } from '../keybindings.mjs';
 
 class Node {
   constructor(doc, name = "div") {
@@ -73,6 +74,7 @@ function runPane({failAfterReady = false, createMultiwindow} = {}) {
   };
   const errors = [];
   const context = {
+    shortcutLabel,
     window, document:doc, gBrowser, Services:{ prefs }, MutationObserver:class { observe(){} disconnect(){ this.disconnected = true; } },
     AbortController, CSS:{ supports:() => true }, console:{ log(){}, error(...args){ errors.push(args); } }, setTimeout:window.setTimeout, clearTimeout:window.clearTimeout,
   };

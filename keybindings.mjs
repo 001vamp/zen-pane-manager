@@ -67,7 +67,13 @@ export function diagnosticsBinding(prefs, platform = currentPlatform()) {
   return parseBinding(configured);
 }
 
-export function pickerBinding(prefs, platform = currentPlatform()) {
+function requirePlatform(platform) {
+  if (typeof platform !== 'string' || !platform.trim()) throw new TypeError('platform is required');
+}
+
+/** @param {string} platform The calling browser window's navigator.platform. */
+export function pickerBinding(prefs, platform) {
+  requirePlatform(platform);
   let selection = 0;
   try { selection = prefs.getIntPref('mod.pane.shortcut', 0); } catch {}
   if (selection === 2) return null;
@@ -92,7 +98,8 @@ function defaultLayoutBinding(setting, platform = currentPlatform()) {
 
 export function shortcutLabel(binding, platform = currentPlatform()) {
   if (!binding) return 'Disabled';
-  return binding.label.replace('Alt', /Mac/i.test(platform) ? 'Option' : 'Alt')
+  return binding.label.replace('Ctrl', /Mac/i.test(platform) ? 'Control' : 'Ctrl')
+    .replace('Alt', /Mac/i.test(platform) ? 'Option' : 'Alt')
     .replace('ArrowLeft', '←').replace('ArrowRight', '→');
 }
 
@@ -118,6 +125,7 @@ export function hubCycleConflict(binding, event) {
 }
 
 export function pickerShortcutAction(event, { overlayOpen = false, binding = null, platform } = {}) {
+  requirePlatform(platform);
   if (isHubCycleChord(event) && overlayOpen) return 'cycle';
   if (matchesBinding(event, binding, platform)) return overlayOpen ? 'close' : 'open';
   return null;

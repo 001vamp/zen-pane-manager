@@ -61,11 +61,17 @@ for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "eval(", "nsIP
   if (extracted.some(body => body.includes(forbidden))) fail(`extracted module contains forbidden capability: ${forbidden}`);
 }
 
-if (!source.includes("multiwindow.mjs?pane=0.11.0-dock-scrolling")) fail("runtime must cache-bust the split controller");
+if (!source.includes("multiwindow.mjs?pane=0.11.0-shortcut-contract")) fail("runtime must cache-bust the split controller");
 if (!source.includes("presentation-snapshot.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the snapshot helper");
 if (!source.includes("picker-model.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the picker model");
-if (!source.includes("picker-keys.mjs?pane=0.11.0-picker-focus")) fail("runtime must cache-bust the picker key reducer");
-if (!source.includes("keybindings.mjs?pane=0.11.0-hub-fix")) fail("runtime must cache-bust reserved hub-cycle bindings");
+if (!source.includes("picker-keys.mjs?pane=0.11.0-shortcut-contract")) fail("runtime must cache-bust the picker key reducer");
+for (const path of ['pane.uc.mjs', 'pane-diagnostics.uc.mjs', 'pane-settings.uc.mjs', 'multiwindow.mjs', 'picker-keys.mjs', 'settings-page.mjs']) {
+  const module = await readFile(path, 'utf8');
+  const imports = [...module.matchAll(/keybindings\.mjs\?pane=([^'"\s]+)/g)];
+  if (!imports.length || imports.some(match => match[1] !== '0.11.0-shortcut-contract')) {
+    fail(`${path} must cache-bust the required-platform shortcut module`);
+  }
+}
 if (!source.includes("layout-options.mjs?pane=0.11.0-picker") && !extracted.some(body => body.includes("layout-options.mjs?pane=0.11.0-picker"))) {
   fail("runtime must cache-bust the layout-options helper");
 }
@@ -77,7 +83,7 @@ if (!theme.scripts?.["pane-settings.uc.mjs"]?.include?.includes("about:preferenc
 
 const settingsPage = await readFile("settings-page.mjs", "utf8");
 const settingsHtml = await readFile("settings.html", "utf8");
-if (!settingsPage.includes("pane-settings.uc.mjs?pane=0.11.0-platform")) fail("settings page must cache-bust platform-aware shortcut controls");
-if (!settingsHtml.includes("settings-page.mjs?v=0.11.0-platform")) fail("settings HTML must cache-bust the settings page loader");
+if (!settingsPage.includes("pane-settings.uc.mjs?pane=0.11.0-shortcut-contract")) fail("settings page must cache-bust platform-aware shortcut controls");
+if (!settingsHtml.includes("settings-page.mjs?v=0.11.0-shortcut-contract")) fail("settings HTML must cache-bust the settings page loader");
 
 if (!process.exitCode) console.log(`Pane ${theme.version} validation passed (${properties.length} preferences).`);

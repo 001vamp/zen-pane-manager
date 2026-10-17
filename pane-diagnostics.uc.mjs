@@ -1,4 +1,4 @@
-import { matchesBinding, pickerBinding, diagnosticsBinding } from "./keybindings.mjs?pane=0.11.0-hub-fix";
+import { matchesBinding, pickerBinding, diagnosticsBinding, shortcutLabel } from "./keybindings.mjs?pane=0.11.0-shortcut-contract";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -161,5 +161,5 @@ window[KEY] = { VERSION, events, log, snapshot, report, copy, destroy };
 window.PaneDiagnostics = { report, copy, snapshot };
 window.addUnloadListener?.(destroy);
 const startupBinding = diagnosticsBinding(Services.prefs, navigator.platform);
-log("diagnostics bootstrap loaded", { shortcut: startupBinding?.label ?? "disabled" });
+log("diagnostics bootstrap loaded", { shortcut: shortcutLabel(startupBinding, window.navigator?.platform) });
 detectSineVersion();

@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict';
 import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel, hubCycleConflict, isHubCycleBinding, isHubCycleChord, pickerShortcutAction } from '../keybindings.mjs';
 const event = overrides => ({key:'r', code:'KeyR',ctrlKey:true,altKey:true,shiftKey:false,metaKey:false,...overrides});
+assert.throws(() => pickerBinding({getIntPref:()=>0}), /platform.*required/i, 'picker callers must supply their window platform');
+assert.throws(() => pickerShortcutAction(event({}), {binding:parseBinding('Ctrl+Alt+R')}), /platform.*required/i, 'shortcut arbitration must not infer a platform');
+for (const platform of [undefined, null, '', '  ']) {
+  for (const selection of [0, 1, 2, 3]) {
+    assert.throws(() => pickerBinding({getIntPref:()=>selection}, platform), TypeError);
+  }
+  assert.throws(() => pickerShortcutAction(event({}), {platform}), TypeError);
+  assert.throws(() => pickerShortcutAction({ctrlKey:true,shiftKey:true,code:'BracketRight'}, {overlayOpen:true,platform}), TypeError, 'cycling cannot bypass the platform contract');
+}
+assert.throws(() => pickerShortcutAction(event({})), /platform.*required/i);
+assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+Command+K'), 'MacIntel'), 'Control+Option+Command+K');
+assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+K'), 'Win32'), 'Ctrl+Alt+K');
+assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+K'), 'Linux x86_64'), 'Ctrl+Alt+K');
 const defaultBinding = pickerBinding({getIntPref:()=>0}, 'MacIntel');
 assert.equal(defaultBinding.label,'Ctrl+Alt+R');
 assert.equal(pickerBinding({getIntPref:()=>0}, 'Win32').label,'Alt+Shift+P');
@@ -21,9 +34,9 @@ assert.ok(matchesBinding(event({key:'+',ctrlKey:false,altKey:false,shiftKey:true
 assert.ok(matchesBinding(event({key:'ArrowLeft',altKey:false}),parseBinding('Ctrl+Left')));
 assert.ok(matchesBinding(event({key:'q',code:'KeyA',altKey:false}),parseBinding('Ctrl+Q')),'non-Option bindings follow the keyboard layout');
 for (const invalid of ['', 'Ctrl', 'Ctrl++R', 'Ctrl+Ctrl+R','Hyper+R','Ctrl+made-up','F25']) assert.equal(parseBinding(invalid),null);
-assert.equal(pickerBinding({getIntPref:()=>2}),null);
-assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'bad binding'}),null);
-assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Cmd+K'}).label,'Command+K');
+assert.equal(pickerBinding({getIntPref:()=>2}, 'MacIntel'),null);
+assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'bad binding'}, 'MacIntel'),null);
+assert.equal(pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Cmd+K'}, 'MacIntel').label,'Command+K');
 assert.ok(matchesBinding(event({key:'®',getModifierState:()=>true,view:{navigator:{platform:'MacIntel'}}}),defaultBinding),'Real Mac Option reports AltGraph and must match');
 assert.ok(!matchesBinding(event({key:'r',getModifierState:()=>true,view:{navigator:{platform:'Linux x86_64'}}}),defaultBinding),'Linux AltGr must not trigger a shortcut');
 const prefs = values => ({getStringPref:(key,fallback)=>values[key] ?? fallback,getIntPref:()=>0,getBoolPref:(key,fallback)=>values[key] ?? fallback});
@@ -98,15 +111,15 @@ assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+Shift+}'})).f
 assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+Shift+]'}),'Win32').find(record => record.key === 'layout-menu').error, /layout cycle/);
 assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+Shift+{'})).find(record => record.key === 'accordion-next').error, /layout cycle/);
 assert.equal(
-  pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift+}'}).label,
+  pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift+}'}, 'MacIntel').label,
   'Ctrl+Shift+}',
   'an already-saved Open Pane pref can still hold the reserved chord'
 );
 
-const savedCycle = pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift+}'});
+const savedCycle = pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift+}'}, 'MacIntel');
 const cycleEvent = event({key:'}',code:'BracketRight',ctrlKey:true,altKey:false,shiftKey:true});
-assert.equal(pickerShortcutAction(cycleEvent, {overlayOpen:true, binding:savedCycle}), 'cycle', 'saved hub chord cycles and does not toggle while open');
-assert.equal(pickerShortcutAction(cycleEvent, {overlayOpen:false, binding:savedCycle}), 'open', 'the same saved chord can still open the picker');
+assert.equal(pickerShortcutAction(cycleEvent, {overlayOpen:true, binding:savedCycle, platform:'MacIntel'}), 'cycle', 'saved hub chord cycles and does not toggle while open');
+assert.equal(pickerShortcutAction(cycleEvent, {overlayOpen:false, binding:savedCycle, platform:'MacIntel'}), 'open', 'the same saved chord can still open the picker');
 const defaultOpen = pickerBinding({getIntPref:()=>0}, 'Win32');
 assert.equal(
   pickerShortcutAction(event({key:'P',code:'KeyP',ctrlKey:false,altKey:true,shiftKey:true}), {overlayOpen:true, binding:defaultOpen, platform:'Win32'}),

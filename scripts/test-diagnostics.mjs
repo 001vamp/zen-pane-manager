@@ -11,6 +11,7 @@ let unloaded = null;
 let alerted = false;
 
 globalThis.window = {
+  navigator: globalThis.navigator,
   addEventListener(type, callback) { listeners.set(type, callback); },
   removeEventListener(type, callback) {
     if (listeners.get(type) === callback) listeners.delete(type);
