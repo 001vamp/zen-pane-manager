@@ -35,6 +35,18 @@ Keep these variables and the PID for this run. In this window, verify `about:sup
 
 Ready means the test window's Pane toolbar/picker works and the complete settings page opens. Seed four disposable tabs A, B, C and D with distinct titles, a long page, an editable input, and a page with back/forward history. Add pinned, Essential and folder variants for tab-origin changes. Use local/test content only.
 
+## Automated native checks
+
+`npm run zen-checks` ([README](../../../scripts/zen-checks/README.md)) runs five checks in real headless Zen. It copies `~/.pane-test-profile` to `/tmp/pane-zen-qa.*`, stages this checkout into the copy, and drives the copy over Marionette. Before acting, it verifies `ProfD` is the copy. It signals only its own PID and deletes the copy afterward. Evidence stays in `/tmp/pane-zen-evidence.*`. The five checks:
+
+1. Split + Scrolling survives a full restart.
+2. Floating a tab keeps Scrolling on.
+3. Scrolling auto-docks floats.
+4. The picker opens via its shortcut and is opaque.
+5. The shortcut types no stray character into the page or URL bar.
+
+Run it for picker, shortcut, Scrolling, floating or restart changes, and paste its PASS/FAIL lines in the report. It does not replace the recipes below. Splits are created with `multiwindow.add`, and keys are Marionette input, not OS key routing. The picker add path, pointer drags, accordion, grid, settings and Windows/Linux remain manual.
+
 ## Doctor
 
 Fixtures: `node --version` must be >=20; `git status --short` and `git rev-parse HEAD` identify the tested checkout.
@@ -45,7 +57,7 @@ Native: run `ps -p "$QA_PID" -o pid=,command=` and inspect `about:support` in th
 
 Use real UI input in the doctor-confirmed window. Computer-use accessibility controls or Marionette pointer/key actions can drive the recipes; use visible labels first and the mapped DOM handles when inspecting chrome. Do not call `__paneInstance` setters as user-path proof. A native shortcut must receive real OS key input; synthetic DOM keyboard events do not prove macOS routing.
 
-Run picker, menu and every layout recipe from both a solo tab and an existing split where supported; test 2 and 4 panes and a narrow window. Run settings and restart recipes after layout changes. Use the ordered action/result pairs in each feature file. Current scripts `test-zen-browser.py` and `test-tab-origins-browser.py` are supplemental, not this gate: they use internal calls, mutate tabs, and the first destroys Pane. Do not run them against an arbitrary port/profile. This skill intentionally does not auto-connect to native Zen.
+Run picker, menu and every layout recipe from both a solo tab and an existing split where supported; test 2 and 4 panes and a narrow window. Run settings and restart recipes after layout changes. Use the ordered action/result pairs in each feature file. Current scripts `test-zen-browser.py` and `test-tab-origins-browser.py` are supplemental, not this gate: they use internal calls, mutate tabs, and the first destroys Pane. Do not run them against an arbitrary port/profile. Only `npm run zen-checks` connects to native Zen automatically, and only to the disposable copy it launched; the fixture helper never does.
 
 ## Evidence
 
@@ -57,4 +69,4 @@ The fixture helper creates no process or disposable app state; keep its evidence
 
 ## Helpers
 
-`scripts/verify.sh` is executable; invoke it from the repository root as shown above. It returns nonzero for failed fixtures or whitespace checks and explicitly reports native checks NOT RUN. Update this map when behavior changes; `/maintain-verification-skill` provides the maintenance workflow.
+`scripts/verify.sh` is executable; invoke it from the repository root as shown above. `scripts/zen-checks/run.mjs` (via `npm run zen-checks`) is the native helper; its README documents isolation and the five checks. After changing the harness or a guarded fix, also run `node scripts/zen-checks/prove-fails.mjs`, which must report every check CAUGHT with its fix reverted. It returns nonzero for failed fixtures or whitespace checks and explicitly reports native checks NOT RUN. Update this map when behavior changes; `/maintain-verification-skill` provides the maintenance workflow.

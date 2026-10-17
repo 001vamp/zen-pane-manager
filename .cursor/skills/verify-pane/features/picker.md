@@ -23,3 +23,5 @@ Capture the action transcript and before/after screenshots under the helper's ev
 ## Gotchas
 
 validate.mjs checks picker markup; test-replacement.mjs covers replacement/rollback and layout preservation; test-multiple-floats.mjs covers every add/join layout. Native focus, clipping, search and keyboard still require Zen.
+
+Automated: `npm run zen-checks` covers #4: Auto shortcut opens an opaque picker. It also covers #5: no stray character in a page input or the URL bar, using WebDriver and macOS-shaped Option events, with a built-in control showing the chord would otherwise type. It does not replace the steps above.
