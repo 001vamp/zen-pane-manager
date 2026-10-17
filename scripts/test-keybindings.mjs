@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
-import { parseBinding, matchesBinding, pickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel, hubCycleConflict, isHubCycleBinding, isHubCycleChord, pickerShortcutAction } from '../keybindings.mjs';
+import { parseBinding, matchesBinding, pickerBinding, defaultPickerBinding, defaultDiagnosticsBinding, diagnosticsBinding, accordionBindings, accordionShortcuts, shortcutLabel, hubCycleConflict, isHubCycleBinding, isHubCycleChord, pickerShortcutAction, windowPlatform } from '../keybindings.mjs';
 const event = overrides => ({key:'r', code:'KeyR',ctrlKey:true,altKey:true,shiftKey:false,metaKey:false,...overrides});
 assert.throws(() => pickerBinding({getIntPref:()=>0}), /platform.*required/i, 'picker callers must supply their window platform');
 assert.throws(() => pickerShortcutAction(event({}), {binding:parseBinding('Ctrl+Alt+R')}), /platform.*required/i, 'shortcut arbitration must not infer a platform');
+assert.throws(() => defaultPickerBinding(), /platform.*required/i);
+assert.throws(() => defaultDiagnosticsBinding(), /platform.*required/i);
+assert.throws(() => diagnosticsBinding({getStringPref:()=>'Auto'}), /platform.*required/i);
+assert.throws(() => accordionBindings({getStringPref:()=>'Auto'}), /platform.*required/i);
+assert.throws(() => shortcutLabel(parseBinding('Ctrl+K')), /platform.*required/i);
+assert.throws(() => windowPlatform({}), /platform.*required/i);
+assert.equal(windowPlatform({navigator:{platform:'MacIntel'}}),'MacIntel');
 for (const platform of [undefined, null, '', '  ']) {
   for (const selection of [0, 1, 2, 3]) {
     assert.throws(() => pickerBinding({getIntPref:()=>selection}, platform), TypeError);
@@ -12,8 +19,11 @@ for (const platform of [undefined, null, '', '  ']) {
 }
 assert.throws(() => pickerShortcutAction(event({})), /platform.*required/i);
 assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+Command+K'), 'MacIntel'), 'Control+Option+Command+K');
-assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+K'), 'Win32'), 'Ctrl+Alt+K');
-assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+K'), 'Linux x86_64'), 'Ctrl+Alt+K');
+assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+R'), 'MacIntel'), 'Control+Option+R');
+assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+K'), 'Win32'), 'Ctrl+Alt+K', 'Windows keeps Ctrl and Alt');
+assert.equal(shortcutLabel(parseBinding('Ctrl+Alt+K'), 'Linux x86_64'), 'Ctrl+Alt+K', 'Linux keeps Ctrl and Alt');
+assert.equal(shortcutLabel(parseBinding('Ctrl+Shift+L'), 'Win32'), 'Ctrl+Shift+L');
+assert.equal(shortcutLabel(parseBinding('Alt+Shift+P'), 'Linux x86_64'), 'Alt+Shift+P');
 const defaultBinding = pickerBinding({getIntPref:()=>0}, 'MacIntel');
 assert.equal(defaultBinding.label,'Ctrl+Alt+R');
 assert.equal(pickerBinding({getIntPref:()=>0}, 'Win32').label,'Alt+Shift+P');
@@ -55,15 +65,15 @@ for (const platform of ['MacIntel','Win32','Linux x86_64']) {
   assert.ok(matchesBinding(event({key:'Subtract',code:'NumpadSubtract',ctrlKey:/Mac/i.test(platform),altKey:!/Mac/i.test(platform),shiftKey:true}),bindings[4].binding));
   assert.ok(!matchesBinding(event({key:'ArrowRight',ctrlKey:false,shiftKey:false}),bindings[1].binding));
 }
-assert.equal(shortcutLabel(accordionBindings(prefs({}))[0].binding,'MacIntel'),'Option+Shift+←');
-for (const disabled of ['Disabled','disabled','']) assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':disabled}))[1].binding,null);
-const duplicate = accordionBindings(prefs({'mod.pane.accordion-previous':'Alt+Shift+Right'}));
+assert.equal(shortcutLabel(accordionBindings(prefs({}),'MacIntel')[0].binding,'MacIntel'),'Option+Shift+←');
+for (const disabled of ['Disabled','disabled','']) assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':disabled}),'Win32')[1].binding,null);
+const duplicate = accordionBindings(prefs({'mod.pane.accordion-previous':'Alt+Shift+Right'}),'Win32');
 assert.ok(duplicate.slice(0,2).every(record=>record.error && !record.binding),'both duplicate navigation bindings are disabled');
 assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+P'}),'Win32')[1].error,/picker/);
 assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+D'}),'Win32')[1].error,/diagnostics/);
 assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Alt+Shift+D','mod.pane.diagnostics-shortcut':false}),'Win32')[1].binding);
-assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Hyper+R'}))[1].error);
-assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+F8'}))[1].binding.label,'Ctrl+F8');
+assert.ok(accordionBindings(prefs({'mod.pane.accordion-next':'Hyper+R'}),'Win32')[1].error);
+assert.equal(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+F8'}),'Win32')[1].binding.label,'Ctrl+F8');
 console.log('Keybinding tests passed, including accordion customization and conflicts.');
 
 const { bindingFromEvent } = await import('../keybindings.mjs');
@@ -87,12 +97,12 @@ assert.equal(accordionShortcuts.find(shortcut=>shortcut.key==='accordion-widen')
 assert.equal(accordionShortcuts.find(shortcut=>shortcut.key==='accordion-narrow').defaultBinding,'Alt+Shift+Minus');
 assert.equal(accordionBindings(prefs({}),'Win32')[2].binding.label,'Alt+Shift+L');
 assert.equal(accordionBindings(prefs({}),'Linux x86_64')[2].binding.label,'Alt+Shift+L');
-assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Disabled'}))[2].binding,null);
-assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+F8'}))[2].binding.label,'Ctrl+F8');
-assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Alt+Shift+Right'}))[2].error,/Already used/);
+assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Disabled'}),'Win32')[2].binding,null);
+assert.equal(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+F8'}),'Win32')[2].binding.label,'Ctrl+F8');
+assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Alt+Shift+Right'}),'Win32')[2].error,/Already used/);
 assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+Shift+L'}),'MacIntel')[1].error,/Already used.*layout menu/);
 assert.match(accordionBindings(prefs({'mod.pane.accordion-widen':'Alt+Shift+Minus'}),'Win32')[3].error,/Already used.*Narrow/);
-assert.equal(accordionBindings(prefs({'mod.pane.accordion-widen':'Disabled'}))[3].binding,null);
+assert.equal(accordionBindings(prefs({'mod.pane.accordion-widen':'Disabled'}),'Win32')[3].binding,null);
 
 const optionLayoutEvent = event({key:'Ò',code:'KeyL',ctrlKey:false,shiftKey:true,getModifierState:()=>true,view:{navigator:{platform:''}}});
 assert.ok(matchesBinding(optionLayoutEvent,parseBinding('Alt+Shift+L'),'MacIntel'));
@@ -107,9 +117,9 @@ for (const label of ['Ctrl+Shift+}', 'Ctrl+Shift+]', 'Ctrl+Shift+{', 'Ctrl+Shift
 }
 assert.equal(hubCycleConflict(parseBinding('Ctrl+Shift+L')), '');
 assert.equal(hubCycleConflict(parseBinding('Ctrl+Alt+R')), '');
-assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+Shift+}'})).find(record => record.key === 'layout-menu').error, /layout cycle/);
+assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+Shift+}'}),'Win32').find(record => record.key === 'layout-menu').error, /layout cycle/);
 assert.match(accordionBindings(prefs({'mod.pane.layout-menu':'Ctrl+Shift+]'}),'Win32').find(record => record.key === 'layout-menu').error, /layout cycle/);
-assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+Shift+{'})).find(record => record.key === 'accordion-next').error, /layout cycle/);
+assert.match(accordionBindings(prefs({'mod.pane.accordion-next':'Ctrl+Shift+{'}),'Win32').find(record => record.key === 'accordion-next').error, /layout cycle/);
 assert.equal(
   pickerBinding({getIntPref:()=>3,getStringPref:()=> 'Ctrl+Shift+}'}, 'MacIntel').label,
   'Ctrl+Shift+}',

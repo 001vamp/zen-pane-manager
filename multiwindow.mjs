@@ -1,11 +1,11 @@
 import { createSplitPersistence } from "./split-persistence.mjs";
 import { createTabOrigins } from "./tab-origins.mjs";
 import { setPaneIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers } from "./keybindings.mjs?pane=0.11.0-shortcut-contract";
+import { accordionBindings, matchesBinding, shortcutLabel, scrollingModifiers, windowPlatform } from "./keybindings.mjs?pane=0.11.0-shortcut-platform";
 import { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-picker";
 import { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
 import { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-picker";
-import { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-picker";
+import { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-scrolling-active";
 import { clonePresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 import { arrangeOptions } from "./layout-options.mjs?pane=0.11.0-picker";
 // This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,7 +17,7 @@ import { arrangeOptions } from "./layout-options.mjs?pane=0.11.0-picker";
 export { tabWorkspace, isSupportedTab } from "./tab-eligibility.mjs?pane=0.11.0-picker";
 export { layoutTypes, presentationModes, modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
 export { accordionSizes, scrollingColumnWidth, scrollingSizes, landingIndex, fitRectangle, resizeRectangle } from "./presentation-geometry.mjs?pane=0.11.0-picker";
-export { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-picker";
+export { encodeFloat, decodeFloat, encodeAccordion, decodeAccordionGroup, encodeScrolling, decodeScrollingGroup } from "./presentation-records.mjs?pane=0.11.0-scrolling-active";
 export { clonePresentation, remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 
 export function updateHistoryControls(win) {
@@ -52,10 +52,12 @@ export function addHistoryControls(win, parent) {
 // Floating is a presentation of a native split, not a second browser or iframe.
 // The original browser node and browsing context never leave their container.
 export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = win.Services?.prefs, origins = createTabOrigins(win) }) {
+  const platform = windowPlatform(win);
   const doc = win.document, browser = win.gBrowser, view = win.gZenViewSplitter;
   const floats = new Map();
   const accordions = new Map();
   const scrollings = new Map();
+  let pausedScrolling = new WeakMap();
   const accordionKey = 'pane-accordion-v1';
   const scrollingKey = 'pane-scrolling-v1';
   const floatingKey = 'pane-floating-v1';
@@ -69,7 +71,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function recoverFloats() {
     if (!session || view._sessionRestoring) return;
     for (const data of view._data) {
-      if (data.tabs.length<2 || accordions.has(data)) continue;
+      if (data.tabs.length<2) continue;
+      if (accordions.has(data)) {
+        for (const tab of data.tabs) session.deleteCustomTabValue(tab, floatingKey);
+        continue;
+      }
       for (const tab of data.tabs) {
         if (floats.has(tab) || tab.closing || !tab.isConnected) continue;
         const decoded=decodeFloat(session.getCustomTabValue(tab,floatingKey));
@@ -111,7 +117,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function scrollingTabs(data) { return data.tabs.filter(tab => !floats.has(tab)); }
   function saveScrolling(data,state) {
     const tabs = scrollingTabs(data);
-    if (!session) return;
+    if (!session || disposed) return;
     state.sessionId ??= win.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
     for (const tab of state.savedTabs ?? []) if (!tabs.includes(tab) && tab.isConnected && !tab.closing) session.deleteCustomTabValue(tab,scrollingKey);
     state.savedTabs = [...tabs];
@@ -130,7 +136,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       if (!decoded) continue;
       const widths=new Map();
       decoded.widths.forEach((width,i)=>{if (width!=null) widths.set(tabs[i],width);});
-      scrollings.set(data,{offset:0,follow:true,overview:false,widths,containers:new Set(),abort:new win.AbortController(),sessionId:decoded.group,active:tabs[decoded.activeIndex],savedTabs:[...tabs]});
+      const active = tabs[decoded.activeIndex] ?? tabs[0];
+      scrollings.set(data,{offset:0,follow:true,overview:false,widths,containers:new Set(),abort:new win.AbortController(),sessionId:decoded.group,active,savedTabs:[...tabs]});
+      if (view._data[view.currentView] === data && tabs.includes(active)) browser.selectedTab = active;
     }
   }
   const backgrounds = new WeakMap();
@@ -200,7 +208,33 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       throw new Error("That tab is no longer available for this layout");
     }
   }
+  function forgetPausedScrolling(data) {
+    pausedScrolling.delete(data);
+  }
+  // One leftover page cannot scroll. Keep the strip so docking can put it back.
+  function rememberScrollingIfFloatedAway(data, state) {
+    if (disposed) return;
+    if (data.tabs.some(tab => floats.has(tab))) {
+      pausedScrolling.set(data, { widths: new Map(state.widths), active: state.active });
+    } else {
+      forgetPausedScrolling(data);
+    }
+  }
+  // Docking brought two pages back. Turn Scrolling on with the saved strip.
+  function resumePausedScrolling(data) {
+    if (disposed) return;
+    const paused = pausedScrolling.get(data);
+    const tabs = scrollingTabs(data);
+    if (!paused || scrollings.has(data) || tabs.length < 2) return;
+    forgetPausedScrolling(data);
+    const active = tabs.includes(paused.active) ? paused.active : tabs[0];
+    view.activateSplitView(data, true);
+    browser.selectedTab = active;
+    scrollings.set(data, { offset: 0, follow: true, overview: false, widths: new Map(paused.widths), containers: new Set(), abort: new win.AbortController() });
+    applyScrolling();
+  }
   function clearAccordion(data, restore = true, preserveSession = false) {
+    forgetPausedScrolling(data);
     clearScrolling(data, restore, preserveSession);
     const state = accordions.get(data);
     if (!state) return;
@@ -467,7 +501,12 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function applyScrolling() {
     for (const [data, state] of [...scrollings]) {
       const tabs = scrollingTabs(data);
-      if (!view._data.includes(data) || tabs.length < 2) { clearScrolling(data); continue; }
+      if (!view._data.includes(data) || tabs.length < 2) {
+        if (view._data.includes(data)) rememberScrollingIfFloatedAway(data, state);
+        else forgetPausedScrolling(data);
+        clearScrolling(data);
+        continue;
+      }
       const selected = tabs.includes(browser.selectedTab) ? browser.selectedTab : (tabs.includes(state.active) ? state.active : tabs[0]);
       state.active = selected;
       saveScrolling(data,state);
@@ -563,6 +602,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const data = groupFor(tab);
     if (!data || data.tabs.length < 2) throw new Error('Create a split before using scrolling');
     if (!data.tabs.every(t => containerFor(t))) throw new Error('Wait for the split panes to finish loading');
+    forgetPausedScrolling(data);
     for (const member of data.tabs) clearFloat(false, member);
     const widths=new Map(preservedWidths ?? scrollings.get(data)?.widths ?? []);
     clearAccordion(data);
@@ -789,6 +829,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const data = groupFor(tab);
     if (!data || data.tabs.length < 2) throw new Error("Create a split before using accordion");
     if (!data.tabs.every(t => containerFor(t))) throw new Error("Wait for the split panes to finish loading");
+    forgetPausedScrolling(data);
     for (const member of data.tabs) clearFloat(false, member);
     clearScrolling(data);
     view.activateSplitView(data, true);
@@ -816,6 +857,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       }
       applyFloat();
       applyScrolling();
+      for (const group of new Set(removed.map(f => f.data).filter(Boolean))) resumePausedScrolling(group);
     }
   }
   function raiseFloat(f) {
@@ -880,6 +922,10 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (data.tabs.every(tab => floats.has(tab))) {
       removeFloat(active[0]);
       active = active.slice(1);
+    }
+    if (scrollings.has(data)) {
+      for (const f of active) renderFloat(f);
+      return;
     }
     const remaining = data.tabs.filter(tab => !floats.has(tab));
     let background = backgrounds.get(data);
@@ -970,7 +1016,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (mode === "normal") return detach(tab);
     const data = groupFor(tab);
     if (!data) { chooseTab(tab, mode); return; }
-    if (mode === "grid" && data.tabs.length < 3) { chooseTab(tab, "grid"); return; }
+    if (mode === "grid" && data.tabs.length < 3) { forgetPausedScrolling(data); chooseTab(tab, "grid"); return; }
     if (!layoutTypes[mode]) throw new Error("Unknown layout");
     const presentation=capturePresentation(data);
     const previousFloat=floats.get(tab);
@@ -1179,9 +1225,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     }
     if (accordions.has(group)) {
       const hints = el("div", "pane-accordion-shortcuts");
-      for (const record of accordionBindings(prefs, win.navigator?.platform)) {
+      for (const record of accordionBindings(prefs, platform)) {
         const hint = el("span", "pane-layout-hint");
-        hint.append(el("kbd", "", shortcutLabel(record.binding, win.navigator?.platform)), el("span", "", record.label));
+        hint.append(el("kbd", "", shortcutLabel(record.binding, platform)), el("span", "", record.label));
         hints.append(hint);
       }
       menu.append(hints);
@@ -1214,7 +1260,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       || browser.selectedTab === hintTab)) hideEdgeHint();
     retryDeferredFrame ||= retryDeferred;
     if (frame || disposed) return;
-    frame = win.requestAnimationFrame(() => { const retry = retryDeferredFrame; frame = 0; retryDeferredFrame = false; persistence.sync({retryDeferred:retry}); recoverFloats(); recoverScrollings(); recoverAccordions(); applyFloat(); applyAccordion(); applyScrolling(); });
+    frame = win.requestAnimationFrame(() => { const retry = retryDeferredFrame; frame = 0; retryDeferredFrame = false; persistence.sync({retryDeferred:retry}); recoverAccordions(); recoverFloats(); recoverScrollings(); applyFloat(); applyAccordion(); applyScrolling(); });
   }
   function outside(event) { if (menu && !menu.contains(event.target)) closeMenu(); }
   function tabChanged() { closeMenu(); sync(); }
@@ -1227,8 +1273,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (menu || (picker && !picker.hidden) || event.repeat || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording')) return;
     const data = view._data[view.currentView];
     if (!data?.tabs.includes(browser.selectedTab) || data.tabs.length < 2) return;
-    const bindings = accordionBindings(prefs, win.navigator?.platform);
-    const index = bindings.findIndex(record => matchesBinding(event, record.binding, win.navigator?.platform));
+    const bindings = accordionBindings(prefs, platform);
+    const index = bindings.findIndex(record => matchesBinding(event, record.binding, platform));
     if (index < 0) return;
     if (bindings[index].key === 'layout-menu') {
       event.preventDefault(); event.stopPropagation();
@@ -1289,7 +1335,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       }
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
-      disposed = true; if (frame) win.cancelAnimationFrame(frame);
+      disposed = true; pausedScrolling = new WeakMap(); if (frame) win.cancelAnimationFrame(frame);
       closeMenu();
       hideEdgeHint();
       if (!detachOnly) {

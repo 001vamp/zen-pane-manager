@@ -47,17 +47,28 @@ export function matchesBinding(event, binding, platform = event.view?.navigator?
   return String(event.key).toLowerCase() === binding.key.toLowerCase();
 }
 
-const currentPlatform = () => globalThis.navigator?.platform ?? '';
+function requirePlatform(platform) {
+  if (typeof platform !== 'string' || !platform.trim()) throw new TypeError('platform is required');
+  return platform;
+}
 
-export function defaultPickerBinding(platform = currentPlatform()) {
+/** Read the window's platform once at startup. Missing values fail here, not later on a keypress. */
+export function windowPlatform(win) {
+  return requirePlatform(win?.navigator?.platform);
+}
+
+export function defaultPickerBinding(platform) {
+  requirePlatform(platform);
   return parseBinding(/Mac/i.test(platform) ? 'Ctrl+Alt+R' : 'Alt+Shift+P');
 }
 
-export function defaultDiagnosticsBinding(platform = currentPlatform()) {
+export function defaultDiagnosticsBinding(platform) {
+  requirePlatform(platform);
   return parseBinding(/Mac/i.test(platform) ? 'Ctrl+Alt+D' : 'Alt+Shift+D');
 }
 
-export function diagnosticsBinding(prefs, platform = currentPlatform()) {
+export function diagnosticsBinding(prefs, platform) {
+  requirePlatform(platform);
   let configured = 'Auto';
   try { configured = prefs.getStringPref('mod.pane.diagnostics-keybinding', 'Auto'); } catch {}
   // Move untouched Windows/Linux installs away from the previous default.
@@ -65,10 +76,6 @@ export function diagnosticsBinding(prefs, platform = currentPlatform()) {
     return defaultDiagnosticsBinding(platform);
   }
   return parseBinding(configured);
-}
-
-function requirePlatform(platform) {
-  if (typeof platform !== 'string' || !platform.trim()) throw new TypeError('platform is required');
 }
 
 /** @param {string} platform The calling browser window's navigator.platform. */
@@ -92,15 +99,18 @@ export const layoutShortcuts = [
   { key: 'accordion-narrow', resize: -1, label: 'Narrow expanded accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Minus', macDefaultBinding: 'Ctrl+Shift+Minus' },
 ];
 
-function defaultLayoutBinding(setting, platform = currentPlatform()) {
+function defaultLayoutBinding(setting, platform) {
+  requirePlatform(platform);
   return /Mac/i.test(platform) ? (setting.macDefaultBinding ?? setting.defaultBinding) : setting.defaultBinding;
 }
 
-export function shortcutLabel(binding, platform = currentPlatform()) {
+export function shortcutLabel(binding, platform) {
+  requirePlatform(platform);
   if (!binding) return 'Disabled';
-  return binding.label.replace('Ctrl', /Mac/i.test(platform) ? 'Control' : 'Ctrl')
-    .replace('Alt', /Mac/i.test(platform) ? 'Option' : 'Alt')
-    .replace('ArrowLeft', '←').replace('ArrowRight', '→');
+  const mac = /Mac/i.test(platform);
+  // Rename whole modifier words only. Ctrl becomes Control on Mac, never on Windows/Linux.
+  const names = { Ctrl: mac ? 'Control' : 'Ctrl', Alt: mac ? 'Option' : 'Alt', ArrowLeft: '←', ArrowRight: '→' };
+  return binding.label.split('+').map(part => names[part] ?? part).join('+');
 }
 
 // Ctrl+Shift+[ / ] is the in-hub layout cycle. `{` / `}` is the same physical key.
@@ -132,7 +142,8 @@ export function pickerShortcutAction(event, { overlayOpen = false, binding = nul
 }
 
 // Conflicting navigation bindings are inactive until the user changes them.
-export function layoutBindings(prefs, platform = currentPlatform()) {
+export function layoutBindings(prefs, platform) {
+  requirePlatform(platform);
   const records = layoutShortcuts.map(setting => {
     const value = prefs?.getStringPref?.(`mod.pane.${setting.key}`, 'Auto') ?? 'Auto';
     const disabled = !value.trim() || /^disabled$/i.test(value.trim());
