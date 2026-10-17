@@ -17,3 +17,9 @@ assert.doesNotMatch(resizeRule, /\btop: 36px\b/, 'accordion resize target covers
 assert.doesNotMatch(css, /pane-accordion-active[^{]*\{[^}]*overflow:\s*visible/, 'active accordion stays clipped');
 
 console.log('CSS accordion resize pointer and boundary rules passed.');
+
+const pickerRule = css.match(/#pane-dialog \{([^}]+)\}/)?.[1] ?? '';
+assert.match(pickerRule, /background:[^;]*light-dark\(#f7f8fb, #18191e\)/,
+  'picker uses an opaque light/dark base beneath its theme tint');
+assert.match(pickerRule, /linear-gradient\([^;]*var\(--pane-user-tint-light\)[^;]*var\(--pane-user-tint-dark\)/,
+  'picker keeps the configured theme tint over the opaque base');
