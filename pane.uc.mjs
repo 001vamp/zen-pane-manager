@@ -1,7 +1,7 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
 import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-layout-teardown";
 import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
-import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
+import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-default-layout";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
 import { pickerBinding, pickerShortcutAction, shortcutLabel, windowPlatform } from "./keybindings.mjs?pane=0.11.0-shortcut-platform";
 import { reduce } from "./picker-keys.mjs?pane=0.11.0-shortcut-platform";
@@ -42,6 +42,7 @@ const PREF = {
   columns: "mod.pane.grid-columns",
   dim: "mod.pane.dim-background",
   help: "mod.pane.show-help",
+  defaultLayout: "mod.pane.default-layout",
 };
 
 let overlay, dialog, heading, context, search, results, count, sectionLabel, expandButton;
@@ -509,6 +510,7 @@ function paintMode(mode) {
     b.querySelector(".pane-mode-check")?.remove();
     if (selected) { const check = paneIcon(document, "check"); check.classList.add("pane-mode-check"); b.append(check); }
   });
+  paintDefaultLayout();
   for (const [index, item] of [...results.querySelectorAll(".pane-item")].entries()) {
     const row = filtered[index];
     if (!row || row.kind === "split") continue;
@@ -517,6 +519,20 @@ function paintMode(mode) {
     if (action) action.textContent = modeLabels[openMode];
   }
   if (filtered.length) selectResult(selectedIndex);
+}
+
+// The switch is on when the chosen layout is the saved one. Its label never changes.
+function paintDefaultLayout() {
+  const toggle = document.getElementById("pane-default-layout");
+  if (!toggle) return;
+  toggle.setAttribute("aria-checked", String(stringPref(PREF.defaultLayout, "") === openMode));
+  toggle.setAttribute("aria-label", `Use ${modeLabels[openMode]} as the default layout`);
+}
+
+// Only writes the pref. The pref observer repaints the switch, so a click paints once.
+function toggleDefaultLayout() {
+  if (stringPref(PREF.defaultLayout, "") === openMode) Services.prefs.clearUserPref(PREF.defaultLayout);
+  else Services.prefs.setStringPref(PREF.defaultLayout, openMode);
 }
 
 function setMode(mode, { rebuild = false } = {}) {
@@ -644,6 +660,20 @@ function buildPicker() {
     button.querySelector(".pane-svg").classList.add("pane-mode-check");
     button.addEventListener("click", () => setMode(mode)); modeBar.append(button);
   }
+  // A switch on its own row, so it never reads as another layout chip.
+  const modeOptions = document.createElement("div");
+  modeOptions.id = "pane-mode-options";
+  const defaultLayout = document.createElement("button");
+  defaultLayout.id = "pane-default-layout";
+  defaultLayout.type = "button";
+  defaultLayout.setAttribute("role", "switch");
+  defaultLayout.title = "Open Pane with this layout next time";
+  const track = document.createElement("span");
+  track.className = "pane-switch-track";
+  track.setAttribute("aria-hidden", "true");
+  defaultLayout.append(track, document.createTextNode("Use as default"));
+  defaultLayout.addEventListener("click", toggleDefaultLayout);
+  modeOptions.append(defaultLayout);
   const arrangeCurrent = document.createElement("button");
   arrangeCurrent.id = "pane-arrange-current";
   arrangeCurrent.type = "button";
@@ -654,7 +684,7 @@ function buildPicker() {
     multiwindow.openMenu(tab);
   });
   modeBar.append(arrangeCurrent);
-  dialog.append(header, searchWrap, modeBar, sectionHeader, results, expandButton, help);
+  dialog.append(header, searchWrap, modeBar, modeOptions, sectionHeader, results, expandButton, help);
   overlay.appendChild(dialog);
   root.appendChild(overlay);
 
@@ -742,7 +772,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   targetTab = tab;
   paneAnchorTab = anchorToPane ? tab : null;
   candidates = eligibleTabs(tab, data);
-  openMode = requestedMode || defaultMode({ inSplit });
+  openMode = requestedMode || defaultMode({ inSplit, savedMode: stringPref(PREF.defaultLayout, "") });
   modeBar.querySelector('[data-mode="replace"]').hidden = !inSplit;
   document.getElementById("pane-arrange-current").hidden = !inSplit;
   heading.textContent = inSplit ? "Replace or arrange this pane" : "Open a tab alongside this one";
@@ -1033,6 +1063,7 @@ function trapDialogFocus(event) {
   const focusable = [
     search,
     ...modeBar.querySelectorAll("button:not([hidden])"),
+    document.getElementById("pane-default-layout"),
     document.getElementById("pane-appearance"),
     ...results.querySelectorAll(".pane-item"),
     ...results.querySelectorAll(".pane-split-actions button:not(:disabled)"),
@@ -1060,6 +1091,11 @@ function onWindowResize() {
 
 const prefObserver = {
   observe(subject, topic, name) {
+    // The saved layout only changes the switch; chips and rows stay put.
+    if (name === PREF.defaultLayout) {
+      if (!overlay.hidden) paintDefaultLayout();
+      return;
+    }
     if (name === PREF.button) ensurePaneButtons();
     applyAppearance();
     syncToolbarReveals();

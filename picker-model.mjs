@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
-import { normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
+import { modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
 export { arrangeOptions } from "./layout-options.mjs?pane=0.11.0-picker";
 
 // Pure picker rules. Callers hand in plain records. Nothing here reads Zen.
@@ -62,8 +62,13 @@ export function filterDestinations(list, query) {
   return (list ?? []).filter(item => destinationSearchText(item).toLocaleLowerCase().includes(needle));
 }
 
-export function defaultMode({ inSplit } = {}) {
-  return inSplit ? "replace" : "right";
+// Inside a split the picker always starts on Replace. The saved layout only
+// applies to a solo tab, where Replace has nothing to replace.
+export function defaultMode({ inSplit, savedMode = "" } = {}) {
+  if (inSplit) return "replace";
+  return typeof savedMode === "string" && Object.hasOwn(modeLabels, savedMode) && savedMode !== "replace"
+    ? savedMode
+    : "right";
 }
 
 // Decide the controller call without touching Zen. No shiftKey here.

@@ -681,7 +681,33 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pane-accent) 65%, currentColor), 0 3px 12px rgb(0 0 0 / .10);
 }
 
-@media (prefers-reduced-motion: reduce) { #pane-open-modes > button { transition: none; } }
+/* "Use as default" is a switch, not a chip: no border or fill, fixed label, its own row. */
+#pane-mode-options { display: flex; justify-content: flex-end; padding: 4px 14px 0; }
+#pane-default-layout {
+  appearance: none !important;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 3px 4px !important; border: 0 !important; border-radius: 6px !important;
+  background: transparent !important; color: inherit !important; box-shadow: none !important;
+  font: 11px system-ui; opacity: .72; white-space: nowrap; cursor: pointer;
+}
+#pane-default-layout:hover, #pane-default-layout[aria-checked="true"] { opacity: 1; }
+#pane-default-layout:focus-visible { outline: 2px solid var(--pane-accent); outline-offset: 1px; }
+#pane-default-layout .pane-switch-track {
+  position: relative; flex: none; box-sizing: border-box; width: 26px; height: 15px; border-radius: 8px;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+  transition: background-color 120ms ease;
+}
+#pane-default-layout .pane-switch-track::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
+  background: white; box-shadow: 0 1px 2px rgb(0 0 0 / .25);
+  transition: transform 120ms ease;
+}
+#pane-default-layout[aria-checked="true"] .pane-switch-track { background: var(--pane-accent); }
+#pane-default-layout[aria-checked="true"] .pane-switch-track::before { transform: translateX(11px); }
+
+@media (prefers-reduced-motion: reduce) {
+  #pane-open-modes > button, #pane-default-layout .pane-switch-track, #pane-default-layout .pane-switch-track::before { transition: none; }
+}
 .browserSidebarContainer[pane-floating] > .pane-float-resize {
   appearance: none !important;
   box-sizing: border-box !important;
