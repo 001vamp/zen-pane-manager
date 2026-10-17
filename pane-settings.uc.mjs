@@ -2,10 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import { numericSettings, colorSettings, numericValue, glassPresets, settingsSections } from './appearance.mjs?pane=0.11.0-labels';
-import { shortcutSettings, accordionBindings, pickerBinding, diagnosticsBinding, scrollingModifiers, shortcutLabel, parseBinding, bindingFromEvent } from './keybindings.mjs?pane=0.11.0-macos-shortcut';
+import { shortcutSettings, accordionBindings, pickerBinding, diagnosticsBinding, scrollingModifiers, shortcutLabel, parseBinding, bindingFromEvent, hubCycleConflict, windowPlatform } from './keybindings.mjs?pane=0.11.0-shortcut-platform';
 
 const INSTANCE = '__paneSettings';
 window[INSTANCE]?.destroy();
+const platform = windowPlatform(window);
 const prefs = Services.prefs;
 const prefix = 'mod.pane.';
 let stopRecording = null;
@@ -123,12 +124,12 @@ function shortcutControl(setting, box) {
   const disable = element('button', {type:'button'}, 'Disable');
   let recording = false, held = '', warnedBinding='';
   const sync = () => {
-    const record=accordionBindings(prefs).find(r=>r.key===setting.key);
-    const binding = setting.picker ? pickerBinding(prefs) : setting.hold ? scrollingModifiers(prefs)
-      : setting.key === 'diagnostics-keybinding' ? diagnosticsBinding(prefs)
-      : accordionBindings(prefs).find(r=>r.key===setting.key)?.binding;
+    const record=accordionBindings(prefs, platform).find(r=>r.key===setting.key);
+    const binding = setting.picker ? pickerBinding(prefs, platform) : setting.hold ? scrollingModifiers(prefs)
+      : setting.key === 'diagnostics-keybinding' ? diagnosticsBinding(prefs, platform)
+      : accordionBindings(prefs, platform).find(r=>r.key===setting.key)?.binding;
     display.setAttribute('aria-invalid',String(Boolean(record?.error)));
-    display.value = setting.hold && binding ? shortcutLabel(binding).replace('+Space','') : shortcutLabel(binding);
+    display.value = setting.hold && binding ? shortcutLabel(binding, platform).replace('+Space','') : shortcutLabel(binding, platform);
     change.textContent = recording ? 'Cancel' : 'Change shortcut';
     change.toggleAttribute('data-pane-recording', recording);
     note.textContent = recording ? (setting.hold ? 'Hold your modifier keys, then release to save. Escape cancels.' : 'Press your shortcut. Escape cancels.') : record?.error || 'Click Change shortcut, then press the keys you want. Zen and system conflicts cannot be detected reliably.';
@@ -147,10 +148,11 @@ function shortcutControl(setting, box) {
   const save = value => {
     if (!setting.hold) {
       const binding = parseBinding(value);
+      if (hubCycleConflict(binding)) { note.textContent = `${hubCycleConflict(binding)}. Press another combination.`; return; }
       const candidates = [
-        {key:'shortcut', label:'Open Pane', binding:pickerBinding(prefs)},
-        {key:'diagnostics-keybinding', label:'Diagnostic report', binding:diagnosticsBinding(prefs)},
-        ...accordionBindings(prefs),
+        {key:'shortcut', label:'Open Pane', binding:pickerBinding(prefs, platform)},
+        {key:'diagnostics-keybinding', label:'Diagnostic report', binding:diagnosticsBinding(prefs, platform)},
+        ...accordionBindings(prefs, platform),
       ];
       const conflict = candidates.find(other=>other.key !== setting.key && other.binding?.label === binding?.label);
       if (conflict) { note.textContent = `Already used by ${conflict.label}. Press another combination.`; return; }
@@ -183,6 +185,7 @@ function shortcutControl(setting, box) {
       display.value=held; return;
     }
     const binding=bindingFromEvent(event);
+    if (hubCycleConflict(binding, event)) { note.textContent = `${hubCycleConflict(binding, event)}. Press another combination.`; return; }
     if (binding && /^[a-z0-9]$/i.test(binding.key) && !binding.ctrlKey && !binding.altKey && !binding.shiftKey && !binding.metaKey && warnedBinding!==binding.label) {
       warnedBinding=binding.label;note.textContent='This shortcut may intercept typing. Press it again to use it, or choose a modifier/function key.'; return;
     }

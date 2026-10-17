@@ -16,7 +16,7 @@ Try it, open an issue, or send a PR: https://github.com/001vamp/zen-pane-manager
 
 I kept running into a small but frustrating Zen workflow: I had a split arranged exactly how I wanted, but changing one pane meant unsplitting, rebuilding, and resizing everything.
 
-Pane fixes that. Focus a pane, press `Ctrl+Alt+R` or its ⇄ button, and choose another open tab. The new tab takes the same leaf in Zen's split tree, so the layout and divider ratios stay intact.
+Pane fixes that. Focus a pane, press `Control+Option+R` on Mac or `Alt+Shift+P` on Windows/Linux, or use its ⇄ button, and choose another open tab. The new tab takes the same leaf in Zen's split tree, so the layout and divider ratios stay intact.
 
 The project is open source under MPL-2.0. The first release includes search, recently used tabs, keyboard navigation, glass presets, configurable appearance, rollback behavior, and no telemetry or network requests.
 

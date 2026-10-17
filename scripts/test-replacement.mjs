@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import { remapPresentation } from '../presentation-snapshot.mjs';
+import { activatePlan } from '../picker-model.mjs';
 
 // Exercise the actual runtime transaction with injected native API failures.
 const source=await readFile(new URL('../pane.uc.mjs',import.meta.url),'utf8');
@@ -35,11 +36,18 @@ const openCandidateSource=source.slice(source.indexOf('function openCandidate'),
 {
   const targetTab={label:'current'}, group={tabs:[]};
   let joined=null, closed=false;
-  const context={targetTab,group,openMode:'below',multiwindow:{join:(joinedGroup,incoming,mode)=>{joined={joinedGroup,incoming,mode};}},closePicker:()=>{closed=true;},showToast:message=>{throw new Error(message);}};
+  const context={targetTab,group,openMode:'below',activatePlan,multiwindow:{join:(joinedGroup,incoming,mode)=>{joined={joinedGroup,incoming,mode};}},closePicker:()=>{closed=true;},showToast:message=>{throw new Error(message);}};
   vm.runInNewContext(openCandidateSource+'\nopenCandidate({kind:"split",group});',context);
   assert.deepEqual(joined,{joinedGroup:group,incoming:targetTab,mode:'below'},'split picker activation uses the selected layout mode');
   assert.equal(closed,true);
 }
-assert.ok(source.includes('item.addEventListener("click", () => { if (!full) openCandidate(candidate); });'),'clicking a split candidate does not force grid');
-assert.ok(source.includes('openCandidate(candidate, event.shiftKey ? "float" : null);'),'pressing Enter on a split candidate does not force grid');
+{
+  const targetTab={label:'current'}, group={tabs:[]};
+  let joined=null, closed=false;
+  const context={targetTab,group,openMode:'replace',activatePlan,multiwindow:{join:(joinedGroup,incoming,mode)=>{joined={joinedGroup,incoming,mode};}},closePicker:()=>{closed=true;},showToast:message=>{throw new Error(message);}};
+  vm.runInNewContext(openCandidateSource+'\nopenCandidate({kind:"split",group});',context);
+  assert.deepEqual(joined,{joinedGroup:group,incoming:targetTab,mode:'grid'},'Replace on a split card still joins as grid');
+  assert.equal(closed,true);
+}
+assert.deepEqual(activatePlan({kind:'split',mode:'float'}),{op:'join',mode:'float'});
 console.log('Picker split activation preserves the selected layout mode.');

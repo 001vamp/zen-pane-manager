@@ -1,4 +1,4 @@
-import { matchesBinding, pickerBinding, diagnosticsBinding } from "./keybindings.mjs?pane=0.11.0-macos-shortcut";
+import { matchesBinding, pickerBinding, diagnosticsBinding, shortcutLabel, windowPlatform } from "./keybindings.mjs?pane=0.11.0-shortcut-platform";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -13,6 +13,7 @@ const MAX_EVENTS = 80;
 
 window[KEY]?.destroy?.();
 
+const platform = windowPlatform(window);
 const startedAt = Date.now();
 const events = [];
 let sineVersion = "unknown";
@@ -133,10 +134,10 @@ function copy() {
 
 function onShortcut(event) {
   if (!pref(SHORTCUT_PREF, true)) return;
-  const binding = diagnosticsBinding(Services.prefs, navigator.platform);
+  const binding = diagnosticsBinding(Services.prefs, platform);
   // The picker wins if users assign both actions the same shortcut.
-  if (matchesBinding(event, pickerBinding(Services.prefs))) return;
-  if (matchesBinding(event, binding)) {
+  if (matchesBinding(event, pickerBinding(Services.prefs, platform), platform)) return;
+  if (matchesBinding(event, binding, platform)) {
     event.preventDefault();
     event.stopPropagation();
     const copied = copy();
@@ -160,6 +161,6 @@ window.addEventListener("keydown", onShortcut, true);
 window[KEY] = { VERSION, events, log, snapshot, report, copy, destroy };
 window.PaneDiagnostics = { report, copy, snapshot };
 window.addUnloadListener?.(destroy);
-const startupBinding = diagnosticsBinding(Services.prefs, navigator.platform);
-log("diagnostics bootstrap loaded", { shortcut: startupBinding?.label ?? "disabled" });
+const startupBinding = diagnosticsBinding(Services.prefs, platform);
+log("diagnostics bootstrap loaded", { shortcut: shortcutLabel(startupBinding, platform) });
 detectSineVersion();

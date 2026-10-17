@@ -47,17 +47,28 @@ export function matchesBinding(event, binding, platform = event.view?.navigator?
   return String(event.key).toLowerCase() === binding.key.toLowerCase();
 }
 
-const currentPlatform = () => globalThis.navigator?.platform ?? '';
+function requirePlatform(platform) {
+  if (typeof platform !== 'string' || !platform.trim()) throw new TypeError('platform is required');
+  return platform;
+}
 
-export function defaultPickerBinding(platform = currentPlatform()) {
+/** Read the window's platform once at startup. Missing values fail here, not later on a keypress. */
+export function windowPlatform(win) {
+  return requirePlatform(win?.navigator?.platform);
+}
+
+export function defaultPickerBinding(platform) {
+  requirePlatform(platform);
   return parseBinding(/Mac/i.test(platform) ? 'Ctrl+Alt+R' : 'Alt+Shift+P');
 }
 
-export function defaultDiagnosticsBinding(platform = currentPlatform()) {
+export function defaultDiagnosticsBinding(platform) {
+  requirePlatform(platform);
   return parseBinding(/Mac/i.test(platform) ? 'Ctrl+Alt+D' : 'Alt+Shift+D');
 }
 
-export function diagnosticsBinding(prefs, platform = currentPlatform()) {
+export function diagnosticsBinding(prefs, platform) {
+  requirePlatform(platform);
   let configured = 'Auto';
   try { configured = prefs.getStringPref('mod.pane.diagnostics-keybinding', 'Auto'); } catch {}
   // Move untouched Windows/Linux installs away from the previous default.
@@ -67,7 +78,9 @@ export function diagnosticsBinding(prefs, platform = currentPlatform()) {
   return parseBinding(configured);
 }
 
-export function pickerBinding(prefs, platform = currentPlatform()) {
+/** @param {string} platform The calling browser window's navigator.platform. */
+export function pickerBinding(prefs, platform) {
+  requirePlatform(platform);
   let selection = 0;
   try { selection = prefs.getIntPref('mod.pane.shortcut', 0); } catch {}
   if (selection === 2) return null;
@@ -86,18 +99,51 @@ export const layoutShortcuts = [
   { key: 'accordion-narrow', resize: -1, label: 'Narrow expanded accordion tab', value: 'Auto', defaultBinding: 'Alt+Shift+Minus', macDefaultBinding: 'Ctrl+Shift+Minus' },
 ];
 
-function defaultLayoutBinding(setting, platform = currentPlatform()) {
+function defaultLayoutBinding(setting, platform) {
+  requirePlatform(platform);
   return /Mac/i.test(platform) ? (setting.macDefaultBinding ?? setting.defaultBinding) : setting.defaultBinding;
 }
 
-export function shortcutLabel(binding, platform = currentPlatform()) {
+export function shortcutLabel(binding, platform) {
+  requirePlatform(platform);
   if (!binding) return 'Disabled';
-  return binding.label.replace('Alt', /Mac/i.test(platform) ? 'Option' : 'Alt')
-    .replace('ArrowLeft', '←').replace('ArrowRight', '→');
+  const mac = /Mac/i.test(platform);
+  // Rename whole modifier words only. Ctrl becomes Control on Mac, never on Windows/Linux.
+  const names = { Ctrl: mac ? 'Control' : 'Ctrl', Alt: mac ? 'Option' : 'Alt', ArrowLeft: '←', ArrowRight: '→' };
+  return binding.label.split('+').map(part => names[part] ?? part).join('+');
+}
+
+// Ctrl+Shift+[ / ] is the in-hub layout cycle. `{` / `}` is the same physical key.
+const HUB_CYCLE_KEYS = new Set(['[', '{', ']', '}']);
+
+export function isHubCycleChord(input) {
+  return Boolean(
+    input?.ctrlKey
+    && input.shiftKey
+    && !input.altKey
+    && !input.metaKey
+    && (input.code === 'BracketLeft' || input.code === 'BracketRight')
+  );
+}
+
+export function isHubCycleBinding(binding) {
+  return Boolean(binding?.ctrlKey && binding.shiftKey && !binding.altKey && !binding.metaKey && HUB_CYCLE_KEYS.has(binding.key));
+}
+
+export function hubCycleConflict(binding, event) {
+  return isHubCycleChord(event) || isHubCycleBinding(binding) ? 'Already used by the layout cycle' : '';
+}
+
+export function pickerShortcutAction(event, { overlayOpen = false, binding = null, platform } = {}) {
+  requirePlatform(platform);
+  if (isHubCycleChord(event) && overlayOpen) return 'cycle';
+  if (matchesBinding(event, binding, platform)) return overlayOpen ? 'close' : 'open';
+  return null;
 }
 
 // Conflicting navigation bindings are inactive until the user changes them.
-export function layoutBindings(prefs, platform = currentPlatform()) {
+export function layoutBindings(prefs, platform) {
+  requirePlatform(platform);
   const records = layoutShortcuts.map(setting => {
     const value = prefs?.getStringPref?.(`mod.pane.${setting.key}`, 'Auto') ?? 'Auto';
     const disabled = !value.trim() || /^disabled$/i.test(value.trim());
@@ -109,6 +155,11 @@ export function layoutBindings(prefs, platform = currentPlatform()) {
     reserved.push({ label: 'diagnostics', binding: diagnosticsBinding(prefs ?? {}, platform) });
   }
   for (const record of records) {
+    const reservedChord = hubCycleConflict(record.binding);
+    if (reservedChord) {
+      record.error = `${reservedChord}. Choose another shortcut.`;
+      continue;
+    }
     const conflict = [...reserved, ...records.filter(other => other !== record)]
       .find(other => record.binding && other.binding?.label === record.binding.label);
     if (conflict) record.error = `Already used by ${conflict.label}. Choose another shortcut.`;

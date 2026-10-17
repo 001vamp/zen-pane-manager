@@ -43,8 +43,12 @@ assert.equal(decodeScrollingGroup(["{", encodeScrolling("g", true, 100)]), null,
 assert.equal(decodeScrollingGroup([encodeScrolling("a", true, 100), encodeScrolling("b", false, 100)]), null);
 const legacy = JSON.stringify({group:"g",active:true,snapshot:true,width:800.125});
 const recovered = decodeScrollingGroup([legacy, JSON.stringify({group:"g",active:false,width:null})]);
-assert.equal(recovered.group, "g");
-assert.deepEqual(recovered.widths, [800.125, null], "legacy snapshot records keep fractional widths and ignore active");
+assert.deepEqual(recovered, {group:"g", activeIndex:0, widths:[800.125, null]}, "legacy snapshot records keep fractional widths and the first active column");
+assert.deepEqual(
+  decodeScrollingGroup([encodeScrolling("g", false, 100), encodeScrolling("g", true, 200)]),
+  {group:"g", activeIndex:1, widths:[100, 200]},
+  "scrolling restore keeps the saved active column"
+);
 assert.deepEqual(decodeScrollingGroup([encodeScrolling("g", true, 0)]).widths, [null], "zero width is not restored");
 assert.deepEqual(decodeScrollingGroup([encodeScrolling("g", true, -4)]).widths, [null]);
 

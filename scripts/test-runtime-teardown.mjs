@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
+import { shortcutLabel } from '../keybindings.mjs';
 
 class Node {
   constructor(doc, name = "div") {
@@ -63,7 +64,7 @@ function runPane({failAfterReady = false, createMultiwindow} = {}) {
   const gBrowser = { tabs:[tab], selectedTab:tab, tabContainer:new Node(doc, "tabs"), getTabForBrowser:node => node === browser ? tab : null, addTabsProgressListener(){}, removeTabsProgressListener(){} };
   const window = new Node(doc, "window");
   const timers = new Map();
-  Object.assign(window, { document:doc, gBrowser, addUnloadListener(){}, openTrustedLinkIn(){}, setTimeout(fn) { timers.set(timers.size + 1, fn); return timers.size; }, clearTimeout:id => timers.delete(id) });
+  Object.assign(window, { document:doc, gBrowser, navigator:{ platform:"Win32" }, addUnloadListener(){}, openTrustedLinkIn(){}, setTimeout(fn) { timers.set(timers.size + 1, fn); return timers.size; }, clearTimeout:id => timers.delete(id) });
   const prefs = {
     getBoolPref:(key, fallback) => fallback,
     getIntPref:(key, fallback) => key === "mod.pane.toolbar-visibility" ? 1 : fallback,
@@ -73,6 +74,7 @@ function runPane({failAfterReady = false, createMultiwindow} = {}) {
   };
   const errors = [];
   const context = {
+    shortcutLabel,
     window, document:doc, gBrowser, Services:{ prefs }, MutationObserver:class { observe(){} disconnect(){ this.disconnected = true; } },
     AbortController, CSS:{ supports:() => true }, console:{ log(){}, error(...args){ errors.push(args); } }, setTimeout:window.setTimeout, clearTimeout:window.clearTimeout,
   };
@@ -96,6 +98,12 @@ function runPane({failAfterReady = false, createMultiwindow} = {}) {
     const glassPresets = Array.from({length:5}, () => ({ light:"rgba(255,255,255,.8)", dark:"rgba(0,0,0,.8)", blur:20, radius:12 }));
     const matchesBinding = () => false;
     const pickerBinding = () => null;
+    const pickerShortcutAction = () => null;
+    const windowPlatform = win => {
+      const platform = win?.navigator?.platform;
+      if (typeof platform !== "string" || !platform.trim()) throw new TypeError("platform is required");
+      return platform;
+    };
   `;
   vm.runInNewContext(`${stubs}\n${source}`, context);
   return { context, doc, window, gBrowser, errors };

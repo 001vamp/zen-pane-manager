@@ -17,12 +17,15 @@ const extracted = await Promise.all([
   "presentation-geometry.mjs",
   "presentation-records.mjs",
   "presentation-snapshot.mjs",
+  "layout-options.mjs",
+  "picker-model.mjs",
+  "picker-keys.mjs",
   "multiwindow.mjs",
 ].map(path => readFile(path, "utf8")));
 const readme = await readFile("README.md", "utf8");
 const changelog = await readFile("CHANGELOG.md", "utf8");
 
-for (const path of ["tab-origins.mjs", "icons.mjs", "LICENSES/LUCIDE-ICONS.txt", "multiwindow.mjs", "layout-modes.mjs", "tab-eligibility.mjs", "presentation-geometry.mjs", "presentation-records.mjs", "presentation-snapshot.mjs", "settings.html", "settings-page.mjs", "appearance.mjs", "pane-settings.uc.mjs", "keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
+for (const path of ["tab-origins.mjs", "icons.mjs", "LICENSES/LUCIDE-ICONS.txt", "multiwindow.mjs", "layout-modes.mjs", "tab-eligibility.mjs", "presentation-geometry.mjs", "presentation-records.mjs", "presentation-snapshot.mjs", "layout-options.mjs", "picker-model.mjs", "picker-keys.mjs", "settings.html", "settings-page.mjs", "appearance.mjs", "pane-settings.uc.mjs", "keybindings.mjs", "theme.json", "pane-diagnostics.uc.mjs", "pane.uc.mjs", "chrome.css", "preferences.json"]) {
   try { await access(path); } catch { fail(`Sine package is missing ${path}`); }
 }
 
@@ -58,11 +61,32 @@ for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "eval(", "nsIP
   if (extracted.some(body => body.includes(forbidden))) fail(`extracted module contains forbidden capability: ${forbidden}`);
 }
 
-if (!source.includes("multiwindow.mjs?pane=0.11.0-modules")) fail("runtime must cache-bust the split controller");
-if (!source.includes("presentation-snapshot.mjs?pane=0.11.0-modules")) fail("runtime must cache-bust the snapshot helper");
+if (!source.includes("multiwindow.mjs?pane=0.11.0-layout-teardown")) fail("runtime must cache-bust the split controller");
+if (!source.includes("presentation-snapshot.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the snapshot helper");
+if (!source.includes("picker-model.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the picker model");
+if (!source.includes("picker-keys.mjs?pane=0.11.0-shortcut-platform")) fail("runtime must cache-bust the picker key reducer");
+if (!extracted.some(body => body.includes("presentation-records.mjs?pane=0.11.0-scrolling-active"))) {
+  fail("runtime must cache-bust the scrolling-active record decoder");
+}
+for (const path of ['pane.uc.mjs', 'pane-diagnostics.uc.mjs', 'pane-settings.uc.mjs', 'multiwindow.mjs', 'picker-keys.mjs', 'settings-page.mjs']) {
+  const module = await readFile(path, 'utf8');
+  const imports = [...module.matchAll(/keybindings\.mjs\?pane=([^'"\s]+)/g)];
+  if (!imports.length || imports.some(match => match[1] !== '0.11.0-shortcut-platform')) {
+    fail(`${path} must cache-bust the required-platform shortcut module`);
+  }
+}
+if (!source.includes("layout-options.mjs?pane=0.11.0-picker") && !extracted.some(body => body.includes("layout-options.mjs?pane=0.11.0-picker"))) {
+  fail("runtime must cache-bust the layout-options helper");
+}
 
 
 
 if (!theme.scripts?.["pane-settings.uc.mjs"]?.include?.includes("about:preferences*")) fail("appearance controls must load in Sine settings");
+
+
+const settingsPage = await readFile("settings-page.mjs", "utf8");
+const settingsHtml = await readFile("settings.html", "utf8");
+if (!settingsPage.includes("pane-settings.uc.mjs?pane=0.11.0-shortcut-platform")) fail("settings page must cache-bust platform-aware shortcut controls");
+if (!settingsHtml.includes("settings-page.mjs?v=0.11.0-shortcut-platform")) fail("settings HTML must cache-bust the settings page loader");
 
 if (!process.exitCode) console.log(`Pane ${theme.version} validation passed (${properties.length} preferences).`);
