@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
+import { pickerBinding, pickerShortcutAction } from "../keybindings.mjs";
 import { reduce } from "../picker-keys.mjs";
 import { modeLabels, normalizeMode } from "../layout-modes.mjs";
 
@@ -216,3 +217,38 @@ assert.ok(!source.includes("export { isHubCycleChord }"));
 assert.ok(!keys.includes("export { isHubCycleChord }"), "the chord lives in keybindings, not a picker re-export");
 assert.ok(!keys.includes(".closest"), "the reducer stays DOM-free");
 console.log("Picker wiring: roving focus, hover follows row focus, nested buttons keep highlight.");
+
+// Run the real capture listener with a macOS Option-generated character.
+{
+  let opened = 0, closed = 0;
+  const context = vm.createContext({
+    window: {navigator: {platform: "MacIntel"}, addEventListener(type, listener, capture) {
+      assert.equal(type, "keydown");
+      assert.equal(capture, true, "the picker shortcut runs before page listeners");
+      this.listener = listener;
+    }},
+    Services: {prefs: {getIntPref: () => 3, getStringPref: () => "Alt+Shift+R"}},
+    pickerBinding, pickerShortcutAction, overlay: {hidden: true}, diagnosticLog() {},
+    openPicker() { opened++; context.overlay.hidden = false; },
+    closePicker() { closed++; context.overlay.hidden = true; },
+  });
+  const registration = source.match(/window\.addEventListener\("keydown", onShortcut, true\);/)?.[0];
+  assert.ok(registration, "shortcut capture listener is registered");
+  vm.runInContext(take("function onShortcut", "function onBackdropMouseDown") + registration, context);
+  const press = extra => {
+    const event = {key: "‰", code: "KeyR", altKey: true, shiftKey: true, ctrlKey: false, metaKey: false,
+      getModifierState: name => name === "AltGraph",
+      preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra};
+    context.window.listener(event);
+    return event;
+  };
+  for (const state of ["open", "close"]) {
+    const event = press();
+    assert.equal(event.prevented, true, `${state} prevents text insertion`);
+    assert.equal(event.stopped, true, `${state} stops the event before page handlers`);
+  }
+  assert.equal(opened, 1);
+  assert.equal(closed, 1);
+  const ordinary = press({key: "r", altKey: false, shiftKey: false, getModifierState: () => false});
+  assert.ok(!ordinary.prevented && !ordinary.stopped, "ordinary typing reaches the page");
+}

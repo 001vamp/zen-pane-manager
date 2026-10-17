@@ -1009,11 +1009,13 @@ function onPickerDialogKey(event) {
 }
 
 function onShortcut(event) {
-  const binding = pickerBinding(Services.prefs);
-  const action = pickerShortcutAction(event, { overlayOpen: Boolean(overlay && !overlay.hidden), binding });
+  const platform = window.navigator?.platform;
+  const binding = pickerBinding(Services.prefs, platform);
+  const action = pickerShortcutAction(event, { overlayOpen: Boolean(overlay && !overlay.hidden), binding, platform });
   if (action === "cycle") return;
   if (action === "open" || action === "close") {
     event.preventDefault(); event.stopPropagation();
+    event.stopImmediatePropagation?.();
     diagnosticLog("picker shortcut received", { binding: binding.label });
     action === "open" ? openPicker() : closePicker();
   }
