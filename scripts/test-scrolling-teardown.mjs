@@ -41,6 +41,8 @@ class Node {
   removeEventListener(name, fn) { this.listeners.set(name,(this.listeners.get(name) ?? []).filter(f => f !== fn)); }
   focus() { this.ownerDocument.activeElement = this; }
   animate() { return {cancel(){}}; }
+  setPointerCapture() {} hasPointerCapture() { return false; } releasePointerCapture() {}
+  emit(name, event = {}) { for (const fn of [...(this.listeners.get(name) ?? [])]) fn({preventDefault(){}, stopPropagation(){}, target:this, ...event}); }
 }
 
 function fixture(tabCount = 2, looseCount = 0) {
@@ -68,12 +70,16 @@ function fixture(tabCount = 2, looseCount = 0) {
     resetTabState(tab) { tab.splitView = false; },
   };
   const scrollingRecords = new Map(), writes = [], sessionWrites = [];
+  // Frames are queued, never run on their own; runFrames() flushes them.
+  const frames = new Map(); let frameId = 0;
+  const runFrames = () => { const queued = [...frames.values()]; frames.clear(); for (const fn of queued) fn(); };
   const win = new Node(doc);
   const tabContainer = new Node(doc);
   Object.assign(win, {
     document:doc, AbortController, navigator:{platform:'Win32'}, gZenViewSplitter:view,
     gBrowser:{tabs, selectedTab:tabs[0], tabContainer, moveTabToExistingGroup(){}, ungroupTab(){}, removeTab(){}},
-    requestAnimationFrame:() => 1, cancelAnimationFrame(){}, setTimeout:() => 1, clearTimeout(){},
+    requestAnimationFrame:fn => { frames.set(++frameId, fn); return frameId; }, cancelAnimationFrame:id => frames.delete(id),
+    setTimeout:() => 1, clearTimeout(){},
     matchMedia:() => null, innerWidth:1200, innerHeight:900,
     SessionStore:{
       getCustomTabValue:(tab,key) => key === 'pane-scrolling-v1' ? scrollingRecords.get(tab) ?? '' : '',
@@ -81,7 +87,7 @@ function fixture(tabCount = 2, looseCount = 0) {
       deleteCustomTabValue:(tab,key) => { sessionWrites.push(key); if (key === 'pane-scrolling-v1') scrollingRecords.delete(tab); },
     },
   });
-  const prefs = {getStringPref:(k,f) => f, getIntPref:() => 0, getBoolPref:(k,f) => f};
+  const prefs = {getStringPref:(k,f) => f, getIntPref:(k,f) => f ?? 0, getBoolPref:(k,f) => f};
   const controller = createMultiwindow(win, {notify(){}, chooseTab(){}, appearance(){}, prefs, origins:{begin(){},end(){},destroy(){}}});
   const container = tab => tab.linkedBrowser.parent;
   const listenerCount = node => [...node.listeners.values()].reduce((sum, list) => sum + list.length, 0)
@@ -97,7 +103,12 @@ function fixture(tabCount = 2, looseCount = 0) {
     assert.equal(scrollingRecords.size, 0, 'setup leaves no saved Scrolling record while paused');
     writes.length = 0;
   }
-  return {win, tabs, data, view, controller, writes, sessionWrites, scrollingRecords, leftovers, scrollingVisible, pause, container};
+  // Everything Pane draws: every node's attributes and inline styles, plus the selected tab.
+  const layout = () => {
+    const walk = node => [node.className, [...node.attrs].sort().join(';'), Object.entries(node.style).filter(([, value]) => typeof value !== 'function').sort(), node.hidden, node.children.map(walk)];
+    return JSON.stringify([tabs.indexOf(win.gBrowser.selectedTab), walk(doc)]);
+  };
+  return {win, tabs, data, view, controller, writes, sessionWrites, scrollingRecords, leftovers, scrollingVisible, pause, container, layout, runFrames};
 }
 
 const failures = [];
@@ -197,6 +208,91 @@ scenario('a torn-down runtime ignores clicks on its old float controls', () => {
   assert.deepEqual(f.sessionWrites, [], 'old float controls must not save anything');
 });
 
+// The old copy's Scrolling overview and accordion stay on screen after a Sine
+// reload too. Dragging, wheeling, or keying them must not move the layout or save.
+const scrollingInteractions = {
+  keyboard: handle => handle.emit('keydown', {key:'ArrowRight'}),
+  drag: handle => {
+    handle.emit('pointerdown', {button:0, clientX:100, pointerId:1});
+    handle.emit('pointermove', {clientX:400, pointerId:1});
+    handle.emit('pointerup', {pointerId:1});
+  },
+  reset: handle => handle.emit('dblclick'),
+  home: handle => handle.emit('keydown', {key:'Home'}),
+  wheel: (handle, overlay) => overlay.emit('wheel', {deltaX:600, deltaY:0, deltaMode:0}),
+};
+for (const [name, interact] of Object.entries(scrollingInteractions)) {
+  for (const tornDown of [false, true]) scenario(`Scrolling ${name} ${tornDown ? 'is inert after teardown' : 'works while live'}`, () => {
+    const f = fixture(3);
+    f.controller.arrange(f.tabs[0], 'scrolling');
+    f.win.emit('keydown', {type:'keydown', key:'Shift', altKey:true, shiftKey:true, ctrlKey:false, metaKey:false, target:f.win});
+    const overlay = f.win.document.querySelector('.pane-snapshot-overview');
+    const handle = overlay?.querySelector('.pane-scrolling-resize');
+    assert.ok(handle, 'setup opens the Scrolling overview');
+    // A custom width makes resetting observable too.
+    scrollingInteractions.keyboard(handle);
+    if (tornDown) f.controller.destroy({detachOnly:true});
+    f.sessionWrites.length = 0;
+    const before = f.layout(), records = [...f.scrollingRecords];
+    interact(handle, overlay);
+    f.runFrames();
+    if (tornDown) {
+      assert.equal(f.layout(), before, `old Scrolling ${name} must not change the layout`);
+      assert.deepEqual([...f.scrollingRecords], records, 'saved Scrolling records stay unchanged');
+      assert.deepEqual(f.sessionWrites, [], 'old Scrolling controls must not save anything');
+    } else {
+      assert.notEqual(f.layout(), before, `live Scrolling ${name} changes the layout`);
+      if (name !== 'wheel') assert.ok(f.sessionWrites.includes('pane-scrolling-v1'), 'live resizing saves column widths');
+    }
+  });
+}
+const accordionInteractions = {
+  keyboard: (f, left, right, handle) => handle.emit('keydown', {key:'ArrowRight'}),
+  click: (f, left, right, handle) => handle.emit('click'),
+  drag: (f, left, right) => {
+    right.emit('pointerdown', {button:0, clientX:700, pointerId:2});
+    right.emit('pointermove', {clientX:900, pointerId:2});
+    right.emit('pointerup', {pointerId:2});
+  },
+  pending: (f, left) => { f.runFrames(); left.emit('pointerup', {pointerId:1}); },
+};
+for (const [name, interact] of Object.entries(accordionInteractions)) {
+  for (const tornDown of [false, true]) scenario(`accordion ${name} ${tornDown ? 'is inert after teardown' : 'works while live'}`, () => {
+    const f = fixture(3);
+    f.win.gBrowser.selectedTab = f.tabs[1];
+    f.controller.arrange(f.tabs[1], 'accordion');
+    f.runFrames();
+    const resize = side => f.win.document.querySelectorAll(`.pane-accordion-resize-${side}`).find(node => !node.hidden);
+    const left = resize('left'), right = resize('right');
+    const handle = f.container(f.tabs[2]).querySelector('.pane-accordion-handle');
+    assert.ok(left && right && handle, 'setup shows resize handles and a collapsed tab handle');
+    if (name === 'pending') {
+      left.emit('pointerdown', {button:0, clientX:500, pointerId:1});
+      left.emit('pointermove', {clientX:300, pointerId:1});
+    }
+    if (tornDown) f.controller.destroy({detachOnly:true});
+    f.sessionWrites.length = 0;
+    const before = f.layout();
+    interact(f, left, right, handle);
+    f.runFrames();
+    if (tornDown) {
+      assert.equal(f.layout(), before, `old accordion ${name} must not change the layout`);
+      assert.deepEqual(f.sessionWrites, [], 'old accordion controls must not save anything');
+    } else {
+      assert.notEqual(f.layout(), before, `live accordion ${name} changes the layout`);
+      if (name === 'keyboard' || name === 'click') assert.ok(f.sessionWrites.includes('pane-accordion-v1'), 'live navigation saves the active tab');
+    }
+  });
+}
+scenario('a torn-down runtime writes no accordion record', () => {
+  const f = fixture(3);
+  f.controller.arrange(f.tabs[0], 'accordion');
+  f.controller.destroy({detachOnly:true});
+  f.sessionWrites.length = 0;
+  f.controller.accordionStep(f.data, 1);
+  assert.deepEqual(f.sessionWrites.filter(key => key === 'pane-accordion-v1'), [], 'a detached runtime must not save accordion records');
+});
+
 // The picker runs these functions from pane.uc.mjs against the real controller.
 const paneSource = await readFile(new URL('../pane.uc.mjs', import.meta.url), 'utf8');
 const pickerSource = paneSource.slice(paneSource.indexOf('function openCandidate'), paneSource.indexOf('function buildPicker'))
@@ -237,4 +333,4 @@ scenario('split shortcuts use the startup platform', () => {
 });
 
 if (failures.length) { console.error(`${failures.length} Scrolling teardown scenario(s) failed`); process.exit(1); }
-console.log('Paused Scrolling stays off after teardown, grid switches, and picker Add/Replace; stale float controls are inert; shortcuts use the startup platform.');
+console.log('Paused Scrolling stays off after teardown, grid switches, and picker Add/Replace; stale float, Scrolling, and accordion controls are inert; shortcuts use the startup platform.');

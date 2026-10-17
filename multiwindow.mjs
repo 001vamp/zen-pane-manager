@@ -93,7 +93,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     }
   }
   function saveAccordion(data, state) {
-    if (!session) return;
+    if (!session || disposed) return;
     state.sessionId ??= win.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
     for (const tab of state.savedTabs ?? []) {
       if (!data.tabs.includes(tab) && tab.isConnected && !tab.closing) session.deleteCustomTabValue(tab, accordionKey);
@@ -194,7 +194,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       const favicon = tab.getAttribute("image") || tab.image;
       if (favicon) {
         const image = el("img", ""); image.setAttribute("src", favicon); image.setAttribute("alt", "");
-        image.addEventListener("error", fallback, { once: true }); icon.append(image);
+        image.addEventListener("error", fallback, { once: true, signal:lifetime.signal }); icon.append(image);
       } else fallback();
       edgeHint.append(icon, el("span", "pane-accordion-hint-title", tab.label));
       appearance(edgeHint);
@@ -302,7 +302,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function accordionResizeHandle(data, state, side) {
     const target = el("div", `pane-accordion-resize pane-accordion-resize-${side}`);
     target.setAttribute("title", "Drag to resize the expanded tab");
-    for (const name of ["pointerdown", "mousedown", "click"]) target.addEventListener(name, consumeAccordionResizePress, { capture:true });
+    for (const name of ["pointerdown", "mousedown", "click"]) target.addEventListener(name, consumeAccordionResizePress, { capture:true, signal:lifetime.signal });
     target.addEventListener("pointerdown", event => {
       const tab = state.active;
       if (event.button !== 0 || !target.isConnected) return;
@@ -321,7 +321,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         memberCount:data.tabs.length };
       target.setAttribute("data-dragging", "");
       target.setPointerCapture?.(event.pointerId);
-    }, { capture:true });
+    }, { capture:true, signal:lifetime.signal });
     target.addEventListener("pointermove", event => {
       const drag = state.resizeDrag;
       if (!drag || drag.target !== target || drag.pointerId !== event.pointerId) return;
@@ -332,13 +332,13 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         drag.expanded + (event.clientX - drag.x) * drag.scale).expanded / width;
       if (!state.resizeFrame) state.resizeFrame = win.requestAnimationFrame(() => {
         state.resizeFrame = 0;
-        if (accordions.get(data) === state) applyAccordion();
+        if (!disposed && accordions.get(data) === state) applyAccordion();
       });
-    });
+    }, { signal:lifetime.signal });
     for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) target.addEventListener(name, event => {
       if (state.resizeDrag?.target !== target || state.resizeDrag.pointerId !== event.pointerId) return;
       finishAccordionResize(state); applyAccordion();
-    });
+    }, { signal:lifetime.signal });
     return target;
   }
   function applyAccordion() {
@@ -404,14 +404,14 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
             if (tab === state.active) { openMenu(tab, handle); return; }
             browser.selectedTab = tab; state.active = tab; applyAccordion(); tab.linkedBrowser.focus();
           }, "pane-accordion-handle");
-          handle.addEventListener("pointerenter", event => scheduleEdgeHint(tab, event));
-          handle.addEventListener("pointerleave", hideEdgeHint);
+          handle.addEventListener("pointerenter", event => scheduleEdgeHint(tab, event), { signal:lifetime.signal });
+          handle.addEventListener("pointerleave", hideEdgeHint, { signal:lifetime.signal });
           handle.addEventListener("keydown", event => {
             if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
             event.preventDefault(); event.stopPropagation();
             const step = event.key === "Home" ? -data.tabs.length : event.key === "End" ? data.tabs.length : event.key === "ArrowLeft" ? -1 : 1;
             accordionStep(data, step, true);
-          });
+          }, { signal:lifetime.signal });
           const bar = el("div", "pane-accordion-bar");
           const controls = el("span", "pane-accordion-controls");
           for (const [name, label, callback] of [
@@ -1250,7 +1250,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         const step = event.key === "ArrowUp" || event.shiftKey ? -1 : 1;
         buttons[(buttons.indexOf(doc.activeElement) + step + buttons.length) % buttons.length].focus();
       }
-    });
+    }, { signal:lifetime.signal });
     appearance(menu); doc.documentElement.append(menu);
     const fallback = containerFor(tab)?.getBoundingClientRect();
     const usable = anchorRect && (anchorRect.width || anchorRect.height || anchorRect.left || anchorRect.top);
@@ -1343,6 +1343,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       disposed = true; pausedScrolling = new WeakMap(); if (frame) win.cancelAnimationFrame(frame);
       lifetime.abort();
       for (const f of floats.values()) f.abort.abort();
+      for (const state of scrollings.values()) { state.abort.abort(); stopScrollingPaint(state); }
       closeMenu();
       hideEdgeHint();
       if (!detachOnly) {

@@ -4,6 +4,8 @@ All notable changes to Pane are documented here.
 
 ## Unreleased
 
+- After teardown or reload, old Scrolling resize and wheel controls and accordion handlers no longer change layouts, and the old copy cannot save accordion records.
+
 - Keep Scrolling active when floating a tab while at least two docked columns remain. Preserve column widths and tab order when docking it back, and refresh the rejoined column immediately.
 - When a two-tab Scrolling split ends because one tab floated, remember the widths and active column and restore Scrolling when that tab docks back.
 - Restore the saved Scrolling column after a restart.
