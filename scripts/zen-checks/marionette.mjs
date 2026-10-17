@@ -57,13 +57,23 @@ export class Marionette {
     this.pending.clear();
   }
 
-  send(name, params = {}) {
+  send(name, params = {}, { timeoutMs = 130000 } = {}) {
     const id = this.nextId++;
     const body = Buffer.from(JSON.stringify([0, id, name, params]));
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.socket.write(`${body.length}:`);
-      this.socket.write(body);
+      const timer = setTimeout(() => {
+        this.failAll(new Error(`Marionette command ${name} timed out after ${timeoutMs}ms`));
+        this.socket.destroy();
+      }, timeoutMs);
+      const finish = fn => value => { clearTimeout(timer); fn(value); };
+      this.pending.set(id, { resolve: finish(resolve), reject: finish(reject) });
+      try {
+        this.socket.write(`${body.length}:`);
+        this.socket.write(body);
+      } catch (error) {
+        this.failAll(error);
+        this.socket.destroy();
+      }
     });
   }
 
@@ -80,7 +90,7 @@ export class Marionette {
 
   async executeAsync(script, args = [], { timeoutMs = 30000 } = {}) {
     await this.send("WebDriver:SetTimeouts", { script: timeoutMs });
-    const result = await this.send("WebDriver:ExecuteAsyncScript", { script, args });
+    const result = await this.send("WebDriver:ExecuteAsyncScript", { script, args }, { timeoutMs: timeoutMs + 5000 });
     return result?.value;
   }
 
@@ -89,8 +99,8 @@ export class Marionette {
 
   // Graceful quit runs quit-application-granted, so SessionStore and Pane save.
   async quit() {
-    try { await this.send("Marionette:Quit", { flags: ["eAttemptQuit"] }); } catch {}
-    this.socket.destroy();
+    try { await this.send("Marionette:Quit", { flags: ["eAttemptQuit"] }, { timeoutMs: 10000 }); }
+    finally { this.socket.destroy(); }
   }
 
   close() { this.socket.destroy(); }

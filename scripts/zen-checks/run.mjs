@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Marionette, delay } from "./marionette.mjs";
+import { stopProcess } from "./process.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const home = os.homedir();
@@ -111,22 +112,21 @@ function launch() {
   return zen;
 }
 
-async function waitExit(proc, ms) {
-  return Promise.race([proc.exited.then(() => true), delay(ms).then(() => false)]);
-}
-
 async function stopZen({ graceful = true } = {}) {
   if (!zen) return;
   const proc = zen;
-  if (graceful && client) { await client.quit(); client = null; }
-  if (!(await waitExit(proc, 20000))) {
-    for (const signal of ["SIGTERM", "SIGKILL"]) {
-      if (!owned(proc.pid)) { log(`pid ${proc.pid} is not our test instance; not signalling it`); break; }
-      process.kill(proc.pid, signal);
-      if (await waitExit(proc, 10000)) break;
-    }
+  let quitError = null;
+  try {
+    if (graceful && client) await client.quit();
+  } catch (error) {
+    quitError = error;
+    log(`graceful quit failed: ${error.message}`);
+  } finally {
+    client?.close(); client = null;
   }
-  client?.close(); client = null; zen = null;
+  await stopProcess(proc, { owned, log });
+  zen = null;
+  if (quitError) throw quitError;
 }
 
 const CHROME_PRELUDE = `
@@ -411,19 +411,22 @@ async function main() {
 }
 
 async function cleanup() {
-  try { await stopZen(); } catch (error) { log(`stop failed: ${error.message}`); }
-  if (zen && owned(zen.pid)) { log(`WARNING: test Zen pid ${zen.pid} still running; leaving ${qaRoot}`); return; }
+  let stopError = null;
+  try { await stopZen(); } catch (error) { stopError = error; log(`stop failed: ${error.message}`); }
+  if (zen) { log(`WARNING: test Zen pid ${zen.pid} exit unconfirmed; leaving ${qaRoot}`); return stopError; }
   if (qaRoot && !keepProfile) {
     fs.rmSync(qaRoot, { recursive: true, force: true });
     log(`removed ${qaRoot}`);
   } else if (qaRoot) log(`kept ${qaRoot} (ZEN_CHECKS_KEEP_PROFILE=1)`);
+  return stopError;
 }
 
 process.once("SIGINT", async () => { await cleanup(); process.exit(130); });
 
 let fatal = null;
 try { await main(); } catch (error) { fatal = error; log(`HARNESS ERROR: ${error.stack ?? error.message}`); }
-await cleanup();
+const cleanupError = await cleanup();
+fatal ??= cleanupError;
 const failed = results.filter(r => !r.ok).length;
 log(`\n${results.length - failed}/${results.length} checks passed${fatal ? " (harness aborted)" : ""}. Evidence: ${evidence}`);
 fs.writeFileSync(path.join(evidence, "results.json"), JSON.stringify({ results, fatal: fatal?.message ?? null }, null, 2));

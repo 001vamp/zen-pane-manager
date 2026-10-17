@@ -13,23 +13,41 @@ const mutations = [
   { check: 5, file: "pane.uc.mjs", from: "    event.preventDefault(); event.stopPropagation();\n    event.stopImmediatePropagation?.();\n", to: "" },
 ];
 
-const mutant = fs.realpathSync(fs.mkdtempSync("/tmp/pane-mutant."));
-try {
-  execFileSync("rsync", ["-a", "--exclude=.git", "--exclude=node_modules", `${repo}/`, `${mutant}/`]);
-  for (const m of mutations) {
-    const file = path.join(mutant, m.file);
-    const source = fs.readFileSync(file, "utf8");
-    if (!source.includes(m.from)) throw new Error(`fix for check ${m.check} no longer matches ${m.file}; update prove-fails.mjs`);
-    fs.writeFileSync(file, source.replace(m.from, m.to));
-  }
-  console.log(`reverted ${mutations.length} fixes in ${mutant}`);
-  const run = spawnSync(process.execPath, [path.join(mutant, "scripts/zen-checks/run.mjs")], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  process.stdout.write(run.stdout);
-  const verdicts = mutations.map(m => ({ check: m.check, failed: new RegExp(`^FAIL  ${m.check}\\.`, "m").test(run.stdout) }));
-  for (const v of verdicts) console.log(`${v.failed ? "CAUGHT " : "MISSED "} check ${v.check} with its fix reverted`);
-  const ok = run.status !== 0 && verdicts.every(v => v.failed);
-  console.log(ok ? "every check fails when its fix is reverted" : "some check did not fail when its fix was reverted");
-  process.exitCode = ok ? 0 : 1;
-} finally {
-  fs.rmSync(mutant, { recursive: true, force: true });
+// A harness error is not evidence that a product regression was detected.
+export function caughtFix(run, report, check) {
+  return !run.error && run.signal === null && run.status === 1 &&
+    report?.fatal === null && report.results?.length === mutations.length &&
+    mutations.every(m => report.results.filter(r =>
+      r.name.startsWith(`${m.check}.`) && !r.name.includes("(harness error)") &&
+      typeof r.ok === "boolean").length === 1) &&
+    report.results.some(r => r.name.startsWith(`${check}.`) && r.ok === false);
 }
+
+function proveFails() {
+  let allCaught = true;
+  for (const m of mutations) {
+    const mutant = fs.realpathSync(fs.mkdtempSync("/tmp/pane-mutant."));
+    try {
+      execFileSync("rsync", ["-a", "--exclude=.git", "--exclude=node_modules", `${repo}/`, `${mutant}/`]);
+      const file = path.join(mutant, m.file);
+      const source = fs.readFileSync(file, "utf8");
+      if (source.split(m.from).length !== 2) throw new Error(`fix for check ${m.check} must match exactly once in ${m.file}; update prove-fails.mjs`);
+      fs.writeFileSync(file, source.replace(m.from, m.to));
+      console.log(`reverted only fix ${m.check} in ${mutant}`);
+      const run = spawnSync(process.execPath, [path.join(mutant, "scripts/zen-checks/run.mjs")], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+      process.stdout.write(run.stdout ?? "");
+      const evidence = /^evidence: (.+)$/m.exec(run.stdout ?? "")?.[1];
+      let report = null;
+      try { report = JSON.parse(fs.readFileSync(path.join(evidence, "results.json"), "utf8")); } catch {}
+      const caught = caughtFix(run, report, m.check);
+      allCaught &&= caught;
+      console.log(`${caught ? "CAUGHT" : "NOT PROVEN"} check ${m.check} with only its own fix reverted`);
+    } finally {
+      fs.rmSync(mutant, { recursive: true, force: true });
+    }
+  }
+  console.log(allCaught ? "every check fails when only its own fix is reverted" : "some fixes were not proven (missing failures or harness errors)");
+  process.exitCode = allCaught ? 0 : 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) proveFails();
