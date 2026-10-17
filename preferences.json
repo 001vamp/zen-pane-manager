@@ -17,7 +17,7 @@
     "defaultValue": "",
     "options": [
       { "label": "Automatic (Replace in a split; Split right otherwise)", "value": "" },
-      { "label": "Replace", "value": "replace" },
+      { "label": "Replace (only applies inside a split)", "value": "replace" },
       { "label": "Split right", "value": "right" },
       { "label": "Split below", "value": "below" },
       { "label": "Add to grid", "value": "grid" },

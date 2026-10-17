@@ -62,10 +62,13 @@ export function filterDestinations(list, query) {
   return (list ?? []).filter(item => destinationSearchText(item).toLocaleLowerCase().includes(needle));
 }
 
+// Inside a split the picker always starts on Replace. The saved layout only
+// applies to a solo tab, where Replace has nothing to replace.
 export function defaultMode({ inSplit, savedMode = "" } = {}) {
-  const mode = normalizeMode(savedMode);
-  if (Object.hasOwn(modeLabels, mode) && (inSplit || mode !== "replace")) return mode;
-  return inSplit ? "replace" : "right";
+  if (inSplit) return "replace";
+  return typeof savedMode === "string" && Object.hasOwn(modeLabels, savedMode) && savedMode !== "replace"
+    ? savedMode
+    : "right";
 }
 
 // Decide the controller call without touching Zen. No shiftKey here.

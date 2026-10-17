@@ -63,7 +63,7 @@ for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "eval(", "nsIP
 
 if (!source.includes("multiwindow.mjs?pane=0.11.0-stale-controls")) fail("runtime must cache-bust the split controller");
 if (!source.includes("presentation-snapshot.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the snapshot helper");
-if (!source.includes("picker-model.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the picker model");
+if (!source.includes("picker-model.mjs?pane=0.11.0-default-layout")) fail("runtime must cache-bust the picker model");
 if (!source.includes("picker-keys.mjs?pane=0.11.0-shortcut-platform")) fail("runtime must cache-bust the picker key reducer");
 if (!extracted.some(body => body.includes("presentation-records.mjs?pane=0.11.0-scrolling-active"))) {
   fail("runtime must cache-bust the scrolling-active record decoder");
