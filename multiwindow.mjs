@@ -143,6 +143,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   }
   const backgrounds = new WeakMap();
   let topLayer = 20;
+  // Every Pane control is unplugged on teardown, so a stale copy's leftover
+  // buttons cannot change the split after a reload.
+  const lifetime = new win.AbortController();
   let menu = null, menuTab = null, frame = 0, disposed = false, retryDeferredFrame = false, windowClosing = false;
   let edgeHint = null;
   let hintTimer = null, hintTab = null;
@@ -159,7 +162,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const b = el("button", className, label);
     b.type = "button"; b.addEventListener("click", event => {
       event.preventDefault(); event.stopPropagation(); callback(event);
-    });
+    }, { signal: lifetime.signal });
     return b;
   }
   function closeMenu(restore = false) {
@@ -1111,6 +1114,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     const layout = layoutTypes[mode] || "vsep";
     if (!layoutTypes[mode] && mode !== "float" && !presentationMode) throw new Error("Unknown layout");
     const presentation=capturePresentation(current);
+    forgetPausedScrolling(current);
     if (mode !== "float" || accordions.has(current)) clearAccordion(current);
     const snapshot = current ? { tree: copyTree(current.layoutTree), type: current.gridType } : null;
     const originalTarget = target;
@@ -1325,6 +1329,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     add, join, unsplit, arrange, openMenu, closeMenu, clearFloat, sync, origins, accordionStep, scrollStep,
     capturePresentation, restorePresentation,
     get floatingTabs() { return [...floats.keys()]; },
+    forgetPausedScrolling: tab => forgetPausedScrolling(groupFor(tab)),
     destroy(options = {}) {
       if (disposed) return;
       const {detachOnly = false} = options ?? {};
@@ -1336,6 +1341,8 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
       disposed = true; pausedScrolling = new WeakMap(); if (frame) win.cancelAnimationFrame(frame);
+      lifetime.abort();
+      for (const f of floats.values()) f.abort.abort();
       closeMenu();
       hideEdgeHint();
       if (!detachOnly) {
