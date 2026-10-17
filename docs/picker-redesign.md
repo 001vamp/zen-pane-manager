@@ -20,7 +20,7 @@ The picker is a modal overlay (`#pane-overlay` → `#pane-dialog`) built in `pan
 
 | Path | What happens |
 | --- | --- |
-| Mac `Ctrl+Option+R` / Win+Linux `Alt+Shift+P` (or a recorded shortcut) | Toggles the picker on the selected tab. Position follows `mod.pane.picker-position` (top / upper / center). |
+| Mac `Control+Option+R` / Win+Linux `Alt+Shift+P` (or a recorded shortcut) | Toggles the picker on the selected tab. Position follows `mod.pane.picker-position` (top / upper / center). |
 | Swap button on a split header | Opens anchored to that pane (`openPicker(tab, true)`). |
 | Layout menu “Add another tab…” | Closes the menu and reopens the picker with mode forced to Split right. |
 
