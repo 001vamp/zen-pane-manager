@@ -7,6 +7,7 @@ All notable changes to Pane are documented here.
 - Keep Scrolling active when floating a tab while at least two docked columns remain. Preserve column widths and tab order when docking it back, and refresh the rejoined column immediately.
 - When a two-tab Scrolling split ends because one tab floated, remember the widths and active column and restore Scrolling when that tab docks back.
 - Restore the saved Scrolling column after a restart.
+- Keep a paused two-tab Scrolling split off once Pane disables, reloads, or its window closes, and when the split switches to Grid: docking the floated tab no longer turns Scrolling back on or writes a saved Scrolling record. Split shortcuts use the platform resolved at startup.
 - Prefer a saved accordion over a leftover float record on the same tab, and drop the stale float record.
 - Automatically dock floating tabs when switching a split to Scrolling or Horizontal accordion, keeping the original pages and tab order.
 - Give the picker a solid light/dark background beneath its tint so page content does not show through.

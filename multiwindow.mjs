@@ -52,12 +52,12 @@ export function addHistoryControls(win, parent) {
 // Floating is a presentation of a native split, not a second browser or iframe.
 // The original browser node and browsing context never leave their container.
 export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = win.Services?.prefs, origins = createTabOrigins(win) }) {
-  windowPlatform(win);
+  const platform = windowPlatform(win);
   const doc = win.document, browser = win.gBrowser, view = win.gZenViewSplitter;
   const floats = new Map();
   const accordions = new Map();
   const scrollings = new Map();
-  const pausedScrolling = new WeakMap();
+  let pausedScrolling = new WeakMap();
   const accordionKey = 'pane-accordion-v1';
   const scrollingKey = 'pane-scrolling-v1';
   const floatingKey = 'pane-floating-v1';
@@ -117,7 +117,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   function scrollingTabs(data) { return data.tabs.filter(tab => !floats.has(tab)); }
   function saveScrolling(data,state) {
     const tabs = scrollingTabs(data);
-    if (!session) return;
+    if (!session || disposed) return;
     state.sessionId ??= win.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
     for (const tab of state.savedTabs ?? []) if (!tabs.includes(tab) && tab.isConnected && !tab.closing) session.deleteCustomTabValue(tab,scrollingKey);
     state.savedTabs = [...tabs];
@@ -209,10 +209,11 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     }
   }
   function forgetPausedScrolling(data) {
-    if (data) pausedScrolling.delete(data);
+    pausedScrolling.delete(data);
   }
   // One leftover page cannot scroll. Keep the strip so docking can put it back.
   function rememberScrollingIfFloatedAway(data, state) {
+    if (disposed) return;
     if (data.tabs.some(tab => floats.has(tab))) {
       pausedScrolling.set(data, { widths: new Map(state.widths), active: state.active });
     } else {
@@ -221,6 +222,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
   }
   // Docking brought two pages back. Turn Scrolling on with the saved strip.
   function resumePausedScrolling(data) {
+    if (disposed) return;
     const paused = pausedScrolling.get(data);
     const tabs = scrollingTabs(data);
     if (!paused || scrollings.has(data) || tabs.length < 2) return;
@@ -1014,7 +1016,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (mode === "normal") return detach(tab);
     const data = groupFor(tab);
     if (!data) { chooseTab(tab, mode); return; }
-    if (mode === "grid" && data.tabs.length < 3) { chooseTab(tab, "grid"); return; }
+    if (mode === "grid" && data.tabs.length < 3) { forgetPausedScrolling(data); chooseTab(tab, "grid"); return; }
     if (!layoutTypes[mode]) throw new Error("Unknown layout");
     const presentation=capturePresentation(data);
     const previousFloat=floats.get(tab);
@@ -1223,9 +1225,9 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     }
     if (accordions.has(group)) {
       const hints = el("div", "pane-accordion-shortcuts");
-      for (const record of accordionBindings(prefs, win.navigator?.platform)) {
+      for (const record of accordionBindings(prefs, platform)) {
         const hint = el("span", "pane-layout-hint");
-        hint.append(el("kbd", "", shortcutLabel(record.binding, win.navigator?.platform)), el("span", "", record.label));
+        hint.append(el("kbd", "", shortcutLabel(record.binding, platform)), el("span", "", record.label));
         hints.append(hint);
       }
       menu.append(hints);
@@ -1271,8 +1273,6 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
     if (menu || (picker && !picker.hidden) || event.repeat || event.target?.ownerDocument?.documentElement?.hasAttribute('data-pane-recording')) return;
     const data = view._data[view.currentView];
     if (!data?.tabs.includes(browser.selectedTab) || data.tabs.length < 2) return;
-    const platform = win.navigator?.platform;
-    if (typeof platform !== 'string' || !platform.trim()) return;
     const bindings = accordionBindings(prefs, platform);
     const index = bindings.findIndex(record => matchesBinding(event, record.binding, platform));
     if (index < 0) return;
@@ -1335,7 +1335,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
       }
       win.Services?.obs?.removeObserver(shutdownObserver, "quit-application-granted");
       win.removeEventListener("mouseup", saveSplitLayoutIfChanged);
-      disposed = true; if (frame) win.cancelAnimationFrame(frame);
+      disposed = true; pausedScrolling = new WeakMap(); if (frame) win.cancelAnimationFrame(frame);
       closeMenu();
       hideEdgeHint();
       if (!detachOnly) {

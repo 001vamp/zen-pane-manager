@@ -713,11 +713,14 @@ for (const label of doc.querySelectorAll('.pane-layout-label')) {
 }
 assert.equal(Object.keys(modeLabels).filter(mode=>['snapshot','scrolling'].includes(mode)).length,1,'picker has one scrolling choice');
 scrolling.closeMenu();
+// The controller resolves its platform once at startup, so a Mac window gets its own controller.
 win.navigator = {platform:'MacIntel'};
+const macController = createMultiwindow(win, {...options,prefs});
+win.navigator = {platform:'Win32'};
 win.emit('keydown',{key:'l',code:'KeyL',ctrlKey:true,shiftKey:true,view:{navigator:{platform:''}}});
 assert.ok(doc.querySelector('.pane-layout-menu'),'Mac Ctrl+Shift+L opens the layout menu');
-scrolling.closeMenu();
-win.navigator = {platform:'Win32'};
+macController.closeMenu();
+macController.destroy({detachOnly:true});
 win.emit('keydown',{key:'l',altKey:true,shiftKey:true,target:{ownerDocument:{documentElement:{hasAttribute:()=>true}}}});
 assert.equal(doc.querySelector('.pane-layout-menu'),null,'shortcut recording does not open a layout menu');
 shortcutPrefs.set('mod.pane.layout-menu','Ctrl+Shift+*');
