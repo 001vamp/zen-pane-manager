@@ -252,3 +252,26 @@ console.log("Picker wiring: roving focus, hover follows row focus, nested button
   const ordinary = press({key: "r", altKey: false, shiftKey: false, getModifierState: () => false});
   assert.ok(!ordinary.prevented && !ordinary.stopped, "ordinary typing reaches the page");
 }
+
+// Privileged module globals need not expose navigator: each surface must use
+// the browser window's platform, including Settings conflict detection.
+const bindingsSource = await readFile(new URL("../keybindings.mjs", import.meta.url), "utf8");
+for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
+  const expected = platform === "MacIntel" ? "Ctrl+Alt+R" : "Alt+Shift+P";
+  const prefs = { getIntPref: () => 0 };
+  const context = vm.createContext({
+    window: { navigator: { platform } },
+    Services: { prefs }, prefs, platform,
+  });
+  vm.runInContext(bindingsSource.replace(/^export /gm, ""), context);
+  for (const file of ["pane.uc.mjs", "pane-settings.uc.mjs", "pane-diagnostics.uc.mjs"]) {
+    const text = await readFile(new URL(`../${file}`, import.meta.url), "utf8");
+    const calls = [...text.matchAll(/pickerBinding\([^()]*\)/g)];
+    assert.ok(calls.length, `${file} has picker consumers`);
+    for (const call of calls) {
+      const binding = vm.runInContext(call[0], context);
+      assert.equal(binding.label, expected, `${platform}: ${file}: ${call[0]} agrees with the handler`);
+    }
+  }
+}
+console.log("Picker platform: handler, guide, startup log, Settings and diagnostics agree on Mac/Windows/Linux.");

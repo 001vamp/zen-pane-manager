@@ -74,4 +74,10 @@ if (!source.includes("layout-options.mjs?pane=0.11.0-picker") && !extracted.some
 
 if (!theme.scripts?.["pane-settings.uc.mjs"]?.include?.includes("about:preferences*")) fail("appearance controls must load in Sine settings");
 
+
+const settingsPage = await readFile("settings-page.mjs", "utf8");
+const settingsHtml = await readFile("settings.html", "utf8");
+if (!settingsPage.includes("pane-settings.uc.mjs?pane=0.11.0-platform")) fail("settings page must cache-bust platform-aware shortcut controls");
+if (!settingsHtml.includes("settings-page.mjs?v=0.11.0-platform")) fail("settings HTML must cache-bust the settings page loader");
+
 if (!process.exitCode) console.log(`Pane ${theme.version} validation passed (${properties.length} preferences).`);

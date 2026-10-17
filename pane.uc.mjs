@@ -206,7 +206,7 @@ function showUpdateNotice(manual = false) {
     return section;
   };
   if (guideNeeded || manual) {
-    const binding = pickerBinding(prefs)?.label;
+    const binding = pickerBinding(prefs, window.navigator?.platform)?.label;
     card("1. Open Pane", binding ? `Press ${binding}, or use the swap button at the top of a split pane.` : "Use the swap button at the top of a split pane. You can enable a shortcut in Sine’s Pane settings.");
     card("2. Split or replace", "Pick an open tab and choose a layout. Replace swaps a page without changing your split.");
     card("3. Float a tab", "Choose Floating. Drag the title bar to move it, or an edge to resize. Its menu lets you put it back into a split.");
@@ -1158,7 +1158,7 @@ function initialize() {
     // Sine intentionally keeps an already imported module running.
     window.addUnloadListener?.(destroy);
 
-    const binding = pickerBinding(Services.prefs);
+    const binding = pickerBinding(Services.prefs, window.navigator?.platform);
     diagnosticLog("Pane runtime ready", { binding: binding?.label ?? "disabled" });
     console.log(TAG, `0.11.0 ready${binding ? ` — press ${binding.label}` : " — shortcut disabled"}`);
   } catch (error) {

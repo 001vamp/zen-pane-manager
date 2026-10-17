@@ -135,7 +135,7 @@ function onShortcut(event) {
   if (!pref(SHORTCUT_PREF, true)) return;
   const binding = diagnosticsBinding(Services.prefs, navigator.platform);
   // The picker wins if users assign both actions the same shortcut.
-  if (matchesBinding(event, pickerBinding(Services.prefs))) return;
+  if (matchesBinding(event, pickerBinding(Services.prefs, window.navigator?.platform))) return;
   if (matchesBinding(event, binding)) {
     event.preventDefault();
     event.stopPropagation();

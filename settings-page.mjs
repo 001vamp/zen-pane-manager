@@ -48,7 +48,7 @@ try {
   const observer={observe:()=>refreshers.forEach(sync=>sync())};
   Services.prefs.addObserver('mod.pane.',observer);
   window.addEventListener('unload',()=>Services.prefs.removeObserver('mod.pane.',observer),{once:true});
-  await import('./pane-settings.uc.mjs?pane=0.11.0-labels');
+  await import('./pane-settings.uc.mjs?pane=0.11.0-platform');
 } catch (error) {
   document.getElementById('load-error').textContent = 'Pane could not open its appearance controls. Enable Pane in Sine and restart Zen, then try again.';
   console.error('[Pane appearance]',error);

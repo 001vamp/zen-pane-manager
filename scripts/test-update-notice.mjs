@@ -7,6 +7,7 @@ const values = new Map();
 let focused = false, queued, attached = 0, visible;
 const node = () => ({ children: [], setAttribute() {}, appendChild(child) { this.children.push(child); }, append(...children) { this.children.push(...children); }, addEventListener(type, fn) { this.click = fn; }, remove() { this.removed = true; } });
 const context = vm.createContext({
+  window: { navigator: { platform: "MacIntel" } },
   updateNotice: null, updateNoticeTimer: null,
   pickerBinding: () => ({ label: "Control+Option+R" }), setPaneIcon() {},
   Services: { prefs: {
