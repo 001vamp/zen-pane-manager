@@ -21,3 +21,5 @@ Capture the action transcript and before/after screenshots under the helper's ev
 ## Gotchas
 
 test-multiwindow.mjs covers mapping/geometry; test-multiple-floats.mjs covers add/join, presentation state, navigation and cleanup. These mock Zen; native rendering, pointer input, page retention and entry paths remain required.
+
+Automated: `npm run zen-checks` covers #2: floating out of a Scrolling split keeps Scrolling, and #3: switching to Scrolling docks floats. It does not replace the steps above.

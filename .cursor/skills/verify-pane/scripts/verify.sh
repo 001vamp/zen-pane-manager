@@ -28,5 +28,5 @@ else
   cat "$evidence/diff-check.txt"
   exit 1
 fi
-printf 'Native Zen: NOT RUN. Follow SKILL.md and mapped recipes.\n' >> "$evidence/result.txt"
+printf 'Native Zen: NOT RUN. Run npm run zen-checks, then SKILL.md and mapped recipes.\n' >> "$evidence/result.txt"
 cat "$evidence/result.txt"

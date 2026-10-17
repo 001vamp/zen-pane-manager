@@ -23,3 +23,5 @@ Capture the action transcript and before/after screenshots under the helper's ev
 ## Gotchas
 
 test-multiple-floats.mjs mocks SessionStore for floating/presentation restore, malformed records and cleanup. No fixture proves a full process restart. Zen restores tiled split membership and divider ratios natively; this recipe checks Pane's added presentation state and disabled-Pane cleanup behavior. Unsaved form recovery across process exit depends on Zen; compare layout state separately.
+
+Automated: `npm run zen-checks` covers #1: a two-tab split in Scrolling survives graceful quit and relaunch of the same disposable copy. Widths, accordion, floats and workspaces are still manual. It does not replace the steps above.
