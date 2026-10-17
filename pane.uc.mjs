@@ -41,6 +41,7 @@ const PREF = {
   columns: "mod.pane.grid-columns",
   dim: "mod.pane.dim-background",
   help: "mod.pane.show-help",
+  defaultLayout: "mod.pane.default-layout",
 };
 
 let overlay, dialog, heading, context, search, results, count, sectionLabel, expandButton;
@@ -502,11 +503,20 @@ function paintMode(mode) {
   mode = normalizeMode(mode);
   openMode = mode;
   modeBar.querySelectorAll("button").forEach(b => {
+    if (!b.dataset.mode) return;
     const selected = b.dataset.mode === mode;
     b.setAttribute("aria-pressed", String(selected));
     b.querySelector(".pane-mode-check")?.remove();
     if (selected) { const check = paneIcon(document, "check"); check.classList.add("pane-mode-check"); b.append(check); }
   });
+  const defaultLayout = document.getElementById("pane-default-layout");
+  if (defaultLayout) {
+    const saved = normalizeMode(stringPref(PREF.defaultLayout, "")) === mode;
+    defaultLayout.setAttribute("aria-pressed", String(saved));
+    defaultLayout.setAttribute("aria-label", `Use ${modeLabels[mode]} by default`);
+    defaultLayout.textContent = saved ? "Default" : "Use as default";
+    defaultLayout.title = saved ? "Clear the saved default layout" : "Use this layout whenever you open Pane";
+  }
   for (const [index, item] of [...results.querySelectorAll(".pane-item")].entries()) {
     const row = filtered[index];
     if (!row || row.kind === "split") continue;
@@ -515,6 +525,13 @@ function paintMode(mode) {
     if (action) action.textContent = modeLabels[openMode];
   }
   if (filtered.length) selectResult(selectedIndex);
+}
+
+function toggleDefaultLayout() {
+  const saved = normalizeMode(stringPref(PREF.defaultLayout, ""));
+  if (saved === openMode) Services.prefs.clearUserPref(PREF.defaultLayout);
+  else Services.prefs.setStringPref(PREF.defaultLayout, openMode);
+  paintMode(openMode);
 }
 
 function setMode(mode, { rebuild = false } = {}) {
@@ -641,6 +658,11 @@ function buildPicker() {
     button.querySelector(".pane-svg").classList.add("pane-mode-check");
     button.addEventListener("click", () => setMode(mode)); modeBar.append(button);
   }
+  const defaultLayout = document.createElement("button");
+  defaultLayout.id = "pane-default-layout";
+  defaultLayout.type = "button";
+  defaultLayout.addEventListener("click", toggleDefaultLayout);
+  modeBar.append(defaultLayout);
   const arrangeCurrent = document.createElement("button");
   arrangeCurrent.id = "pane-arrange-current";
   arrangeCurrent.type = "button";
@@ -739,7 +761,7 @@ function openPicker(tab = gBrowser.selectedTab, anchorToPane = false, requestedM
   targetTab = tab;
   paneAnchorTab = anchorToPane ? tab : null;
   candidates = eligibleTabs(tab, data);
-  openMode = requestedMode || defaultMode({ inSplit });
+  openMode = requestedMode || defaultMode({ inSplit, savedMode: stringPref(PREF.defaultLayout, "") });
   modeBar.querySelector('[data-mode="replace"]').hidden = !inSplit;
   document.getElementById("pane-arrange-current").hidden = !inSplit;
   heading.textContent = inSplit ? "Replace or arrange this pane" : "Open a tab alongside this one";
@@ -1062,6 +1084,7 @@ const prefObserver = {
     syncToolbarReveals();
     multiwindow?.sync();
     if (!overlay.hidden) {
+      if (name === PREF.defaultLayout) paintMode(openMode);
       const data = activeData();
       if (targetTab && data && [PREF.recent].includes(name)) candidates = eligibleTabs(targetTab, data);
       dialog.toggleAttribute("compact", boolPref(PREF.compact, false));

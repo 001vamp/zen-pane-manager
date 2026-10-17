@@ -11,6 +11,22 @@
     "id": "mod.pane.section-0"
   },
   {
+    "property": "mod.pane.default-layout",
+    "label": "Default picker layout",
+    "type": "dropdown",
+    "defaultValue": "",
+    "options": [
+      { "label": "Automatic (Replace in a split; Split right otherwise)", "value": "" },
+      { "label": "Replace", "value": "replace" },
+      { "label": "Split right", "value": "right" },
+      { "label": "Split below", "value": "below" },
+      { "label": "Add to grid", "value": "grid" },
+      { "label": "Floating", "value": "float" },
+      { "label": "Horizontal accordion", "value": "accordion" },
+      { "label": "Scrolling", "value": "scrolling" }
+    ]
+  },
+  {
     "property": "mod.pane.toolbar-visibility",
     "label": "Toolbar visibility",
     "type": "dropdown",

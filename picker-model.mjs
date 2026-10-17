@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. https://mozilla.org/MPL/2.0/
 
-import { normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
+import { modeLabels, normalizeMode } from "./layout-modes.mjs?pane=0.11.0-picker";
 export { arrangeOptions } from "./layout-options.mjs?pane=0.11.0-picker";
 
 // Pure picker rules. Callers hand in plain records. Nothing here reads Zen.
@@ -62,7 +62,9 @@ export function filterDestinations(list, query) {
   return (list ?? []).filter(item => destinationSearchText(item).toLocaleLowerCase().includes(needle));
 }
 
-export function defaultMode({ inSplit } = {}) {
+export function defaultMode({ inSplit, savedMode = "" } = {}) {
+  const mode = normalizeMode(savedMode);
+  if (Object.hasOwn(modeLabels, mode) && (inSplit || mode !== "replace")) return mode;
   return inSplit ? "replace" : "right";
 }
 
