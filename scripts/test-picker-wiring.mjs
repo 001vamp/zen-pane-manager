@@ -218,17 +218,18 @@ assert.ok(!keys.includes("export { isHubCycleChord }"), "the chord lives in keyb
 assert.ok(!keys.includes(".closest"), "the reducer stays DOM-free");
 console.log("Picker wiring: roving focus, hover follows row focus, nested buttons keep highlight.");
 
-// Run the real capture listener with a macOS Option-generated character.
+// Auto Mac Control+Option+R must match a real Option character and call preventDefault.
 {
   let opened = 0, closed = 0;
   const shortcutLogs = [];
   const context = vm.createContext({
+    platform: "MacIntel",
     window: {navigator: {platform: "MacIntel"}, addEventListener(type, listener, capture) {
       assert.equal(type, "keydown");
       assert.equal(capture, true, "the picker shortcut runs before page listeners");
       this.listener = listener;
     }},
-    Services: {prefs: {getIntPref: () => 3, getStringPref: () => "Alt+Shift+R"}},
+    Services: {prefs: {getIntPref: () => 0}},
     pickerBinding, pickerShortcutAction, shortcutLabel, overlay: {hidden: true},
     diagnosticLog(event, details) { shortcutLogs.push(details.binding); },
     openPicker() { opened++; context.overlay.hidden = false; },
@@ -238,7 +239,7 @@ console.log("Picker wiring: roving focus, hover follows row focus, nested button
   assert.ok(registration, "shortcut capture listener is registered");
   vm.runInContext(take("function onShortcut", "function onBackdropMouseDown") + registration, context);
   const press = extra => {
-    const event = {key: "‰", code: "KeyR", altKey: true, shiftKey: true, ctrlKey: false, metaKey: false,
+    const event = {key: "®", code: "KeyR", altKey: true, shiftKey: false, ctrlKey: true, metaKey: false,
       getModifierState: name => name === "AltGraph",
       preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra};
     context.window.listener(event);
@@ -246,35 +247,15 @@ console.log("Picker wiring: roving focus, hover follows row focus, nested button
   };
   for (const state of ["open", "close"]) {
     const event = press();
-    assert.equal(event.prevented, true, `${state} prevents text insertion`);
+    assert.equal(event.prevented, true, `${state} preventDefault stops the Mac Option character from being typed`);
     assert.equal(event.stopped, true, `${state} stops the event before page handlers`);
   }
   assert.equal(opened, 1);
   assert.equal(closed, 1);
-  assert.deepEqual(shortcutLogs, ['Option+Shift+R', 'Option+Shift+R'], 'shortcut diagnostics use the platform formatter');
-  const ordinary = press({key: "r", altKey: false, shiftKey: false, getModifierState: () => false});
+  assert.deepEqual(shortcutLogs, ['Control+Option+R', 'Control+Option+R'], 'shortcut diagnostics use the Mac formatter');
+  const ordinary = press({key: "r", altKey: false, ctrlKey: false, getModifierState: () => false});
   assert.ok(!ordinary.prevented && !ordinary.stopped, "ordinary typing reaches the page");
+  context.platform = "";
+  assert.doesNotThrow(() => press(), "a missing platform must not throw on keypress");
 }
-
-// Privileged module globals need not expose navigator: each surface must use
-// the browser window's platform, including Settings conflict detection.
-const bindingsSource = await readFile(new URL("../keybindings.mjs", import.meta.url), "utf8");
-for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
-  const expected = platform === "MacIntel" ? "Ctrl+Alt+R" : "Alt+Shift+P";
-  const prefs = { getIntPref: () => 0 };
-  const context = vm.createContext({
-    window: { navigator: { platform } },
-    Services: { prefs }, prefs, platform,
-  });
-  vm.runInContext(bindingsSource.replace(/^export /gm, ""), context);
-  for (const file of ["pane.uc.mjs", "pane-settings.uc.mjs", "pane-diagnostics.uc.mjs"]) {
-    const text = await readFile(new URL(`../${file}`, import.meta.url), "utf8");
-    const calls = [...text.matchAll(/pickerBinding\([^()]*\)/g)];
-    assert.ok(calls.length, `${file} has picker consumers`);
-    for (const call of calls) {
-      const binding = vm.runInContext(call[0], context);
-      assert.equal(binding.label, expected, `${platform}: ${file}: ${call[0]} agrees with the handler`);
-    }
-  }
-}
-console.log("Picker platform: handler, guide, startup log, Settings and diagnostics agree on Mac/Windows/Linux.");
+console.log("Picker platform: Auto Mac Control+Option+R calls preventDefault on open and close.");

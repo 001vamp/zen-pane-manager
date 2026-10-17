@@ -41,12 +41,14 @@ export function decodeAccordionGroup(raws) {
   return { group: saved[0].group, activeIndex: activeIndex >= 0 ? activeIndex : 0 };
 }
 
-// Stored `active` is ignored. Old snapshot records still count as scrolling.
+// First truthy `active` wins; else tab 0. Old snapshot records still count as scrolling.
 export function decodeScrollingGroup(raws) {
   const saved = [...raws].map(parseRecord);
   if (!saved.every(record => typeof record?.group === "string" && record.group === saved[0]?.group)) return null;
+  const activeIndex = saved.findIndex(record => record.active);
   return {
     group: saved[0].group,
+    activeIndex: activeIndex >= 0 ? activeIndex : 0,
     widths: saved.map(record => Number.isFinite(record.width) && record.width > 0 ? record.width : null),
   };
 }

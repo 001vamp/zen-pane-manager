@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
-import { pickerBinding, shortcutLabel, accordionBindings, shortcutSettings } from '../keybindings.mjs';
+import { pickerBinding, shortcutLabel, accordionBindings, shortcutSettings, windowPlatform } from '../keybindings.mjs';
 const source = readFileSync(new URL("../pane.uc.mjs", import.meta.url), "utf8");
 const code = source.slice(source.indexOf("const UPDATE_NOTICES ="), source.indexOf("function closePicker("));
 const values = new Map();
@@ -10,7 +10,7 @@ const node = () => ({ children: [], setAttribute() {}, toggleAttribute() {}, app
 const context = vm.createContext({
   window: { navigator: { platform: "MacIntel" } },
   updateNotice: null, updateNoticeTimer: null,
-  pickerBinding, shortcutLabel, setPaneIcon() {},
+  pickerBinding, shortcutLabel, windowPlatform, setPaneIcon() {},
   Services: { prefs: {
     getStringPref: (key, fallback) => values.get(key) ?? fallback,
     getBoolPref: (key, fallback) => values.get(key) ?? fallback,
@@ -78,14 +78,21 @@ assert.match(source, /updateNotice\?\.remove\(\)/);
 // Execute the shipped guide, startup logs and Settings control with real bindings.
 // No module-global navigator is available in this privileged-module fixture.
 const settings = readFileSync(new URL('../pane-settings.uc.mjs', import.meta.url), 'utf8');
+const shortcutStart = settings.indexOf('function shortcutControl(');
+const shortcutEnd = settings.indexOf('function colorControl(');
+const startupStart = source.lastIndexOf('    const binding = pickerBinding(');
+const startupEnd = source.indexOf('  } catch (error)', startupStart);
+assert.ok(shortcutStart >= 0 && shortcutEnd > shortcutStart, 'Settings shortcut control markers are present');
+assert.ok(startupStart >= 0 && startupEnd > startupStart, 'startup log markers are present');
 context.element = node;
 context.accordionBindings = accordionBindings;
 context.prefs = context.Services.prefs;
 context.Services.prefs.getIntPref = (key, fallback) => values.get(key) ?? fallback;
-vm.runInContext(settings.slice(settings.indexOf('function shortcutControl('), settings.indexOf('function colorControl(')), context);
-const startup = source.slice(source.lastIndexOf('    const binding = pickerBinding('), source.indexOf('  } catch (error)', source.lastIndexOf('    const binding = pickerBinding(')));
+vm.runInContext(settings.slice(shortcutStart, shortcutEnd), context);
+const startup = source.slice(startupStart, startupEnd);
 for (const platform of ['MacIntel', 'Win32', 'Linux x86_64']) {
   context.window.navigator.platform = platform;
+  context.platform = platform;
   for (const custom of [false, true]) {
     values.clear();
     values.set('mod.pane.shortcut', custom ? 3 : 0);

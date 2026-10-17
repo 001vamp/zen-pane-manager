@@ -5,9 +5,12 @@ All notable changes to Pane are documented here.
 ## Unreleased
 
 - Keep Scrolling active when floating a tab while at least two docked columns remain. Preserve column widths and tab order when docking it back, and refresh the rejoined column immediately.
+- When a two-tab Scrolling split ends because one tab floated, remember the widths and active column and restore Scrolling when that tab docks back.
+- Restore the saved Scrolling column after a restart.
+- Prefer a saved accordion over a leftover float record on the same tab, and drop the stale float record.
 - Automatically dock floating tabs when switching a split to Scrolling or Horizontal accordion, keeping the original pages and tab order.
 - Give the picker a solid light/dark background beneath its tint so page content does not show through.
-- Use the same platform-specific Auto picker shortcut in the handler, quick-start guide, startup log, Settings, and diagnostics arbitration: Control+Option+R on Mac and Alt+Shift+P on Windows/Linux. All shortcut displays and logs share the platform formatter (Control/Option/Command on Mac, Ctrl/Alt elsewhere). Picker binding and shortcut arbitration require an explicit browser-window platform and throw if it is missing. Settings conflict checks use that platform too.
+- Use the same platform-specific Auto picker shortcut in the handler, quick-start guide, startup log, Settings, and diagnostics arbitration: Control+Option+R on Mac and Alt+Shift+P on Windows/Linux. Shortcut helpers require an explicit window platform. The runtime, diagnostics, Settings, and layout controller resolve that platform once at startup and fail there if it is missing, not on each keypress. The shared label formatter maps whole modifier words (Control/Option on Mac only; Windows and Linux keep Ctrl/Alt).
 
 - Let Control+Shift+[ and Control+Shift+] (the physical bracket keys) cycle the picker layout chips while search stays focused. The highlight and a Tab-focused row move together; cycling or clicking a chip paints chips and row verbs in place so the highlighted row, focus, and thumbnails stay put. Hover follows a focused row but leaves Add / Floating / Unsplit and search alone, and ignores mouseovers caused by keyboard or wheel scrolling (the highlight stays until a real pointer move). Recording that chord as Open Pane or a layout shortcut is rejected. An already-saved copy still opens the picker, but does not toggle it closed while the overlay is open. A pre-existing non-US Ctrl+Shift+* layout-menu shortcut still fires when the picker is closed.
 - Remove experimental and prototype labels from Scrolling, Horizontal accordion, and settings. Saved layout IDs and preference keys are unchanged.

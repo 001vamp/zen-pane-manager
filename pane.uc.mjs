@@ -1,10 +1,10 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-shortcut-contract";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-scroll-resume";
 import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
-import { pickerBinding, pickerShortcutAction, shortcutLabel } from "./keybindings.mjs?pane=0.11.0-shortcut-contract";
-import { reduce } from "./picker-keys.mjs?pane=0.11.0-shortcut-contract";
+import { pickerBinding, pickerShortcutAction, shortcutLabel, windowPlatform } from "./keybindings.mjs?pane=0.11.0-shortcut-platform";
+import { reduce } from "./picker-keys.mjs?pane=0.11.0-shortcut-platform";
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -16,6 +16,7 @@ const INSTANCE_KEY = "__paneInstance";
 const DIAGNOSTICS_KEY = "__paneDiagnostics";
 const diagnosticLog = (event, details = {}) => window[DIAGNOSTICS_KEY]?.log?.(event, details);
 let destroyed = false;
+let platform;
 
 // Sine can reload a user script without restarting the browser. Tear down a
 // previous v0.3+ instance and remove any orphaned UI from older releases.
@@ -206,8 +207,9 @@ function showUpdateNotice(manual = false) {
     return section;
   };
   if (guideNeeded || manual) {
-    const binding = pickerBinding(prefs, window.navigator?.platform);
-    card("1. Open Pane", binding ? `Press ${shortcutLabel(binding, window.navigator?.platform)}, or use the swap button at the top of a split pane.` : "Use the swap button at the top of a split pane. You can enable a shortcut in Sine’s Pane settings.");
+    const platform = window.navigator?.platform;
+    const binding = typeof platform === 'string' && platform.trim() ? pickerBinding(prefs, platform) : null;
+    card("1. Open Pane", binding ? `Press ${shortcutLabel(binding, platform)}, or use the swap button at the top of a split pane.` : "Use the swap button at the top of a split pane. You can enable a shortcut in Sine’s Pane settings.");
     card("2. Split or replace", "Pick an open tab and choose a layout. Replace swaps a page without changing your split.");
     card("3. Float a tab", "Choose Floating. Drag the title bar to move it, or an edge to resize. Its menu lets you put it back into a split.");
     const accordion = card("4. Try accordion", "Choose Horizontal accordion in a split’s layout menu. Click a page edge to switch, or focus it and use Left/Right. Shortcuts are customizable in Pane settings.");
@@ -1009,7 +1011,7 @@ function onPickerDialogKey(event) {
 }
 
 function onShortcut(event) {
-  const platform = window.navigator?.platform;
+  if (typeof platform !== 'string' || !platform.trim()) return;
   const binding = pickerBinding(Services.prefs, platform);
   const action = pickerShortcutAction(event, { overlayOpen: Boolean(overlay && !overlay.hidden), binding, platform });
   if (action === "cycle") return;
@@ -1117,6 +1119,7 @@ function destroy() {
 
 function initialize() {
   try {
+    platform = windowPlatform(window);
     diagnosticLog("Pane runtime initializing", { documentReady: document.readyState });
     buildPicker();
     multiwindow = createMultiwindow(window, {
@@ -1158,9 +1161,9 @@ function initialize() {
     // Sine intentionally keeps an already imported module running.
     window.addUnloadListener?.(destroy);
 
-    const binding = pickerBinding(Services.prefs, window.navigator?.platform);
-    diagnosticLog("Pane runtime ready", { binding: shortcutLabel(binding, window.navigator?.platform) });
-    console.log(TAG, `0.11.0 ready${binding ? ` — press ${shortcutLabel(binding, window.navigator?.platform)}` : " — shortcut disabled"}`);
+    const binding = pickerBinding(Services.prefs, platform);
+    diagnosticLog("Pane runtime ready", { binding: shortcutLabel(binding, platform) });
+    console.log(TAG, `0.11.0 ready${binding ? ` — press ${shortcutLabel(binding, platform)}` : " — shortcut disabled"}`);
   } catch (error) {
     console.error(TAG, "failed to initialize", error);
     diagnosticLog("Pane initialization failed", { error: error?.name });
