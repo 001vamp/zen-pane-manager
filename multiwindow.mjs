@@ -815,6 +815,7 @@ export function createMultiwindow(win, { notify, chooseTab, appearance, prefs = 
         view.removeSplitters(); view.applyGridLayout(data.layoutTree);
       }
       applyFloat();
+      applyScrolling();
     }
   }
   function raiseFloat(f) {

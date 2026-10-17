@@ -133,6 +133,7 @@ for (const tab of tabs) tab.splitView = data.tabs.includes(tab);
 controller.arrange(tabs[0], 'scrolling');
 const columns = controller.capturePresentation(data);
 columns.scrolling.widths.set(tabs[0], 810);
+columns.scrolling.widths.set(tabs[1], 730);
 controller.restorePresentation(data, columns);
 const unrelated = {tabs:[tabs[3], tabs[4]], gridType:'hsep', layoutTree:tree([tabs[3], tabs[4]], 'hsep')};
 view._data.push(unrelated);
@@ -151,6 +152,23 @@ assert.ok(!container(tabs[3]).hasAttribute('pane-scrolling'), 'the floating page
 controller.arrange(tabs[1], 'float');
 assert.ok(controller.capturePresentation(data).scrolling, 'floating one member leaves two scrolling columns');
 assert.ok(!container(tabs[1]).hasAttribute('pane-scrolling'));
+// Dock through the same API used by picker replacement, without restarting Scrolling.
+const dockOrder = [...data.tabs];
+const dockWidths = controller.capturePresentation(data).scrolling.widths;
+controller.clearFloat(true, tabs[1]);
+assert.ok(controller.capturePresentation(data).scrolling, 'docking keeps Scrolling active');
+assert.deepEqual(controller.capturePresentation(data).scrolling.widths, dockWidths, 'docking preserves every custom width');
+assert.deepEqual(data.tabs, dockOrder, 'docking preserves native column order');
+assert.deepEqual(controller.floatingTabs, [tabs[3]], 'docking leaves the other float alone');
+assert.ok(container(tabs[1]).hasAttribute('pane-scrolling'), 'docked tab immediately rejoins Scrolling columns');
+win.emit('keydown', {type:'keydown', altKey:true, shiftKey:true});
+assert.deepEqual(doc.querySelectorAll('.pane-snapshot-card').map(card => card.querySelector('.pane-scrolling-title').textContent),
+  dockOrder.filter(tab => tab !== tabs[3]).map(tab => tab.label), 'overview columns follow native tab order after docking');
+assert.deepEqual(doc.querySelectorAll('.pane-snapshot-card').slice(0, 2).map(card => card.getAttribute('width')),
+  ['810px', '730px'], 'overview retains both existing and rejoined column widths');
+win.emit('keyup', {type:'keyup'});
+console.log('Scrolling dock: immediate rejoin, column order, custom widths and other floats preserved.');
+controller.arrange(tabs[1], 'float');
 win.gBrowser.selectedTab = tabs[0];
 controller.scrollStep(data, 1);
 assert.equal(win.gBrowser.selectedTab, tabs[2], 'scroll navigation skips floating members');
