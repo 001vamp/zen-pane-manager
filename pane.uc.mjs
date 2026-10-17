@@ -1,5 +1,5 @@
 import { setPaneIcon, setPaneNativeIcon, paneIcon } from "./icons.mjs?pane=0.11.0-icons2";
-import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-scroll-teardown";
+import { createMultiwindow, modeLabels, normalizeMode, tabWorkspace, isSupportedTab, addHistoryControls, updateHistoryControls } from "./multiwindow.mjs?pane=0.11.0-stale-controls";
 import { remapPresentation } from "./presentation-snapshot.mjs?pane=0.11.0-picker";
 import { eligibleDestinations, filterDestinations, defaultMode, activatePlan } from "./picker-model.mjs?pane=0.11.0-picker";
 import { numericValue, glassPresets } from "./appearance.mjs?pane=0.11.0-labels";
@@ -535,6 +535,7 @@ function openCandidate(tab, requestedMode = null) {
     return;
   }
   if (plan.op === "replace") {
+    multiwindow.forgetPausedScrolling(targetTab);
     multiwindow.clearFloat(true, targetTab);
     replacePane(tab); return;
   }
