@@ -61,7 +61,7 @@ for (const forbidden of ["fetch(", "XMLHttpRequest", "WebSocket", "eval(", "nsIP
   if (extracted.some(body => body.includes(forbidden))) fail(`extracted module contains forbidden capability: ${forbidden}`);
 }
 
-if (!source.includes("multiwindow.mjs?pane=0.11.0-picker-focus")) fail("runtime must cache-bust the split controller");
+if (!source.includes("multiwindow.mjs?pane=0.11.0-float-scrolling")) fail("runtime must cache-bust the split controller");
 if (!source.includes("presentation-snapshot.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the snapshot helper");
 if (!source.includes("picker-model.mjs?pane=0.11.0-picker")) fail("runtime must cache-bust the picker model");
 if (!source.includes("picker-keys.mjs?pane=0.11.0-picker-focus")) fail("runtime must cache-bust the picker key reducer");
